@@ -1,0 +1,12 @@
+.DS_Store
+.next
+node_modules
+coverage
+dist
+out
+.env
+.env.local
+.env.*.local
+.bazaarx
+contracts/cache
+contracts/out
