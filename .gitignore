@@ -8,5 +8,6 @@ out
 .env.local
 .env.*.local
 .bazaarx
+tsconfig.tsbuildinfo
 contracts/cache
 contracts/out
