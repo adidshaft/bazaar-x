@@ -501,11 +501,13 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
   const [worldTick, setWorldTick] = useState(0);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
+  const [manualTarget, setManualTarget] = useState<{ x: number; y: number } | null>(null);
   const forcedScene = initialScene;
   const engineRef = useRef<Matter.Engine | null>(null);
   const playerBodyRef = useRef<Matter.Body | null>(null);
   const controlModeRef = useRef<ControlMode>("auto");
   const activeDirectionRef = useRef<Direction | null>(null);
+  const manualTargetRef = useRef<{ x: number; y: number } | null>(null);
   const autoRouteIndexRef = useRef(0);
   const districtPointsRef = useRef<Map<DistrictId, { x: number; y: number }>>(new Map());
   const selectedIdRef = useRef<DistrictId>("square");
@@ -877,6 +879,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
 
   function syncPlayerPosition(nextPosition: { x: number; y: number }) {
     setPlayerPosition(nextPosition);
+    setManualTarget(null);
+    manualTargetRef.current = null;
 
     if (playerBodyRef.current) {
       Matter.Body.setPosition(playerBodyRef.current, nextPosition);
@@ -894,6 +898,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   function engageAutoControl() {
     setActiveDirection(null);
     setControlMode("auto");
+    setManualTarget(null);
+    manualTargetRef.current = null;
     setAutoRouteIndex(nearestRouteIndex(courierRoute, districtPoints, playerPosition));
   }
 
@@ -905,6 +911,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     if (controlMode !== "manual") {
       engageManualControl();
     }
+    setManualTarget(null);
+    manualTargetRef.current = null;
     setActiveDirection(direction);
   }
 
@@ -1163,10 +1171,30 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
             desiredVelocity.x = 1.05;
           }
 
-          Matter.Body.setVelocity(playerBody, {
-            x: desiredVelocity.x === 0 ? playerBody.velocity.x * 0.72 : desiredVelocity.x,
-            y: desiredVelocity.y === 0 ? playerBody.velocity.y * 0.72 : desiredVelocity.y,
-          });
+          if (direction) {
+            Matter.Body.setVelocity(playerBody, desiredVelocity);
+          } else if (manualTargetRef.current) {
+            const dx = manualTargetRef.current.x - playerBody.position.x;
+            const dy = manualTargetRef.current.y - playerBody.position.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < 1.2) {
+              manualTargetRef.current = null;
+              setManualTarget(null);
+              Matter.Body.setVelocity(playerBody, { x: 0, y: 0 });
+            } else {
+              const speed = 0.96;
+              Matter.Body.setVelocity(playerBody, {
+                x: (dx / dist) * speed,
+                y: (dy / dist) * speed,
+              });
+            }
+          } else {
+            Matter.Body.setVelocity(playerBody, {
+              x: playerBody.velocity.x * 0.72,
+              y: playerBody.velocity.y * 0.72,
+            });
+          }
         } else {
           const nextRouteIndex = autoRouteIndexRef.current % courierRoute.length;
           const targetId = courierRoute[nextRouteIndex];
@@ -1381,15 +1409,17 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           };
   const travelPrompt = nearbyDistrict
     ? `You are near ${nearbyDistrict.title}. Press space or tap inspect.`
+    : manualTarget
+      ? `Manual route locked. The courier is walking to your marker.`
     : controlMode === "auto"
       ? `Auto courier is walking toward ${courierTargetTitle}.`
-      : `Head toward ${objectiveDistrict.title} to continue the economy loop.`;
+      : `Click a road tile or head toward ${objectiveDistrict.title} to continue the economy loop.`;
   const legendItems = [
-    { label: "You", copy: "Golden courier. Your wallet-controlled explorer.", color: "#f3c44f", accent: "courier" as const },
-    { label: "Merchant", copy: "Teal trader that opens shops and starts demand.", color: "#72f0d3", accent: "shop" as const },
-    { label: "Supplier", copy: "Blue logistics agent routing services eastward.", color: "#86a7ff", accent: "supplier" as const },
-    { label: "Worker", copy: "Coral operator that completes paid tasks.", color: "#ff9a8b", accent: "worker" as const },
-    { label: "Governor", copy: "Lilac policy agent that updates the rules.", color: "#d4b5ff", accent: "governor" as const },
+    { label: "You", copy: "Wallet-controlled courier.", color: "#f3c44f", accent: "courier" as const },
+    { label: "Merchant", copy: "Opens shops and starts demand.", color: "#72f0d3", accent: "shop" as const },
+    { label: "Supplier", copy: "Routes services through the east lane.", color: "#86a7ff", accent: "supplier" as const },
+    { label: "Worker", copy: "Completes paid tasks.", color: "#ff9a8b", accent: "worker" as const },
+    { label: "Governor", copy: "Updates economy rules.", color: "#d4b5ff", accent: "governor" as const },
   ];
   const cameraShiftX = (playerPosition.x - 50) * -0.18;
   const cameraShiftY = (playerPosition.y - 56) * -0.14;
@@ -1425,12 +1455,29 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     },
   ];
 
+  function handleWorldPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (onboardingVisible) {
+      return;
+    }
+
+    const element = event.currentTarget;
+    const bounds = element.getBoundingClientRect();
+    const nextPosition = {
+      x: clamp(((event.clientX - bounds.left) / bounds.width) * 100, 8, 92),
+      y: clamp(((event.clientY - bounds.top) / bounds.height) * 100, 18, 90),
+    };
+
+    engageManualControl();
+    setManualTarget(nextPosition);
+    manualTargetRef.current = nextPosition;
+  }
+
   return (
     <main className="relative h-[100svh] w-full overflow-hidden bg-[#f5f1e7] text-[#15120f]">
       <div className="pixel-plaza absolute inset-0" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.45),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.18),transparent_40%,rgba(0,0,0,0.06))]" />
 
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden" onPointerDown={handleWorldPointerDown}>
         <div
           className="absolute inset-[-5%] transition-transform duration-500"
           style={{ transform: `translate(${cameraShiftX}%, ${cameraShiftY}%) scale(1.08)` }}
@@ -1555,6 +1602,18 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           <div className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#fff7c2] bg-[radial-gradient(circle,rgba(255,241,162,0.28),transparent_72%)]" />
         </div>
 
+        {manualTarget ? (
+          <div
+            className="pointer-events-none absolute z-[6] -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: `${manualTarget.x}%`,
+              top: `${manualTarget.y}%`,
+            }}
+          >
+            <div className="h-7 w-7 border-4 border-dashed border-[#f16f51] bg-[radial-gradient(circle,rgba(241,111,81,0.18),transparent_72%)]" />
+          </div>
+        ) : null}
+
         {npcPositions
           .filter((agent) => agent.id !== "courier")
           .map((agent) => (
@@ -1580,7 +1639,6 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           const selected = selectedDistrict.id === district.id;
           const nearby = nearbyDistrict?.id === district.id;
           const objective = objectiveDistrict.id === district.id;
-          const isSquare = district.id === "square";
 
           return (
             <button
@@ -1610,23 +1668,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                   </span>
                 </div>
               ) : null}
-              <div
-                className={`absolute inset-x-[16%] top-[16%] h-[30%] border-[4px] border-[#171411] ${selected ? "scale-[1.02]" : ""}`}
-                style={{
-                  backgroundColor: district.palette.roof,
-                  boxShadow:
-                    selected || objective
-                      ? `0 0 0 4px rgba(255,255,255,0.35), 0 8px 18px ${district.palette.glow}`
-                      : undefined,
-                }}
-              />
-              <div
-                className={`absolute inset-x-[10%] bottom-[12%] top-[34%] border-[4px] border-[#171411] ${isSquare ? "bg-[#4e3723]" : ""}`}
-                style={{
-                  backgroundColor: isSquare ? "#4e3723" : district.palette.wall,
-                }}
-              />
-              <div className="absolute left-1/2 top-[54%] h-[18%] w-[20%] -translate-x-1/2 border-[3px] border-[#171411] bg-[#1d1b18]" />
+              <DistrictSprite district={district} selected={selected} objective={objective} />
               <div
                 className="absolute left-1/2 top-[-24%] -translate-x-1/2 whitespace-nowrap px-2 py-1"
                 style={{
@@ -2455,7 +2497,7 @@ function UtilityBoard({
         <UtilityTabButton label="Map" active={activeTab === "map"} onClick={() => onTabChange("map")} />
         <UtilityTabButton label="Controls" active={activeTab === "controls"} onClick={() => onTabChange("controls")} />
       </div>
-      <div className="mt-4">
+      <div className="mt-4 max-h-[46svh] overflow-y-auto pr-1">
         {activeTab === "legend" ? legend : null}
         {activeTab === "map" ? map : null}
         {activeTab === "controls" ? controls : null}
@@ -2501,7 +2543,7 @@ function LegendBoard({
           Read the town at a glance. Character colors match the moving agents on the map.
         </div>
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         {items.map((item) => (
           <LegendListRow key={item.label} label={item.label} copy={item.copy} role={item.accent} color={item.color} />
         ))}
@@ -2512,8 +2554,8 @@ function LegendBoard({
           Light squares on the road show where you can inspect districts.
         </div>
         <div className="border-4 border-[#171411] bg-[#131923] px-3 py-3 text-sm leading-6 text-[#d4cabd]">
-          <div className="arcade-face text-[0.36rem] text-[#f8f2e9]">Current route</div>
-          {nearbyLabel ? `You are within inspect range of ${nearbyLabel}.` : `Head toward ${objectiveLabel}.`}
+          <div className="arcade-face text-[0.36rem] text-[#f8f2e9]">Movement</div>
+          {nearbyLabel ? `You are within inspect range of ${nearbyLabel}.` : `Click the ground or head toward ${objectiveLabel}.`}
         </div>
       </div>
     </div>
@@ -2539,10 +2581,107 @@ function LegendListRow({
         </div>
         <div className="min-w-0">
           <div className="arcade-face text-[0.36rem] text-[#f8f2e9]">{label}</div>
-          <div className="mt-1 text-sm leading-6 text-[#d4cabd]">{copy}</div>
+          <div className="mt-1 text-sm leading-5 text-[#d4cabd]">{copy}</div>
         </div>
       </div>
     </div>
+  );
+}
+
+function DistrictSprite({
+  district,
+  selected,
+  objective,
+}: {
+  district: District;
+  selected: boolean;
+  objective: boolean;
+}) {
+  const glowStyle =
+    selected || objective
+      ? {
+          boxShadow: `0 0 0 4px rgba(255,255,255,0.35), 0 8px 18px ${district.palette.glow}`,
+        }
+      : undefined;
+
+  if (district.id === "square") {
+    return (
+      <>
+        <div className="absolute inset-x-[16%] top-[18%] h-[18%] border-[4px] border-[#171411] bg-[#f8df8c]" style={glowStyle} />
+        <div className="absolute inset-x-[10%] bottom-[12%] top-[32%] border-[4px] border-[#171411] bg-[#735823]" />
+        <div className="absolute left-[18%] top-[44%] h-[18%] w-[18%] border-[3px] border-[#171411] bg-[#f06c50]" />
+        <div className="absolute right-[18%] top-[44%] h-[18%] w-[18%] border-[3px] border-[#171411] bg-[#72f0d3]" />
+        <div className="absolute left-1/2 top-[42%] h-[24%] w-[24%] -translate-x-1/2 rounded-full border-[4px] border-[#171411] bg-[#f7f2e9]" />
+      </>
+    );
+  }
+
+  if (district.id === "core") {
+    return (
+      <>
+        <div className="absolute inset-x-[16%] top-[10%] h-[18%] border-[4px] border-[#171411] bg-[#ffb35b]" style={glowStyle} />
+        <div className="absolute inset-x-[12%] bottom-[10%] top-[24%] border-[4px] border-[#171411] bg-[#8c431d]" />
+        <div className="absolute inset-x-[24%] top-[32%] h-[18%] border-[4px] border-[#171411] bg-[#ad5b2d]" />
+        <div className="absolute left-[42%] top-[52%] h-[22%] w-[16%] border-[3px] border-[#171411] bg-[#1d1b18]" />
+      </>
+    );
+  }
+
+  if (district.id === "shop") {
+    return (
+      <>
+        <div className="absolute inset-x-[14%] top-[16%] h-[16%] border-[4px] border-[#171411] bg-[#72f0d3]" style={glowStyle} />
+        <div className="absolute inset-x-[10%] bottom-[12%] top-[30%] border-[4px] border-[#171411] bg-[#1d685c]" />
+        <div className="absolute inset-x-[12%] top-[36%] h-[12%] bg-[repeating-linear-gradient(90deg,#fff8d7_0,#fff8d7_16px,#f06c50_16px,#f06c50_32px)]" />
+        <div className="absolute left-[24%] top-[54%] h-[16%] w-[14%] bg-[#f7f2e9]" />
+        <div className="absolute right-[24%] top-[54%] h-[16%] w-[14%] bg-[#f7f2e9]" />
+      </>
+    );
+  }
+
+  if (district.id === "supplier") {
+    return (
+      <>
+        <div className="absolute inset-x-[16%] top-[16%] h-[18%] border-[4px] border-[#171411] bg-[#86a7ff]" style={glowStyle} />
+        <div className="absolute inset-x-[8%] bottom-[12%] top-[32%] border-[4px] border-[#171411] bg-[#2b458e]" />
+        <div className="absolute left-[18%] top-[50%] h-[14%] w-[18%] border-[3px] border-[#171411] bg-[#b8c6f3]" />
+        <div className="absolute right-[18%] top-[50%] h-[14%] w-[18%] border-[3px] border-[#171411] bg-[#b8c6f3]" />
+        <div className="absolute left-[40%] top-[20%] h-[10%] w-[20%] border-[3px] border-[#171411] bg-[#dfe6ff]" />
+      </>
+    );
+  }
+
+  if (district.id === "worker") {
+    return (
+      <>
+        <div className="absolute inset-x-[14%] top-[18%] h-[16%] border-[4px] border-[#171411] bg-[#ff9a8b]" style={glowStyle} />
+        <div className="absolute inset-x-[10%] bottom-[12%] top-[34%] border-[4px] border-[#171411] bg-[#863743]" />
+        <div className="absolute left-[20%] top-[46%] h-[22%] w-[14%] bg-[#ffc49b]" />
+        <div className="absolute left-[18%] top-[42%] h-[8%] w-[22%] border-[3px] border-[#171411] bg-[#ffe29b]" />
+        <div className="absolute right-[18%] top-[42%] h-[8%] w-[12%] border-[3px] border-[#171411] bg-[#c5ccd8]" />
+        <div className="absolute right-[22%] top-[50%] h-[18%] w-[4%] bg-[#704b33]" />
+      </>
+    );
+  }
+
+  if (district.id === "treasury") {
+    return (
+      <>
+        <div className="absolute inset-x-[16%] top-[18%] h-[14%] border-[4px] border-[#171411] bg-[#b7f47e]" style={glowStyle} />
+        <div className="absolute inset-x-[12%] bottom-[12%] top-[30%] border-[4px] border-[#171411] bg-[#3d6f2d]" />
+        <div className="absolute left-1/2 top-[46%] h-[24%] w-[24%] -translate-x-1/2 border-[4px] border-[#171411] bg-[#d7e3ab]" />
+        <div className="absolute left-1/2 top-[54%] h-[8%] w-[8%] -translate-x-1/2 rounded-full border-[3px] border-[#171411] bg-[#c8a44f]" />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="absolute inset-x-[16%] top-[16%] h-[16%] border-[4px] border-[#171411]" style={{ backgroundColor: district.palette.roof, ...glowStyle }} />
+      <div className="absolute inset-x-[10%] bottom-[12%] top-[32%] border-[4px] border-[#171411]" style={{ backgroundColor: district.palette.wall }} />
+      <div className="absolute left-[24%] top-[50%] h-[14%] w-[14%] bg-[#f7f2e9]" />
+      <div className="absolute right-[24%] top-[50%] h-[14%] w-[14%] bg-[#f7f2e9]" />
+    </>
   );
 }
 
@@ -2713,7 +2852,7 @@ function ControlPad({
         <span />
       </div>
       <div className="mt-3 text-[11px] leading-5 text-[#d4cabd]">
-        Hold directions to move. {nearbyDistrictTitle ? `Inspect ${nearbyDistrictTitle} from the center button.` : "Use center to keep manual mode close at hand."}
+        Hold directions or click the map to move. {nearbyDistrictTitle ? `Inspect ${nearbyDistrictTitle} from the center button.` : "Use center to keep manual mode close at hand."}
       </div>
     </div>
   );
