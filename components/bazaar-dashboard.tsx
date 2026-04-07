@@ -231,14 +231,26 @@ type VillageProp = {
   scale?: number;
 };
 
+type ObstacleKind = "hedge" | "crate" | "rock" | "barrier";
+
+type VillageObstacle = {
+  id: string;
+  kind: ObstacleKind;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  blocking?: boolean;
+};
+
 const districtFrame = {
-  square: { x: 49, y: 56, width: 18, height: 12, approachX: 49, approachY: 62 },
-  core: { x: 50, y: 33, width: 14, height: 16, approachX: 50, approachY: 44 },
-  shop: { x: 21, y: 55, width: 16, height: 14, approachX: 28, approachY: 64 },
-  supplier: { x: 79, y: 45, width: 17, height: 13, approachX: 71, approachY: 54 },
-  worker: { x: 73, y: 73, width: 14, height: 12, approachX: 66, approachY: 74 },
-  treasury: { x: 56, y: 80, width: 16, height: 12, approachX: 55, approachY: 70 },
-  governor: { x: 24, y: 76, width: 14, height: 14, approachX: 32, approachY: 71 },
+  square: { x: 50, y: 58, width: 18, height: 12, approachX: 50, approachY: 63 },
+  core: { x: 50, y: 27, width: 15, height: 17, approachX: 50, approachY: 40 },
+  shop: { x: 13, y: 58, width: 17, height: 15, approachX: 22, approachY: 67 },
+  supplier: { x: 87, y: 42, width: 17, height: 14, approachX: 77, approachY: 51 },
+  worker: { x: 80, y: 81, width: 15, height: 13, approachX: 71, approachY: 78 },
+  treasury: { x: 61, y: 89, width: 16, height: 13, approachX: 58, approachY: 78 },
+  governor: { x: 16, y: 85, width: 15, height: 15, approachX: 25, approachY: 78 },
 } as const;
 
 const courierRoute: DistrictId[] = ["square", "shop", "core", "supplier", "worker", "treasury", "governor", "core", "square"];
@@ -509,18 +521,20 @@ async function fetchStatus() {
   return payload as DashboardResponse;
 }
 
-export function BazaarDashboard() {
+export function BazaarDashboard({ initialScene = null }: { initialScene?: string | null }) {
   const [hasMounted, setHasMounted] = useState(false);
   const [selectedId, setSelectedId] = useState<DistrictId>("square");
   const [controlMode, setControlMode] = useState<ControlMode>("auto");
   const [activePanel, setActivePanel] = useState<DockPanel | null>(null);
   const [bootReady, setBootReady] = useState(false);
+  const [hasEnteredGame, setHasEnteredGame] = useState(false);
   const [showSystemPanel, setShowSystemPanel] = useState(false);
   const [playerPosition, setPlayerPosition] = useState({ x: 49, y: 62 });
   const [autoRouteIndex, setAutoRouteIndex] = useState(0);
   const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
   const [worldTick, setWorldTick] = useState(0);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
+  const forcedScene = initialScene;
 
   const { address, chain, isConnected } = useAccount();
   const { data: balance } = useBalance({
@@ -542,6 +556,12 @@ export function BazaarDashboard() {
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!isConnected && forcedScene !== "game" && forcedScene !== "stats") {
+      setHasEnteredGame(false);
+    }
+  }, [forcedScene, isConnected]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -598,6 +618,10 @@ export function BazaarDashboard() {
     "https://www.oklink.com/x-layer-testnet";
   const contractAddress = bazaarSnapshot?.address ?? deployment?.contractAddress ?? "";
   const treasuryAddress = bazaarSnapshot?.treasury ?? manifest?.treasury.address ?? "";
+  const sceneForcesBoot = forcedScene === "boot";
+  const sceneForcesOnboarding = forcedScene === "onboarding";
+  const sceneForcesGame = forcedScene === "game" || forcedScene === "stats";
+  const previewMode = sceneForcesGame && !isConnected;
 
   const taxBps = Number(ruleValue(bazaarSnapshot?.rules, 0) ?? deployment?.initialRules.taxBps ?? 500);
   const minimumBalanceWei =
@@ -872,7 +896,7 @@ export function BazaarDashboard() {
     if (controlMode !== "manual") {
       engageManualControl();
     }
-    setPlayerPosition((current) => movePlayerPosition(current, direction));
+    setPlayerPosition((current) => resolvePlayerMove(current, direction));
   }
 
   function beginDirectionalMove(direction: Direction) {
@@ -975,28 +999,71 @@ export function BazaarDashboard() {
   );
 
   const scenerySpots: ScenerySpot[] = [
-    { id: "inn", title: "Inn", x: 12, y: 26, width: 12, height: 10, roof: "#d26f55", wall: "#7e402f" },
-    { id: "archive", title: "Archive", x: 30, y: 18, width: 10, height: 8, roof: "#96a8d8", wall: "#4b587a" },
-    { id: "watch", title: "Watch", x: 88, y: 20, width: 8, height: 12, roof: "#c7cedd", wall: "#586071" },
-    { id: "orchard", title: "Orchard", x: 14, y: 82, width: 10, height: 8, roof: "#7dbf59", wall: "#476537" },
-    { id: "dock", title: "Dock", x: 88, y: 84, width: 11, height: 8, roof: "#8fb4cc", wall: "#4a5e68" },
-    { id: "gate", title: "Gate", x: 49, y: 8, width: 12, height: 6, roof: "#d2bd7f", wall: "#69552a" },
+    { id: "inn", title: "Inn", x: 8, y: 24, width: 13, height: 11, roof: "#d26f55", wall: "#7e402f" },
+    { id: "archive", title: "Archive", x: 31, y: 14, width: 11, height: 8, roof: "#96a8d8", wall: "#4b587a" },
+    { id: "watch", title: "Watch", x: 92, y: 18, width: 9, height: 12, roof: "#c7cedd", wall: "#586071" },
+    { id: "orchard", title: "Orchard", x: 10, y: 92, width: 11, height: 9, roof: "#7dbf59", wall: "#476537" },
+    { id: "dock", title: "Dock", x: 91, y: 90, width: 12, height: 9, roof: "#8fb4cc", wall: "#4a5e68" },
+    { id: "gate", title: "Gate", x: 49, y: 6, width: 12, height: 6, roof: "#d2bd7f", wall: "#69552a" },
+    { id: "mill", title: "Mill", x: 72, y: 17, width: 10, height: 9, roof: "#ceb472", wall: "#6f5f31" },
+    { id: "workyard", title: "Workyard", x: 86, y: 69, width: 11, height: 8, roof: "#d98562", wall: "#875137" },
+    { id: "hamlet", title: "Hamlet", x: 22, y: 95, width: 12, height: 8, roof: "#d7aa69", wall: "#7b5732" },
   ];
 
   const villageProps: VillageProp[] = [
-    { id: "tree-1", kind: "tree", x: 9, y: 48, scale: 1.15 },
-    { id: "tree-2", kind: "tree", x: 17, y: 36, scale: 0.95 },
-    { id: "tree-3", kind: "tree", x: 32, y: 83, scale: 1.05 },
-    { id: "tree-4", kind: "tree", x: 63, y: 13, scale: 0.9 },
-    { id: "tree-5", kind: "tree", x: 82, y: 66, scale: 1.1 },
-    { id: "field-1", kind: "field", x: 74, y: 14, scale: 1.1 },
-    { id: "field-2", kind: "field", x: 12, y: 69, scale: 1.05 },
-    { id: "camp-1", kind: "camp", x: 68, y: 31, scale: 0.95 },
-    { id: "camp-2", kind: "camp", x: 35, y: 67, scale: 0.95 },
+    { id: "tree-1", kind: "tree", x: 7, y: 49, scale: 1.15 },
+    { id: "tree-2", kind: "tree", x: 18, y: 35, scale: 0.95 },
+    { id: "tree-3", kind: "tree", x: 29, y: 91, scale: 1.05 },
+    { id: "tree-4", kind: "tree", x: 64, y: 9, scale: 0.9 },
+    { id: "tree-5", kind: "tree", x: 84, y: 71, scale: 1.1 },
+    { id: "tree-6", kind: "tree", x: 92, y: 56, scale: 0.92 },
+    { id: "field-1", kind: "field", x: 74, y: 11, scale: 1.1 },
+    { id: "field-2", kind: "field", x: 10, y: 72, scale: 1.05 },
+    { id: "field-3", kind: "field", x: 84, y: 12, scale: 0.95 },
+    { id: "camp-1", kind: "camp", x: 69, y: 29, scale: 0.95 },
+    { id: "camp-2", kind: "camp", x: 38, y: 70, scale: 0.95 },
+    { id: "camp-3", kind: "camp", x: 18, y: 78, scale: 0.88 },
     { id: "cart-1", kind: "cart", x: 57, y: 58, scale: 0.9 },
+    { id: "cart-2", kind: "cart", x: 24, y: 48, scale: 0.78 },
+    { id: "cart-3", kind: "cart", x: 78, y: 73, scale: 0.88 },
+    { id: "cart-4", kind: "cart", x: 58, y: 74, scale: 0.8 },
     { id: "lamp-1", kind: "lamp", x: 44, y: 53, scale: 1 },
     { id: "lamp-2", kind: "lamp", x: 54, y: 43, scale: 1 },
+    { id: "lamp-3", kind: "lamp", x: 66, y: 63, scale: 1 },
+    { id: "lamp-4", kind: "lamp", x: 34, y: 63, scale: 1 },
+    { id: "lamp-5", kind: "lamp", x: 49, y: 76, scale: 1 },
   ];
+
+  const villageObstacles: VillageObstacle[] = [
+    { id: "hedge-west", kind: "hedge", x: 31, y: 53, width: 7, height: 21 },
+    { id: "hedge-east", kind: "hedge", x: 67, y: 52, width: 7, height: 18 },
+    { id: "crate-yard", kind: "crate", x: 76, y: 56, width: 8, height: 6 },
+    { id: "stone-ring", kind: "rock", x: 37, y: 83, width: 7, height: 6 },
+    { id: "south-barrier", kind: "barrier", x: 50, y: 82, width: 16, height: 4 },
+    { id: "north-barrier", kind: "barrier", x: 50, y: 17, width: 18, height: 4 },
+    { id: "bridge-guard-left", kind: "crate", x: 42, y: 37, width: 5, height: 5 },
+    { id: "bridge-guard-right", kind: "crate", x: 59, y: 37, width: 5, height: 5 },
+    { id: "south-hedge", kind: "hedge", x: 33, y: 86, width: 11, height: 10 },
+    { id: "east-rock", kind: "rock", x: 90, y: 78, width: 8, height: 7 },
+    { id: "market-crates", kind: "crate", x: 44, y: 66, width: 9, height: 5 },
+  ];
+
+  function blockedByObstacle(position: { x: number; y: number }) {
+    return villageObstacles.some((obstacle) => {
+      if (obstacle.blocking === false) {
+        return false;
+      }
+
+      const withinX = position.x >= obstacle.x - obstacle.width / 2 && position.x <= obstacle.x + obstacle.width / 2;
+      const withinY = position.y >= obstacle.y - obstacle.height / 2 && position.y <= obstacle.y + obstacle.height / 2;
+      return withinX && withinY;
+    });
+  }
+
+  function resolvePlayerMove(current: { x: number; y: number }, direction: Direction, step = 2.8) {
+    const next = movePlayerPosition(current, direction, step);
+    return blockedByObstacle(next) ? current : next;
+  }
 
   useEffect(() => {
     if (!hasMounted) {
@@ -1042,7 +1109,7 @@ export function BazaarDashboard() {
     }
 
     const interval = window.setInterval(() => {
-      setPlayerPosition((current) => movePlayerPosition(current, activeDirection, 2.35));
+      setPlayerPosition((current) => resolvePlayerMove(current, activeDirection, 2.35));
     }, 90);
 
     return () => window.clearInterval(interval);
@@ -1129,7 +1196,13 @@ export function BazaarDashboard() {
     deployStep?.txHash,
   ]);
 
-  const viewerBalance = hasMounted && balance ? formatOkb(Number(balance.formatted)) : "Not connected";
+  const viewerBalance = previewMode
+    ? "Preview mode"
+    : hasMounted && balance
+      ? formatOkb(Number(balance.formatted))
+      : "Not connected";
+  const viewerIdentity =
+    hasMounted && isConnected && address ? shortHash(address) : previewMode ? "Spectator" : "Not connected";
   const lastRefresh =
     hasMounted && statusQuery.dataUpdatedAt
       ? toRelativeTime(new Date(statusQuery.dataUpdatedAt).toISOString())
@@ -1163,20 +1236,28 @@ export function BazaarDashboard() {
           ? "governor"
           : "square";
   const objectiveDistrict = districtLookup.get(objectiveDistrictId) ?? selectedDistrict;
-  const showBootSplash = !hasMounted || !bootReady || statusQuery.isLoading;
-  const walletGateVisible = !showBootSplash && hasMounted && !isConnected;
+  const showBootSplash = sceneForcesBoot || !hasMounted || !bootReady || statusQuery.isLoading;
+  const canPlayGame = sceneForcesGame || isConnected;
+  const onboardingVisible =
+    !showBootSplash && ((sceneForcesOnboarding && !hasEnteredGame) || (!sceneForcesGame && !hasEnteredGame));
   const activeWorkers = npcPositions.filter((agent) => agent.id !== "courier").length;
   const visibleActivityAgents = npcPositions.filter((agent) => agent.id !== "courier").slice(0, 3);
+  const questCompletedCount = questSteps.filter((step) => step.status === "done").length;
+  const questProgress = Math.round((questCompletedCount / Math.max(1, questSteps.length)) * 100);
+  const treasuryOkbValue = Number(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0");
+  const treasuryMomentum = Math.max(8, Math.min(100, Math.round((treasuryOkbValue / 0.3) * 100)));
+  const taxMomentum = Math.max(10, Math.min(100, Math.round((taxBps / 800) * 100)));
+  const statsModalOpen = forcedScene === "stats" || showSystemPanel;
   const skillsSummary = installedSkills.length
     ? installedSkills.map((skill) => skill.name).join(", ")
     : "No world skills loaded.";
   const primaryQuestAction =
     !manifest?.agents.length
-      ? {
+        ? {
           label: "Spawn economy",
           hint: "Create the town roster and wallet state.",
           icon: Bot,
-          disabled: actionMutation.isPending || walletGateVisible,
+          disabled: actionMutation.isPending || onboardingVisible || !isConnected,
           loading: busyLabel === "Spawn economy",
           onClick: () =>
             runAction({
@@ -1194,7 +1275,7 @@ export function BazaarDashboard() {
             label: "Deploy to X Layer",
             hint: deployHint,
             icon: Landmark,
-            disabled: actionMutation.isPending || !canDeploy || walletGateVisible,
+            disabled: actionMutation.isPending || !canDeploy || onboardingVisible || !isConnected,
             loading: busyLabel === "Deploy to X Layer",
             onClick: () =>
               runAction({
@@ -1206,7 +1287,7 @@ export function BazaarDashboard() {
             label: "Play live round",
             hint: "Hire, pay, tax, reinvest, and govern onchain.",
             icon: Sparkles,
-            disabled: actionMutation.isPending || !canRunLive || walletGateVisible,
+            disabled: actionMutation.isPending || !canRunLive || onboardingVisible || !isConnected,
             loading: busyLabel === "Play live round",
             onClick: () =>
               runAction({
@@ -1225,7 +1306,33 @@ export function BazaarDashboard() {
     ? statusError
     : isUnsupportedViewerNetwork
       ? "Switch the connected wallet to X Layer testnet (1952) or mainnet (196)."
-      : "Wallet is the only sign-in. Use the dock for compact controls and proofs.";
+      : previewMode
+        ? "Spectator preview is active. Connect a wallet when you want to run live X Layer actions."
+      : onboardingVisible
+        ? "Connect your wallet and hit Play Game to enter the village."
+        : "Walk the town, inspect districts, and open the dock only when you need detail.";
+  const quickSummaries = [
+    {
+      label: "Objective",
+      value: objectiveDistrict.title,
+      caption: questFocus?.caption ?? "Follow the economy loop through the village.",
+    },
+    {
+      label: "Player",
+      value: controlMode === "auto" ? "Auto courier" : "Manual courier",
+      caption: nearbyDistrict ? `Near ${nearbyDistrict.title}` : "Roaming the village roads.",
+    },
+    {
+      label: "Settlement",
+      value: contractAddress ? "Contract live" : "Awaiting deploy",
+      caption: contractAddress ? shortHash(contractAddress) : "Deploy Bazaar X to wake the town.",
+    },
+    {
+      label: "Active agents",
+      value: String(activeWorkers),
+      caption: "NPC workers, suppliers, and governors moving through the live town.",
+    },
+  ];
 
   return (
     <main className="relative h-[100svh] w-full overflow-hidden bg-[#f5f1e7] text-[#15120f]">
@@ -1235,27 +1342,34 @@ export function BazaarDashboard() {
       <div className="absolute inset-0 overflow-hidden">
         <div
           className="absolute inset-[-5%] transition-transform duration-500"
-          style={{ transform: `translate(${cameraShiftX}%, ${cameraShiftY}%) scale(1.035)` }}
+          style={{ transform: `translate(${cameraShiftX}%, ${cameraShiftY}%) scale(1.08)` }}
         >
           <div className="pixel-cloud absolute left-[10%] top-[6%] h-10 w-24 opacity-75" />
           <div className="pixel-cloud pixel-cloud-delayed absolute right-[18%] top-[12%] h-8 w-20 opacity-60" />
           <div className="pixel-cloud absolute left-[66%] top-[18%] h-6 w-16 opacity-55" />
-        <div className="pixel-water absolute left-[31%] top-[7%] h-[50%] w-[23%] border-[6px] border-[#f3ebfb] shadow-[0_0_0_4px_#8f8a97]" style={{ clipPath: "polygon(32% 0%,100% 0%,100% 100%,0 100%,0 26%)" }} />
-        <div className="pixel-water absolute right-[-3%] top-[9%] h-[46%] w-[18%] border-[6px] border-[#f3ebfb] shadow-[0_0_0_4px_#8f8a97]" />
-        <div className="absolute left-[55%] top-[52%] h-[8%] w-[14%] border-[4px] border-[#171411] bg-[#2f8d39]" />
-        <div className="absolute left-[68%] top-[41%] h-[18%] w-[4%] border-[4px] border-[#171411] bg-[#2f8d39]" />
-        <div className="absolute right-[4%] top-[48%] h-[10%] w-[10%] border-[4px] border-[#171411] bg-[#2f8d39]" />
-        <div className="absolute left-[12%] top-[8%] h-[14%] w-[8%] border-[4px] border-[#171411] bg-[#3b9d46]" />
-        <div className="absolute left-[8%] bottom-[18%] h-[9%] w-[11%] border-[4px] border-[#171411] bg-[#62b946]" />
-        <div className="absolute bottom-[10%] right-[8%] h-[16%] w-[14%] rounded-full border-[6px] border-[#171411] bg-[radial-gradient(circle,#d5e7ff_0%,#89c2ff_45%,#3f7bc0_100%)] opacity-85" />
-        <div className="absolute bottom-[10%] left-[-2%] h-[20%] w-[15%] bg-[linear-gradient(180deg,#6a4c36_0%,#6a4c36_55%,#523828_55%,#523828_100%)]" />
-        <div className="absolute bottom-[0%] left-0 right-0 h-[12%] bg-[linear-gradient(180deg,#674b38_0%,#674b38_48%,#4e3527_48%,#4e3527_100%)]" />
+          <div className="absolute left-[24%] top-[0%] h-[9%] w-[52%] border-b-[6px] border-[#171411] bg-[repeating-linear-gradient(90deg,#a2845f_0,#a2845f_18px,#d4bc8e_18px,#d4bc8e_28px)]" />
+          <div className="pixel-water absolute left-[28%] top-[4%] h-[54%] w-[24%] border-[6px] border-[#f3ebfb] shadow-[0_0_0_4px_#8f8a97]" style={{ clipPath: "polygon(32% 0%,100% 0%,100% 100%,0 100%,0 26%)" }} />
+          <div className="pixel-water absolute right-[-1%] top-[8%] h-[48%] w-[19%] border-[6px] border-[#f3ebfb] shadow-[0_0_0_4px_#8f8a97]" />
+          <div className="absolute left-[43%] top-[34%] h-[7%] w-[17%] border-[4px] border-[#171411] bg-[repeating-linear-gradient(90deg,#7f5a37_0,#7f5a37_12px,#b18258_12px,#b18258_20px)]" />
+          <div className="absolute left-[54%] top-[55%] h-[8%] w-[17%] border-[4px] border-[#171411] bg-[#2f8d39]" />
+          <div className="absolute left-[70%] top-[39%] h-[20%] w-[4%] border-[4px] border-[#171411] bg-[#2f8d39]" />
+          <div className="absolute right-[3%] top-[48%] h-[11%] w-[11%] border-[4px] border-[#171411] bg-[#2f8d39]" />
+          <div className="absolute left-[10%] top-[8%] h-[16%] w-[9%] border-[4px] border-[#171411] bg-[#3b9d46]" />
+          <div className="absolute left-[6%] bottom-[14%] h-[11%] w-[13%] border-[4px] border-[#171411] bg-[#62b946]" />
+          <div className="absolute bottom-[10%] right-[8%] h-[16%] w-[14%] rounded-full border-[6px] border-[#171411] bg-[radial-gradient(circle,#d5e7ff_0%,#89c2ff_45%,#3f7bc0_100%)] opacity-85" />
+          <div className="absolute left-[41%] top-[56%] h-[10%] w-[18%] border-[4px] border-[#171411] bg-[linear-gradient(180deg,#d6945f_0%,#c37346_50%,#8d4424_50%,#8d4424_100%)]" />
+          <div className="absolute left-[46%] top-[59%] h-[8%] w-[7%] border-[4px] border-[#171411] bg-[#f3dd88]" />
+          <div className="absolute bottom-[10%] left-[-2%] h-[20%] w-[15%] bg-[linear-gradient(180deg,#6a4c36_0%,#6a4c36_55%,#523828_55%,#523828_100%)]" />
+          <div className="absolute bottom-[0%] left-0 right-0 h-[12%] bg-[linear-gradient(180deg,#674b38_0%,#674b38_48%,#4e3527_48%,#4e3527_100%)]" />
+          <div className="absolute left-[15%] top-[60%] h-[4%] w-[68%] border-y-[4px] border-[#171411] bg-[#b8a692]" />
+          <div className="absolute left-[46%] top-[18%] h-[58%] w-[6%] border-x-[4px] border-[#171411] bg-[#b8a692]" />
+          <div className="absolute left-[18%] top-[72%] h-[4%] w-[66%] border-y-[4px] border-[#171411] bg-[#b8a692]" />
 
-        <svg
-          viewBox="0 0 1000 700"
-          className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
-          aria-hidden="true"
-        >
+          <svg
+            viewBox="0 0 1000 700"
+            className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+            aria-hidden="true"
+          >
           <defs>
             <linearGradient id="route-shop" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="rgba(114,240,211,0.6)" />
@@ -1283,33 +1397,37 @@ export function BazaarDashboard() {
           <path d="M730 525 C 710 430, 730 390, 780 340" fill="none" stroke="url(#route-worker)" strokeWidth="18" strokeLinecap="square" />
           <path d="M260 545 C 360 470, 420 390, 500 280" fill="none" stroke="url(#route-governor)" strokeWidth="18" strokeLinecap="square" />
           <path d="M545 560 C 530 490, 517 420, 500 280" fill="none" stroke="url(#route-treasury)" strokeWidth="18" strokeLinecap="square" />
-        </svg>
+          </svg>
 
-        {villageProps.map((prop) => (
-          <WorldProp key={prop.id} prop={prop} />
-        ))}
+          {villageProps.map((prop) => (
+            <WorldProp key={prop.id} prop={prop} />
+          ))}
 
-        {scenerySpots.map((spot) => (
-          <div
-            key={spot.id}
-            className="pointer-events-none absolute z-[4] -translate-x-1/2 -translate-y-1/2"
-            style={{
-              left: `${spot.x}%`,
-              top: `${spot.y}%`,
-              width: `${spot.width}%`,
-              height: `${spot.height}%`,
-            }}
-          >
+          {villageObstacles.map((obstacle) => (
+            <ObstacleProp key={obstacle.id} obstacle={obstacle} />
+          ))}
+
+          {scenerySpots.map((spot) => (
             <div
-              className="absolute inset-x-[16%] top-[10%] h-[28%] border-[4px] border-[#171411]"
-              style={{ backgroundColor: spot.roof }}
-            />
-            <div
-              className="absolute inset-x-[8%] bottom-[8%] top-[32%] border-[4px] border-[#171411]"
-              style={{ backgroundColor: spot.wall }}
-            />
-          </div>
-        ))}
+              key={spot.id}
+              className="pointer-events-none absolute z-[4] -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: `${spot.x}%`,
+                top: `${spot.y}%`,
+                width: `${spot.width}%`,
+                height: `${spot.height}%`,
+              }}
+            >
+              <div
+                className="absolute inset-x-[16%] top-[10%] h-[28%] border-[4px] border-[#171411]"
+                style={{ backgroundColor: spot.roof }}
+              />
+              <div
+                className="absolute inset-x-[8%] bottom-[8%] top-[32%] border-[4px] border-[#171411]"
+                style={{ backgroundColor: spot.wall }}
+              />
+            </div>
+          ))}
 
         <div
           className="pointer-events-none absolute z-[7] -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
@@ -1453,10 +1571,10 @@ export function BazaarDashboard() {
         </div>
 
         <div className="flex items-start gap-2">
-          {showSystemPanel ? (
+          {statsModalOpen ? (
             <div className="pixel-window w-[min(320px,calc(100vw-1rem))] px-4 py-4 text-[#1a1714]">
               <div className="flex items-center justify-between gap-3">
-                <div className="arcade-face text-[0.5rem]">Brief System</div>
+                <div className="arcade-face text-[0.5rem]">Town Stats</div>
                 <button
                   type="button"
                   onClick={() => setShowSystemPanel(false)}
@@ -1465,12 +1583,18 @@ export function BazaarDashboard() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-sm leading-6 text-[#4d4338]">
-                <MiniStat label="Workers" value={String(activeWorkers)} />
-                <MiniStat label="Skills" value={String(installedSkills.length)} />
+              <div className="mt-3 space-y-3">
+                <SummaryBar label="Quest chain" value={`${questProgress}%`} progress={questProgress} tone="amber" />
+                <SummaryBar label="Treasury energy" value={formatOkb(treasuryOkbValue)} progress={treasuryMomentum} tone="mint" />
+                <SummaryBar label="Tax pressure" value={`${(taxBps / 100).toFixed(2)}%`} progress={taxMomentum} tone="blue" />
               </div>
               <div className={`mt-4 border-4 px-3 py-3 text-sm leading-6 ${statusError || isUnsupportedViewerNetwork ? "border-[#7d221b] bg-[#f6d9d1] text-[#5d1b16]" : "border-[#171411] bg-white/70 text-[#4d4338]"}`}>
                 {liveAlert}
+              </div>
+              <div className="mt-4 grid gap-2">
+                {quickSummaries.map((summary) => (
+                  <QuickSummaryRow key={summary.label} label={summary.label} value={summary.value} caption={summary.caption} />
+                ))}
               </div>
               <details className="mt-4 border-4 border-[#171411] bg-white/70 px-3 py-3">
                 <summary className="arcade-face cursor-pointer text-[0.46rem] text-[#171411]">
@@ -1508,8 +1632,8 @@ export function BazaarDashboard() {
               onClick={() => setShowSystemPanel((current) => !current)}
               className={`pixel-button inline-flex items-center gap-2 px-3 py-2 ${statusError || isUnsupportedViewerNetwork ? "bg-[#f06c50] text-white" : "bg-[#ffffff] text-[#171411]"}`}
             >
-              <span className="arcade-face text-[0.48rem]">{showSystemPanel ? "Hide brief" : "Brief"}</span>
-              {showSystemPanel ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              <span className="arcade-face text-[0.48rem]">{statsModalOpen ? "Hide stats" : "Stats"}</span>
+              {statsModalOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
             {hasMounted && isConnected && address ? (
               <button
@@ -1520,6 +1644,15 @@ export function BazaarDashboard() {
                 <span className="arcade-face text-[0.48rem]">Wallet</span>
                 <span className="text-xs font-medium">{shortHash(address)}</span>
               </button>
+            ) : previewMode ? (
+              <button
+                type="button"
+                onClick={() => setActivePanel((current) => (current === "wallet" ? null : "wallet"))}
+                className="pixel-button inline-flex items-center gap-2 bg-[#fff5d8] px-3 py-2 text-[#171411]"
+              >
+                <span className="arcade-face text-[0.48rem]">Preview</span>
+                <span className="text-xs font-medium">Spectator</span>
+              </button>
             ) : (
               <ConnectWalletButton variant="pixel" />
             )}
@@ -1527,7 +1660,7 @@ export function BazaarDashboard() {
         </div>
       </div>
 
-      {!walletGateVisible ? (
+      {!onboardingVisible ? (
         <div className="pointer-events-none absolute inset-x-3 top-[124px] z-30 flex justify-center sm:top-[132px]">
           <div className="pointer-events-auto pixel-window-dark w-[min(540px,calc(100vw-1.25rem))] px-4 py-3 text-[#f8f2e9]">
             <div className="flex items-center justify-between gap-3">
@@ -1562,7 +1695,7 @@ export function BazaarDashboard() {
         </div>
       ) : null}
 
-      {!walletGateVisible ? (
+      {!onboardingVisible ? (
         <div className="pointer-events-none absolute bottom-[96px] left-3 z-30 flex flex-col gap-3 sm:left-4">
           <MiniMap
             districts={districts}
@@ -1701,7 +1834,7 @@ export function BazaarDashboard() {
                   label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
                   hint="Create the town roster and wallet state."
                   loading={busyLabel === "Spawn economy"}
-                  disabled={actionMutation.isPending || walletGateVisible}
+                  disabled={actionMutation.isPending || onboardingVisible || !isConnected}
                   onClick={() =>
                     runAction({
                       label: "Spawn economy",
@@ -1725,7 +1858,7 @@ export function BazaarDashboard() {
                   }
                   hint={deployHint}
                   loading={busyLabel === "Deploy to X Layer"}
-                  disabled={actionMutation.isPending || !canDeploy || walletGateVisible}
+                  disabled={actionMutation.isPending || !canDeploy || onboardingVisible || !isConnected}
                   onClick={() =>
                     runAction({
                       label: "Deploy to X Layer",
@@ -1739,7 +1872,7 @@ export function BazaarDashboard() {
                   hint="Hire, pay, tax, reinvest, and govern onchain."
                   tone="accent"
                   loading={busyLabel === "Play live round"}
-                  disabled={actionMutation.isPending || !canRunLive || walletGateVisible}
+                  disabled={actionMutation.isPending || !canRunLive || onboardingVisible || !isConnected}
                   onClick={() =>
                     runAction({
                       label: "Play live round",
@@ -1800,13 +1933,19 @@ export function BazaarDashboard() {
               </button>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <MiniStat label="Viewer" value={hasMounted && isConnected && address ? shortHash(address) : "Not connected"} />
+              <MiniStat label="Viewer" value={viewerIdentity} />
               <MiniStat label="Wallet" value={viewerBalance} />
               <MiniStat label="Gas" value={gatewayGas?.normal ? `${gatewayGas.normal} wei` : "Live"} />
               <MiniStat label="Nearby" value={nearbyDistrict?.title ?? "Open road"} />
             </div>
             <div className="mt-4">
-              <ConnectWalletButton variant="pixel" fullWidth />
+              {previewMode ? (
+                <div className="border-4 border-[#171411] bg-[#f8f2e9] px-3 py-3 text-sm leading-6 text-[#4d4338]">
+                  Spectator mode keeps the HUD clean for screenshots and judge walkthroughs. Connect a wallet anytime to turn this into a live session.
+                </div>
+              ) : (
+                <ConnectWalletButton variant="pixel" fullWidth />
+              )}
             </div>
             <div className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3 text-sm leading-6 text-[#d4cabd]">
               Move with arrow keys or WASD. Press space when you are near a district to inspect it instantly.
@@ -1884,24 +2023,52 @@ export function BazaarDashboard() {
         </div>
       </div>
 
-      {walletGateVisible ? (
+      {onboardingVisible ? (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-[rgba(14,12,10,0.38)] backdrop-blur-[2px]">
           <div className="pixel-window w-[min(720px,calc(100vw-1rem))] px-5 py-5 text-[#171411] sm:px-6 sm:py-6">
-            <div className="arcade-face text-[0.52rem] text-[#6b6256]">OKX Build X Hackathon</div>
-            <div className="arcade-face mt-4 text-[clamp(1rem,3vw,1.6rem)] leading-[1.8]">Enter Bazaar X Village</div>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="arcade-face text-[0.52rem] text-[#6b6256]">OKX Build X Hackathon</div>
+                <div className="arcade-face mt-4 text-[clamp(1rem,3vw,1.6rem)] leading-[1.8]">Connect Wallet. Then Play.</div>
+              </div>
+              <div className="arcade-face rounded-none border-4 border-[#171411] bg-[#171411] px-3 py-2 text-[0.4rem] text-white">
+                village build 0.9
+              </div>
+            </div>
             <div className="mt-4 max-w-2xl text-sm leading-7 text-[#4d4338]">
-              Wallet connection is the only login. Step into a living pixel town where agents work, get paid on X Layer,
-              route tax into treasury, and change the next transaction through governance.
+              Step into a larger pixel village where autonomous agents earn, hire, settle on X Layer, route taxes into treasury,
+              and govern the next rule together. The flow is simple: connect, hit play, then explore the economy in motion.
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <EntryCard title="1. Connect" copy="No email, no menu maze. Your wallet is your player pass." />
-              <EntryCard title="2. Explore" copy="Walk manually or let the courier auto-patrol the city." />
-              <EntryCard title="3. Trigger" copy="Inspect districts, run the live loop, and watch proofs land onchain." />
+              <EntryCard title="1. Connect wallet" copy="Your wallet is the only login and the only identity you need." />
+              <EntryCard title="2. Hit play game" copy="Once connected, enter the world and unlock the guided economy run." />
+              <EntryCard title="3. Explore the town" copy="Inspect districts, open stats, and trigger live X Layer actions." />
             </div>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="arcade-face text-[0.44rem] text-[#6b6256]">single screen | live txs | playable world economy</div>
-              <div className="w-full sm:w-[260px]">
+            <div className="mt-6 grid gap-3 lg:grid-cols-[1.25fr,0.75fr]">
+              <div className="border-4 border-[#171411] bg-white/70 px-4 py-4">
+                <div className="arcade-face text-[0.42rem] text-[#6b6256]">Quick summaries</div>
+                <div className="mt-3 grid gap-2">
+                  <QuickSummaryRow label="Current objective" value={objectiveDistrict.title} caption={questFocus?.caption ?? "Follow the guided economy loop."} />
+                  <QuickSummaryRow label="Onchain proof" value={`${liveRuntime?.txHashes.length ?? 0} tx hashes`} caption="Real payments, treasury movements, and governance actions." />
+                  <QuickSummaryRow label="Player mode" value={canPlayGame ? "Ready to enter" : "Connect wallet"} caption={canPlayGame ? "The Play Game button is now unlocked." : "Connect first to unlock the world."} />
+                </div>
+              </div>
+              <div className="space-y-3">
                 <ConnectWalletButton variant="pixel" fullWidth />
+                <button
+                  type="button"
+                  disabled={!canPlayGame}
+                  onClick={() => setHasEnteredGame(true)}
+                  className="pixel-button arcade-face flex w-full items-center justify-center gap-2 bg-[#171411] px-4 py-4 text-[0.58rem] text-white disabled:cursor-not-allowed disabled:bg-[#8f8b84] disabled:text-[#f1ede3]"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Play Game
+                </button>
+                <div className="border-4 border-[#171411] bg-white/70 px-3 py-3 text-sm leading-6 text-[#4d4338]">
+                  {canPlayGame
+                    ? "Connected. Press Play Game to enter the village."
+                    : "Connect wallet first. Play unlocks immediately after a successful connection."}
+                </div>
               </div>
             </div>
           </div>
@@ -1909,8 +2076,20 @@ export function BazaarDashboard() {
       ) : null}
 
       {showBootSplash ? (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white">
-          <div className="arcade-face text-[clamp(0.8rem,2vw,1.2rem)] text-[#171411]">Loading...</div>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#f5f1e7]">
+          <div className="pixel-window w-[min(520px,calc(100vw-1rem))] px-5 py-5 text-[#171411]">
+            <div className="arcade-face text-[0.5rem] text-[#6b6256]">Loading village</div>
+            <div className="arcade-face mt-4 text-[clamp(1rem,2vw,1.35rem)] leading-[1.8]">Bazaar X is waking up.</div>
+            <div className="mt-4 h-5 border-4 border-[#171411] bg-white p-1">
+              <div
+                className="h-full bg-[linear-gradient(90deg,#171411_0%,#f16f51_24%,#ffb35b_70%,#72f0d3_100%)] transition-all duration-500"
+                style={{ width: `${bootReady ? 100 : Math.min(88, 12 + worldTick * 6)}%` }}
+              />
+            </div>
+            <div className="mt-4 text-sm leading-6 text-[#4d4338]">
+              Loading the town layout, live onchain status, and agent routes.
+            </div>
+          </div>
         </div>
       ) : null}
     </main>
@@ -2170,6 +2349,57 @@ function DirectionButton({
   );
 }
 
+function SummaryBar({
+  label,
+  value,
+  progress,
+  tone = "blue",
+}: {
+  label: string;
+  value: string;
+  progress: number;
+  tone?: "blue" | "mint" | "amber";
+}) {
+  const toneClass =
+    tone === "mint"
+      ? "from-[#72f0d3] to-[#1d685c]"
+      : tone === "amber"
+        ? "from-[#ffb35b] to-[#8c431d]"
+        : "from-[#86a7ff] to-[#2b458e]";
+
+  return (
+    <div className="border-4 border-[#171411] bg-white/70 px-3 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="arcade-face text-[0.4rem] text-[#171411]">{label}</div>
+        <div className="text-xs font-medium text-[#4d4338]">{value}</div>
+      </div>
+      <div className="mt-3 h-4 border-2 border-[#171411] bg-[#e7e0d4] p-[2px]">
+        <div className={`h-full bg-gradient-to-r ${toneClass}`} style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function QuickSummaryRow({
+  label,
+  value,
+  caption,
+}: {
+  label: string;
+  value: string;
+  caption: string;
+}) {
+  return (
+    <div className="border-4 border-[#171411] bg-[#f8f2e9] px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="arcade-face text-[0.38rem] text-[#6b6256]">{label}</div>
+        <div className="arcade-face text-[0.38rem] text-[#171411]">{value}</div>
+      </div>
+      <div className="mt-2 text-sm leading-6 text-[#4d4338]">{caption}</div>
+    </div>
+  );
+}
+
 function EntryCard({ title, copy }: { title: string; copy: string }) {
   return (
     <div className="border-4 border-[#171411] bg-[#f8f2e9] px-4 py-4">
@@ -2216,6 +2446,44 @@ function ActionTile({
       </div>
       <div className="mt-3 text-sm leading-6 text-slate-100">{hint}</div>
     </button>
+  );
+}
+
+function ObstacleProp({ obstacle }: { obstacle: VillageObstacle }) {
+  return (
+    <div
+      className="pointer-events-none absolute z-[5] -translate-x-1/2 -translate-y-1/2"
+      style={{
+        left: `${obstacle.x}%`,
+        top: `${obstacle.y}%`,
+        width: `${obstacle.width}%`,
+        height: `${obstacle.height}%`,
+      }}
+    >
+      {obstacle.kind === "hedge" ? (
+        <div className="absolute inset-0 border-[4px] border-[#171411] bg-[repeating-linear-gradient(90deg,#3d8f45_0,#3d8f45_12px,#57b35f_12px,#57b35f_24px)]" />
+      ) : null}
+
+      {obstacle.kind === "crate" ? (
+        <>
+          <div className="absolute left-[6%] top-[10%] h-[72%] w-[38%] border-[4px] border-[#171411] bg-[#9a6a40]" />
+          <div className="absolute right-[6%] top-[10%] h-[72%] w-[38%] border-[4px] border-[#171411] bg-[#b17b4c]" />
+        </>
+      ) : null}
+
+      {obstacle.kind === "rock" ? (
+        <div className="absolute inset-[8%] border-[4px] border-[#171411] bg-[#8b909d]" style={{ clipPath: "polygon(15% 30%,35% 8%,72% 10%,92% 38%,84% 82%,32% 94%,8% 64%)" }} />
+      ) : null}
+
+      {obstacle.kind === "barrier" ? (
+        <>
+          <div className="absolute inset-0 border-[4px] border-[#171411] bg-[#7b5435]" />
+          <div className="absolute inset-y-[14%] left-[12%] w-[16%] bg-[#e8c26d]" />
+          <div className="absolute inset-y-[14%] left-[42%] w-[16%] bg-[#e8c26d]" />
+          <div className="absolute inset-y-[14%] right-[12%] w-[16%] bg-[#e8c26d]" />
+        </>
+      ) : null}
+    </div>
   );
 }
 
