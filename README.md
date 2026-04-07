@@ -23,6 +23,32 @@ The goal is not a mock demo. The goal is a working economy loop:
 - Post-governance payment: [0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2](https://www.oklink.com/x-layer-testnet/tx/0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2)
 - Treasury reinvestment: [0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793](https://www.oklink.com/x-layer-testnet/tx/0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793)
 
+## Screenshots
+
+### Boot Screen
+
+The app opens with a brief fullscreen boot state before the town hydrates and syncs live status.
+
+![Bazaar X loading screen](docs/screenshots/loading.png)
+
+### Connect Wallet Then Play
+
+Wallet connection is the only login. The onboarding overlay explains the loop in one pass, then unlocks the world.
+
+![Bazaar X onboarding screen](docs/screenshots/onboarding.png)
+
+### Village Overview
+
+The main experience is a fullscreen pixel village with auto or manual courier control, map obstacles, district inspection, and a compact dock.
+
+![Bazaar X village overview](docs/screenshots/village-overview.png)
+
+### Town Stats Modal
+
+The stats overlay keeps proof short and judge-friendly: quest progress, treasury energy, tax pressure, quick summaries, and installed systems.
+
+![Bazaar X town stats](docs/screenshots/town-stats.png)
+
 ## Why This Wins On X Layer
 
 Bazaar X is designed around the public Build X review surface:
