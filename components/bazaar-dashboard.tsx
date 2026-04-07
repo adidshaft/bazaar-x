@@ -7,7 +7,6 @@ import {
   Footprints,
   Landmark,
   LoaderCircle,
-  Map as MapIcon,
   RefreshCw,
   ShieldAlert,
   Sparkles,
@@ -183,6 +182,40 @@ type QuestStep = {
   explorerUrl?: string;
 };
 
+type ControlMode = "auto" | "manual";
+type HudTab = "district" | "quests" | "city";
+
+type VillageAgent = {
+  id: AgentRole | "courier";
+  title: string;
+  role: string;
+  status: string;
+  route: DistrictId[];
+  speed: number;
+  offset: number;
+  color: string;
+  accent: string;
+};
+
+type ScenerySpot = {
+  id: string;
+  title: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  roof: string;
+  wall: string;
+};
+
+type VillageProp = {
+  id: string;
+  kind: "tree" | "field" | "camp" | "cart" | "lamp";
+  x: number;
+  y: number;
+  scale?: number;
+};
+
 const districtFrame = {
   square: { x: 49, y: 56, width: 18, height: 12, approachX: 49, approachY: 62 },
   core: { x: 50, y: 33, width: 14, height: 16, approachX: 50, approachY: 44 },
@@ -192,6 +225,8 @@ const districtFrame = {
   treasury: { x: 56, y: 80, width: 16, height: 12, approachX: 55, approachY: 70 },
   governor: { x: 24, y: 76, width: 14, height: 14, approachX: 32, approachY: 71 },
 } as const;
+
+const courierRoute: DistrictId[] = ["square", "shop", "core", "supplier", "worker", "treasury", "governor", "core", "square"];
 
 const districtPalette = {
   square: {
@@ -331,6 +366,71 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function moveTowardPoint(current: { x: number; y: number }, target: { x: number; y: number }, step: number) {
+  const dx = target.x - current.x;
+  const dy = target.y - current.y;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist <= step || dist === 0) {
+    return target;
+  }
+
+  return {
+    x: current.x + (dx / dist) * step,
+    y: current.y + (dy / dist) * step,
+  };
+}
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function sampleRoutePoint(
+  route: DistrictId[],
+  districtPoints: Map<DistrictId, { x: number; y: number }>,
+  progress: number,
+) {
+  if (!route.length) {
+    return { x: 50, y: 50 };
+  }
+
+  const normalized = progress % route.length;
+  const index = Math.floor(normalized);
+  const nextIndex = (index + 1) % route.length;
+  const t = normalized - index;
+  const from = districtPoints.get(route[index]) ?? { x: 50, y: 50 };
+  const to = districtPoints.get(route[nextIndex]) ?? from;
+
+  return {
+    x: lerp(from.x, to.x, t),
+    y: lerp(from.y, to.y, t),
+  };
+}
+
+function nearestRouteIndex(
+  route: DistrictId[],
+  districtPoints: Map<DistrictId, { x: number; y: number }>,
+  position: { x: number; y: number },
+) {
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  route.forEach((districtId, index) => {
+    const point = districtPoints.get(districtId);
+    if (!point) {
+      return;
+    }
+
+    const nextDistance = distance(point, position);
+    if (nextDistance < bestDistance) {
+      bestDistance = nextDistance;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+}
+
 async function postJson(path: string, body: Record<string, unknown> = {}) {
   const response = await fetch(path, {
     method: "POST",
@@ -375,7 +475,11 @@ async function fetchStatus() {
 export function BazaarDashboard() {
   const [hasMounted, setHasMounted] = useState(false);
   const [selectedId, setSelectedId] = useState<DistrictId>("square");
+  const [controlMode, setControlMode] = useState<ControlMode>("auto");
+  const [activeHudTab, setActiveHudTab] = useState<HudTab>("district");
   const [playerPosition, setPlayerPosition] = useState({ x: 49, y: 62 });
+  const [autoRouteIndex, setAutoRouteIndex] = useState(0);
+  const [worldTick, setWorldTick] = useState(0);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
 
   const { address, chain, isConnected } = useAccount();
@@ -389,6 +493,14 @@ export function BazaarDashboard() {
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setWorldTick((current) => current + 1);
+    }, 160);
+
+    return () => window.clearInterval(interval);
   }, []);
 
   const statusQuery = useQuery({
@@ -672,10 +784,151 @@ export function BazaarDashboard() {
   ]);
 
   const selectedDistrict = districts.find((district) => district.id === selectedId) ?? districts[0];
+  const districtLookup = useMemo(
+    () => new globalThis.Map(districts.map((district) => [district.id, district] as const)),
+    [districts],
+  );
+  const districtPoints = useMemo(
+    () =>
+      new globalThis.Map(
+        districts.map((district) => [district.id, { x: district.approachX, y: district.approachY }] as const),
+      ),
+    [districts],
+  );
   const nearbyDistrict =
     districts
       .filter((district) => district.id !== "square")
       .find((district) => distance(playerPosition, { x: district.approachX, y: district.approachY }) < 8) ?? null;
+  const courierTargetId = courierRoute[autoRouteIndex % courierRoute.length];
+  const courierTargetTitle = districtLookup.get(courierTargetId)?.title ?? "route";
+
+  function focusDistrict(district: District) {
+    setActiveHudTab("district");
+    setControlMode("manual");
+    setSelectedId(district.id);
+    setPlayerPosition({ x: district.approachX, y: district.approachY });
+  }
+
+  function engageAutoControl() {
+    setControlMode("auto");
+    setAutoRouteIndex(nearestRouteIndex(courierRoute, districtPoints, playerPosition));
+  }
+
+  function engageManualControl() {
+    setControlMode("manual");
+  }
+
+  const villageAgents = useMemo<VillageAgent[]>(
+    () => [
+      {
+        id: "courier",
+        title: "You",
+        role: controlMode === "auto" ? "Auto courier" : "Manual courier",
+        status:
+          controlMode === "auto"
+            ? `Following ${courierTargetTitle}`
+            : nearbyDistrict
+              ? `Exploring near ${nearbyDistrict.title}`
+              : "Roaming the village",
+        route: courierRoute,
+        speed: 0.09,
+        offset: 0,
+        color: "#5cf1d1",
+        accent: "#d5fff7",
+      },
+      {
+        id: "shop",
+        title: manifestAgents.get("shop")?.name ?? "Bazaar Forge",
+        role: "Merchant",
+        status: shopStep?.detail ?? "Stocking the market square",
+        route: ["shop", "square", "core", "shop"],
+        speed: 0.06,
+        offset: 0.5,
+        color: "#72f0d3",
+        accent: "#e1fffa",
+      },
+      {
+        id: "supplier",
+        title: manifestAgents.get("supplier")?.name ?? "Supply Coil",
+        role: "Supplier",
+        status: supplierStep?.detail ?? "Running goods through the east lane",
+        route: ["supplier", "core", "worker", "supplier"],
+        speed: 0.055,
+        offset: 1.4,
+        color: "#86a7ff",
+        accent: "#eff3ff",
+      },
+      {
+        id: "worker",
+        title: manifestAgents.get("worker")?.name ?? "Node Pilot",
+        role: "Worker",
+        status: paymentStep?.detail ?? workerStep?.detail ?? "Executing tasks on the south road",
+        route: ["worker", "supplier", "square", "worker"],
+        speed: 0.07,
+        offset: 2.2,
+        color: "#ff9a8b",
+        accent: "#ffe6e0",
+      },
+      {
+        id: "governor",
+        title: manifestAgents.get("governor")?.name ?? "Covenant Council",
+        role: "Governor",
+        status: governorStep?.detail ?? "Reviewing rules in the council tower",
+        route: ["governor", "core", "treasury", "governor"],
+        speed: 0.045,
+        offset: 3.1,
+        color: "#d4b5ff",
+        accent: "#f7ecff",
+      },
+    ],
+    [
+      controlMode,
+      courierTargetTitle,
+      governorStep?.detail,
+      manifestAgents,
+      nearbyDistrict,
+      paymentStep?.detail,
+      shopStep?.detail,
+      supplierStep?.detail,
+      workerStep?.detail,
+    ],
+  );
+
+  const npcPositions = useMemo(
+    () =>
+      villageAgents.map((agent) => ({
+        ...agent,
+        position:
+          agent.id === "courier"
+            ? playerPosition
+            : sampleRoutePoint(agent.route, districtPoints, worldTick * agent.speed + agent.offset),
+      })),
+    [districtPoints, playerPosition, villageAgents, worldTick],
+  );
+
+  const scenerySpots: ScenerySpot[] = [
+    { id: "inn", title: "Inn", x: 12, y: 26, width: 12, height: 10, roof: "#d26f55", wall: "#7e402f" },
+    { id: "archive", title: "Archive", x: 30, y: 18, width: 10, height: 8, roof: "#96a8d8", wall: "#4b587a" },
+    { id: "watch", title: "Watch", x: 88, y: 20, width: 8, height: 12, roof: "#c7cedd", wall: "#586071" },
+    { id: "orchard", title: "Orchard", x: 14, y: 82, width: 10, height: 8, roof: "#7dbf59", wall: "#476537" },
+    { id: "dock", title: "Dock", x: 88, y: 84, width: 11, height: 8, roof: "#8fb4cc", wall: "#4a5e68" },
+    { id: "gate", title: "Gate", x: 49, y: 8, width: 12, height: 6, roof: "#d2bd7f", wall: "#69552a" },
+  ];
+
+  const villageProps: VillageProp[] = [
+    { id: "tree-1", kind: "tree", x: 9, y: 48, scale: 1.15 },
+    { id: "tree-2", kind: "tree", x: 17, y: 36, scale: 0.95 },
+    { id: "tree-3", kind: "tree", x: 32, y: 83, scale: 1.05 },
+    { id: "tree-4", kind: "tree", x: 63, y: 13, scale: 0.9 },
+    { id: "tree-5", kind: "tree", x: 82, y: 66, scale: 1.1 },
+    { id: "field-1", kind: "field", x: 74, y: 14, scale: 1.1 },
+    { id: "field-2", kind: "field", x: 12, y: 69, scale: 1.05 },
+    { id: "camp-1", kind: "camp", x: 68, y: 31, scale: 0.95 },
+    { id: "camp-2", kind: "camp", x: 35, y: 67, scale: 0.95 },
+    { id: "cart-1", kind: "cart", x: 57, y: 58, scale: 0.9 },
+    { id: "lamp-1", kind: "lamp", x: 44, y: 53, scale: 1 },
+    { id: "lamp-2", kind: "lamp", x: 54, y: 43, scale: 1 },
+  ];
 
   useEffect(() => {
     if (!hasMounted) {
@@ -691,13 +944,15 @@ export function BazaarDashboard() {
       if (key === " ") {
         event.preventDefault();
         if (nearbyDistrict) {
-          setSelectedId(nearbyDistrict.id);
-          setPlayerPosition({ x: nearbyDistrict.approachX, y: nearbyDistrict.approachY });
+          focusDistrict(nearbyDistrict);
         }
         return;
       }
 
       event.preventDefault();
+      if (controlMode !== "manual") {
+        engageManualControl();
+      }
       setPlayerPosition((current) => {
         const step = 2.8;
         const next = { ...current };
@@ -723,13 +978,35 @@ export function BazaarDashboard() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasMounted, nearbyDistrict]);
+  }, [controlMode, hasMounted, nearbyDistrict]);
 
   useEffect(() => {
     if (nearbyDistrict) {
       setSelectedId(nearbyDistrict.id);
     }
   }, [nearbyDistrict]);
+
+  useEffect(() => {
+    if (controlMode !== "auto") {
+      return;
+    }
+
+    const targetId = courierRoute[autoRouteIndex % courierRoute.length];
+    const target = districtPoints.get(targetId);
+
+    if (!target) {
+      return;
+    }
+
+    setPlayerPosition((current) => {
+      const next = moveTowardPoint(current, target, 1.4);
+      if (distance(next, target) < 0.8) {
+        setSelectedId(targetId);
+        setAutoRouteIndex((index) => (index + 1) % courierRoute.length);
+      }
+      return next;
+    });
+  }, [autoRouteIndex, controlMode, districtPoints, worldTick]);
 
   const questSteps = useMemo<QuestStep[]>(() => {
     const proposalExecutionStep = findLatestStep(steps, ["execute governance update"]);
@@ -805,6 +1082,10 @@ export function BazaarDashboard() {
   const isUnsupportedViewerNetwork = Boolean(
     hasMounted && isConnected && chain && chain.id !== 1952 && chain.id !== 196,
   );
+  const questFocus =
+    questSteps.find((step) => step.status === "ready") ??
+    questSteps.find((step) => step.status === "locked") ??
+    questSteps[questSteps.length - 1];
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -815,84 +1096,26 @@ export function BazaarDashboard() {
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-5 px-4 py-4 sm:px-6 lg:px-8">
         <section className="glass-card panel-glow relative overflow-hidden rounded-[30px] border border-white/10 px-5 py-5 sm:px-7">
           <div className="absolute inset-0 soft-grid opacity-10" />
-          <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <Tag>OKX Build X</Tag>
-                <Tag subtle>Game Build</Tag>
-                <Tag subtle>{`${manifest?.network ?? "x-layer-testnet"} · chain ${manifest?.chainId ?? 1952}`}</Tag>
-                <Tag subtle>{statusQuery.isFetching ? "Refreshing" : `Updated ${lastRefresh}`}</Tag>
-              </div>
-              <h1 className="display-face balance-text text-4xl font-semibold text-white sm:text-5xl xl:text-[4.2rem]">
-                Walk the city. Trigger the loop. Watch the economy govern itself.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-                Bazaar X is now an explorable onchain town. Move through the districts, inspect the
-                actors, and replay the full earn-to-tax-to-govern cycle directly on X Layer.
-              </p>
+          <div className="relative max-w-4xl">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Tag>OKX Build X</Tag>
+              <Tag subtle>Game Build</Tag>
+              <Tag subtle>{`${manifest?.network ?? "x-layer-testnet"} · chain ${manifest?.chainId ?? 1952}`}</Tag>
+              <Tag subtle>{statusQuery.isFetching ? "Refreshing" : `Updated ${lastRefresh}`}</Tag>
             </div>
+            <h1 className="display-face balance-text text-4xl font-semibold text-white sm:text-5xl xl:text-[4.2rem]">
+              A playable village where autonomous agents trade, tax, and govern in public.
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+              The village is the interface now. Let your courier roam on auto, take manual control
+              whenever you want, and inspect each district only when you need proof, rules, or live
+              contract state.
+            </p>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:w-[720px] xl:grid-cols-4">
-              <ActionTile
-                icon={Bot}
-                label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
-                hint="Create the town roster and wallet state."
-                loading={busyLabel === "Spawn economy"}
-                disabled={actionMutation.isPending}
-                onClick={() =>
-                  runAction({
-                    label: "Spawn economy",
-                    path: "/api/agents/init",
-                    body: {
-                      count: 5,
-                      seed: "bazaar-x-live",
-                      initialBudget: 1000,
-                    },
-                  })
-                }
-              />
-              <ActionTile
-                icon={Landmark}
-                label={
-                  busyLabel === "Deploy to X Layer"
-                    ? "Deploying..."
-                    : contractAddress
-                      ? "Sync proof"
-                      : "Deploy to X Layer"
-                }
-                hint={deployHint}
-                loading={busyLabel === "Deploy to X Layer"}
-                disabled={actionMutation.isPending || !canDeploy}
-                onClick={() =>
-                  runAction({
-                    label: "Deploy to X Layer",
-                    path: "/api/live/deploy",
-                  })
-                }
-              />
-              <ActionTile
-                icon={Sparkles}
-                label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
-                hint="Hire, pay, tax, reinvest, and govern onchain."
-                tone="accent"
-                loading={busyLabel === "Play live round"}
-                disabled={actionMutation.isPending || !canRunLive}
-                onClick={() =>
-                  runAction({
-                    label: "Play live round",
-                    path: "/api/live/run",
-                  })
-                }
-              />
-              <ActionTile
-                icon={RefreshCw}
-                label="Refresh"
-                hint="Pull the latest chain and runtime state."
-                tone="ghost"
-                loading={statusQuery.isFetching}
-                disabled={actionMutation.isPending || statusQuery.isFetching}
-                onClick={() => statusQuery.refetch()}
-              />
+            <div className="mt-4 inline-flex max-w-[720px] flex-wrap items-center gap-3 rounded-[22px] border border-white/10 bg-black/20 px-4 py-3">
+              <div className="pixel-label text-[#b9c7e8]">Current quest</div>
+              <div className="text-sm font-semibold text-white">{questFocus?.label ?? "Awaiting input"}</div>
+              <div className="text-sm text-slate-300">{questFocus?.caption ?? "No active quest."}</div>
             </div>
           </div>
         </section>
@@ -910,37 +1133,97 @@ export function BazaarDashboard() {
           </Callout>
         ) : null}
 
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_360px]">
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_360px]">
           <div className="space-y-4">
             <div className="glass-card panel-glow overflow-hidden rounded-[30px] border border-white/10 p-4 sm:p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <div className="pixel-label text-[0.95rem] text-[#b9c7e8]">Overworld</div>
                   <h2 className="display-face mt-2 text-2xl font-semibold text-white sm:text-3xl">
-                    The Bazaar X Town
+                    The Bazaar X Village
                   </h2>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <InfoChip label="Agents" value={String(manifest?.agents.length ?? 0)} />
                   <InfoChip label="Tx" value={String(liveRuntime?.txHashes.length ?? 0)} />
                   <InfoChip label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
                   <InfoChip
                     label="Treasury"
                     value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")}
                   />
+                  <div className="flex overflow-hidden rounded-full border border-white/10 bg-black/25">
+                    <button
+                      type="button"
+                      onClick={engageAutoControl}
+                      className={`px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] transition ${
+                        controlMode === "auto"
+                          ? "bg-[#69f0d2]/15 text-[#bffff1]"
+                          : "text-slate-300 hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      Auto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={engageManualControl}
+                      className={`px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] transition ${
+                        controlMode === "manual"
+                          ? "bg-[#ffb35b]/15 text-[#ffe4bf]"
+                          : "text-slate-300 hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      Manual
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="game-frame relative aspect-[16/10] overflow-hidden rounded-[26px] border border-white/10 bg-[#08101a]">
+              <div className="game-frame relative aspect-[16/11] overflow-hidden rounded-[26px] border border-white/10 bg-[#08101a]">
                 <div className="scanline-overlay pointer-events-none absolute inset-0 z-10" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,216,153,0.14),transparent_30%),linear-gradient(180deg,#17354b_0%,#11273a_23%,#0f3d3b_23%,#0d573f_47%,#1e6943_68%,#275736_100%)]" />
-                <div className="absolute left-[6%] top-[8%] h-[24%] w-[20%] rounded-[40px] border border-white/10 bg-[#0f2946]/75 blur-[2px]" />
-                <div className="absolute right-[4%] top-[5%] h-[22%] w-[17%] rounded-[999px] border border-white/10 bg-[#153b62]/70 blur-[1px]" />
-                <div className="absolute left-[8%] top-[54%] h-[28%] w-[24%] rounded-[34px] bg-[#2b5337]/75" />
-                <div className="absolute right-[7%] top-[58%] h-[24%] w-[18%] rounded-[34px] bg-[#2a5032]/75" />
-                <div className="absolute left-[14%] top-[42%] h-[9%] w-[72%] -rotate-[7deg] rounded-full bg-[#c6a65a]" />
-                <div className="absolute left-[42%] top-[28%] h-[52%] w-[10%] rounded-full bg-[#d7b66d]" />
-                <div className="absolute left-[27%] top-[56%] h-[7%] w-[22%] rounded-full bg-[#e6c57d]" />
-                <div className="absolute right-[23%] top-[56%] h-[7%] w-[18%] rounded-full bg-[#e6c57d]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,216,153,0.16),transparent_28%),linear-gradient(180deg,#18344c_0%,#122a43_18%,#0b4a53_18%,#0d6248_36%,#2f814e_63%,#3f7b43_82%,#325b31_100%)]" />
+                <div className="absolute left-[3%] top-[5%] h-[28%] w-[22%] rounded-[44px] border border-white/10 bg-[#10375c]/75 blur-[1px]" />
+                <div className="absolute right-[2%] top-[6%] h-[24%] w-[19%] rounded-[999px] border border-white/10 bg-[#1b4c70]/75 blur-[1px]" />
+                <div className="absolute left-[5%] bottom-[7%] h-[24%] w-[18%] rounded-[40px] bg-[#2f673d]/80" />
+                <div className="absolute right-[4%] bottom-[9%] h-[20%] w-[18%] rounded-[32px] bg-[#2d603a]/80" />
+                <div className="absolute left-[11%] top-[42%] h-[8%] w-[75%] -rotate-[6deg] rounded-full bg-[#ccac60]" />
+                <div className="absolute left-[41.5%] top-[20%] h-[61%] w-[11%] rounded-full bg-[#dbbe76]" />
+                <div className="absolute left-[24%] top-[56%] h-[7%] w-[23%] rounded-full bg-[#ebcc86]" />
+                <div className="absolute right-[21%] top-[58%] h-[7%] w-[19%] rounded-full bg-[#ebcc86]" />
+                <div className="absolute left-[52%] top-[12%] h-[10%] w-[10%] rounded-full bg-[#88b761]/70" />
+                <div className="absolute left-[60%] top-[17%] h-[7%] w-[7%] rounded-full bg-[#7cae56]/70" />
+                <div className="absolute left-[67%] top-[76%] h-[9%] w-[10%] rounded-full bg-[#7cad55]/70" />
+                <div className="absolute left-[18%] top-[76%] h-[10%] w-[9%] rounded-full bg-[#83b85b]/70" />
+                <div className="absolute left-[77%] top-[10%] h-[17%] w-[12%] rounded-[28px] border border-white/10 bg-[#3a6f49]/60" />
+                <div className="absolute left-[6%] top-[68%] h-[10%] w-[10%] rounded-[22px] border border-white/10 bg-[#4f8f53]/60" />
+
+                {villageProps.map((prop) => (
+                  <WorldProp key={prop.id} prop={prop} />
+                ))}
+
+                {scenerySpots.map((spot) => (
+                  <div
+                    key={spot.id}
+                    className="pointer-events-none absolute z-[4] -translate-x-1/2 -translate-y-1/2"
+                    style={{
+                      left: `${spot.x}%`,
+                      top: `${spot.y}%`,
+                      width: `${spot.width}%`,
+                      height: `${spot.height}%`,
+                    }}
+                  >
+                    <div
+                      className="absolute inset-x-[18%] top-[8%] h-[30%] rounded-[10px] border border-white/10"
+                      style={{ backgroundColor: spot.roof }}
+                    />
+                    <div
+                      className="absolute inset-x-[10%] bottom-[10%] top-[34%] rounded-[16px] border border-white/10"
+                      style={{ backgroundColor: spot.wall }}
+                    />
+                    <div className="absolute left-1/2 top-[-24%] -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/30 px-2 py-0.5">
+                      <span className="pixel-label text-[0.78rem] text-slate-300">{spot.title}</span>
+                    </div>
+                  </div>
+                ))}
 
                 <svg
                   viewBox="0 0 1000 700"
@@ -974,20 +1257,49 @@ export function BazaarDashboard() {
                   <path d="M730 525 C 710 430, 730 390, 780 340" fill="none" stroke="url(#route-worker)" strokeWidth="16" strokeLinecap="round" />
                   <path d="M260 545 C 360 470, 420 390, 500 280" fill="none" stroke="url(#route-governor)" strokeWidth="16" strokeLinecap="round" />
                   <path d="M545 560 C 530 490, 517 420, 500 280" fill="none" stroke="url(#route-treasury)" strokeWidth="16" strokeLinecap="round" />
+                  <path d="M120 180 C 250 140, 360 170, 500 140" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" strokeLinecap="round" strokeDasharray="18 16" />
+                  <path d="M510 145 C 660 150, 760 190, 880 150" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" strokeLinecap="round" strokeDasharray="18 16" />
+                  <path d="M140 600 C 320 620, 420 600, 520 610" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" strokeLinecap="round" strokeDasharray="18 16" />
+                  <path d="M520 612 C 630 618, 740 620, 860 600" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" strokeLinecap="round" strokeDasharray="18 16" />
                 </svg>
 
                 <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-[18px] border border-white/10 bg-[#06101d]/85 px-4 py-3 backdrop-blur">
                   <div className="pixel-label text-[#b9c7e8]">Objective</div>
                   <div className="mt-2 max-w-[280px] text-sm leading-6 text-slate-200">
-                    Roam the districts, then run the live round to prove hire, payment, tax, treasury,
-                    and governance onchain.
+                    Patrol the village, inspect the loop, and keep the town readable. Proof stays in
+                    the HUD. The world stays center stage.
                   </div>
                 </div>
 
-                <div className="pointer-events-none absolute bottom-4 left-4 z-20 flex flex-wrap gap-2">
-                  <Tag subtle>Click any district</Tag>
-                  <Tag subtle>WASD / Arrows to roam</Tag>
-                  <Tag subtle>{nearbyDistrict ? `Press space near ${nearbyDistrict.title}` : "Follow the roads"}</Tag>
+                <div className="pointer-events-none absolute right-4 top-4 z-20 rounded-[18px] border border-white/10 bg-[#06101d]/85 px-4 py-3 backdrop-blur">
+                  <div className="pixel-label text-[#b9c7e8]">Control mode</div>
+                  <div className="mt-2 text-sm font-semibold text-white">
+                    {controlMode === "auto" ? "Auto patrol engaged" : "Manual override active"}
+                  </div>
+                  <div className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-400">
+                    {npcPositions.filter((agent) => agent.id !== "courier").length} agents still running jobs
+                  </div>
+                </div>
+
+                <div className="pointer-events-none absolute bottom-4 left-4 z-20">
+                  <Tag subtle>{nearbyDistrict ? `Space near ${nearbyDistrict.title}` : "WASD / Arrows · Space to inspect"}</Tag>
+                </div>
+
+                <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 w-[min(560px,calc(100%-2rem))] -translate-x-1/2">
+                  <div className="rounded-[20px] border border-white/10 bg-[#050d17]/88 px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.3)] backdrop-blur">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="max-w-[280px]">
+                        <div className="pixel-label text-[#b9c7e8]">Focus</div>
+                        <div className="mt-1 text-sm font-semibold text-white">{selectedDistrict.title}</div>
+                        <div className="mt-1 text-sm leading-6 text-slate-300">{selectedDistrict.summary}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {questSteps.map((step) => (
+                          <QuestPill key={step.id} step={step} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div
@@ -997,14 +1309,48 @@ export function BazaarDashboard() {
                     top: `${playerPosition.y}%`,
                   }}
                 >
-                  <div className="avatar-bob relative h-10 w-10">
+                  <div className={`avatar-bob relative h-10 w-10 ${controlMode === "auto" ? "opacity-95" : ""}`}>
                     <div className="absolute left-1/2 top-full h-4 w-6 -translate-x-1/2 rounded-full bg-black/25 blur-[3px]" />
                     <div className="absolute inset-x-2 top-1 h-3 rounded-t-[8px] bg-[#0f172a] border border-white/10" />
                     <div className="absolute inset-x-1 top-3 h-5 rounded-[10px] border border-[#89ffe9]/30 bg-[#5cf1d1]" />
                     <div className="absolute bottom-0 left-2 h-3 w-2 rounded-b bg-[#f2caa0]" />
                     <div className="absolute bottom-0 right-2 h-3 w-2 rounded-b bg-[#f2caa0]" />
                   </div>
+                  <div className="pixel-label absolute left-1/2 top-[-18px] -translate-x-1/2 whitespace-nowrap text-[0.78rem] text-[#dcfff8]">
+                    {controlMode === "auto" ? "AUTO" : "YOU"}
+                  </div>
                 </div>
+
+                {npcPositions
+                  .filter((agent) => agent.id !== "courier")
+                  .map((agent) => (
+                    <div
+                      key={agent.id}
+                      className="pointer-events-none absolute z-[5] -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
+                      style={{
+                        left: `${agent.position.x}%`,
+                        top: `${agent.position.y}%`,
+                      }}
+                      >
+                      <div className="avatar-bob relative h-8 w-8">
+                        <div className="absolute left-1/2 top-full h-3 w-5 -translate-x-1/2 rounded-full bg-black/20 blur-[3px]" />
+                        <div className="absolute inset-x-1 top-0.5 h-2 rounded-t-[6px] border border-white/10 bg-[#0f172a]" />
+                        <div
+                          className="absolute inset-x-0.5 top-2.5 h-4 rounded-[8px] border"
+                          style={{ backgroundColor: agent.color, borderColor: `${agent.accent}55` }}
+                        />
+                        <div className="absolute bottom-0 left-1.5 h-2.5 w-1.5 rounded-b bg-[#f2caa0]" />
+                        <div className="absolute bottom-0 right-1.5 h-2.5 w-1.5 rounded-b bg-[#f2caa0]" />
+                      </div>
+                      {activeHudTab === "city" ? (
+                        <div className="absolute left-1/2 top-[-16px] -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/35 px-2 py-0.5">
+                          <span className="pixel-label text-[0.72rem]" style={{ color: agent.accent }}>
+                            {agent.role}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
 
                 {districts.map((district) => {
                   const selected = selectedDistrict.id === district.id;
@@ -1016,10 +1362,7 @@ export function BazaarDashboard() {
                       <button
                         key={district.id}
                         type="button"
-                        onClick={() => {
-                          setSelectedId(district.id);
-                          setPlayerPosition({ x: district.approachX, y: district.approachY });
-                        }}
+                        onClick={() => focusDistrict(district)}
                         className={`absolute z-[6] -translate-x-1/2 -translate-y-1/2 rounded-[22px] border px-5 py-4 text-left transition duration-200 ${
                           selected
                             ? "border-white/30 bg-black/30 shadow-[0_0_40px_rgba(248,223,140,0.18)]"
@@ -1043,10 +1386,7 @@ export function BazaarDashboard() {
                     <button
                       key={district.id}
                       type="button"
-                      onClick={() => {
-                        setSelectedId(district.id);
-                        setPlayerPosition({ x: district.approachX, y: district.approachY });
-                      }}
+                      onClick={() => focusDistrict(district)}
                       className="absolute z-[6] -translate-x-1/2 -translate-y-1/2 text-left transition duration-200 hover:scale-[1.02] focus:outline-none"
                       style={{
                         left: `${district.x}%`,
@@ -1087,6 +1427,7 @@ export function BazaarDashboard() {
                           backgroundColor: "rgba(5, 11, 23, 0.82)",
                           borderColor: selected ? district.palette.trim : "rgba(255,255,255,0.1)",
                           boxShadow: nearby ? `0 0 16px ${district.palette.glow}` : undefined,
+                          opacity: selected || nearby ? 1 : 0,
                         }}
                       >
                         <span className="pixel-label text-[0.95rem]" style={{ color: district.palette.trim }}>
@@ -1096,7 +1437,7 @@ export function BazaarDashboard() {
                       <div className="absolute inset-x-0 bottom-[-24%] flex justify-center">
                         <span
                           className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.24em] ${
-                            selected || nearby ? district.palette.chip : "border-white/10 bg-black/30 text-slate-300"
+                            selected || nearby ? district.palette.chip : "border-transparent bg-transparent text-transparent"
                           }`}
                         >
                           {nearby ? "Inspect" : district.kicker}
@@ -1107,19 +1448,13 @@ export function BazaarDashboard() {
                 })}
               </div>
             </div>
-
-            <div className="grid gap-3 md:grid-cols-4">
-              {questSteps.map((step) => (
-                <QuestCard key={step.id} step={step} />
-              ))}
-            </div>
           </div>
 
           <aside className="grid gap-4">
             <section className="glass-card panel-glow rounded-[30px] border border-white/10 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="pixel-label text-[#b9c7e8]">Field Notes</div>
+                  <div className="pixel-label text-[#b9c7e8]">Village HUD</div>
                   <h3 className="display-face mt-2 text-2xl font-semibold text-white">
                     {selectedDistrict.title}
                   </h3>
@@ -1127,97 +1462,331 @@ export function BazaarDashboard() {
                     {selectedDistrict.kicker}
                   </div>
                 </div>
-                <div
-                  className="h-4 w-4 rounded-full"
-                  style={{ backgroundColor: selectedDistrict.palette.roof }}
+                <div className="h-4 w-4 rounded-full" style={{ backgroundColor: selectedDistrict.palette.roof }} />
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <HudTabButton
+                  active={activeHudTab === "district"}
+                  label="District"
+                  onClick={() => setActiveHudTab("district")}
                 />
-              </div>
-
-              <p className="mt-4 text-sm leading-7 text-slate-300">{selectedDistrict.flavor}</p>
-
-              <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
-                <div className="pixel-label text-[#b9c7e8]">Live readout</div>
-                <div className="mt-3 text-xl font-semibold text-white">{selectedDistrict.value}</div>
-                <div className="mt-2 text-sm leading-6 text-slate-300">{selectedDistrict.summary}</div>
-              </div>
-
-              <div className="mt-4 grid gap-3">
-                {selectedDistrict.notes.map((note) => (
-                  <InfoRow key={note}>{note}</InfoRow>
-                ))}
-              </div>
-
-              {selectedDistrict.address ? (
-                <ProofDock
-                  className="mt-4"
-                  label="Address"
-                  value={selectedDistrict.address}
-                  href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/address/${selectedDistrict.address}`}
-                  copied={copiedValue === selectedDistrict.address}
-                  onCopy={() => copyText(selectedDistrict.address ?? "")}
+                <HudTabButton
+                  active={activeHudTab === "quests"}
+                  label="Quests"
+                  onClick={() => setActiveHudTab("quests")}
                 />
-              ) : null}
-
-              {selectedDistrict.txHash ? (
-                <ProofDock
-                  className="mt-4"
-                  label="Latest proof"
-                  value={selectedDistrict.txHash}
-                  href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedDistrict.txHash}`}
-                  copied={copiedValue === selectedDistrict.txHash}
-                  onCopy={() => copyText(selectedDistrict.txHash ?? "")}
-                />
-              ) : null}
-
-              {selectedDistrict.id === "governor" ? (
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <MiniStat label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
-                  <MiniStat label="Floor" value={formatOkbFromWei(minimumBalanceWei)} />
-                  <MiniStat label="Quorum" value={`${(quorumBps / 100).toFixed(0)}%`} />
-                  <MiniStat label="Support" value={`${(supportBps / 100).toFixed(0)}%`} />
-                </div>
-              ) : null}
-            </section>
-
-            <section className="glass-card panel-glow rounded-[30px] border border-white/10 p-5">
-              <div className="flex items-center gap-2">
-                <MapIcon className="h-4 w-4 text-[#89ffe9]" />
-                <div className="pixel-label text-[#b9c7e8]">Player HUD</div>
+                <HudTabButton active={activeHudTab === "city"} label="City" onClick={() => setActiveHudTab("city")} />
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <MiniStat label="Viewer" value={hasMounted && isConnected && address ? shortHash(address) : "Spectator"} />
-                <MiniStat label="Wallet" value={viewerBalance} />
-                <MiniStat label="Gas" value={gatewayGas?.normal ? `${gatewayGas.normal} wei` : "Live"} />
-                <MiniStat label="Nearby" value={nearbyDistrict?.title ?? "Open road"} />
-              </div>
-
-              <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
-                <div suppressHydrationWarning className="text-sm leading-6 text-slate-300">
-                  {hasMounted && isConnected && address
-                    ? `Connected on ${chain?.name ?? "unknown network"}.`
-                    : "No wallet is required to explore the town. Connect only if you want to verify viewer network state."}
-                </div>
+              {activeHudTab === "district" ? (
                 <div className="mt-4">
-                  <ConnectWalletButton />
-                </div>
-              </div>
+                  <p className="text-sm leading-7 text-slate-300">{selectedDistrict.flavor}</p>
 
-              <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
-                <div className="flex items-center gap-2 text-slate-200">
-                  <Footprints className="h-4 w-4 text-[#89ffe9]" />
-                  <div className="pixel-label text-[#b9c7e8]">Controls</div>
+                  <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                    <div className="pixel-label text-[#b9c7e8]">Live readout</div>
+                    <div className="mt-3 text-xl font-semibold text-white">{selectedDistrict.value}</div>
+                    <div className="mt-2 text-sm leading-6 text-slate-300">{selectedDistrict.summary}</div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3">
+                    {selectedDistrict.notes.map((note) => (
+                      <InfoRow key={note}>{note}</InfoRow>
+                    ))}
+                  </div>
+
+                  {selectedDistrict.address ? (
+                    <ProofDock
+                      className="mt-4"
+                      label="Address"
+                      value={selectedDistrict.address}
+                      href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/address/${selectedDistrict.address}`}
+                      copied={copiedValue === selectedDistrict.address}
+                      onCopy={() => copyText(selectedDistrict.address ?? "")}
+                    />
+                  ) : null}
+
+                  {selectedDistrict.txHash ? (
+                    <ProofDock
+                      className="mt-4"
+                      label="Latest proof"
+                      value={selectedDistrict.txHash}
+                      href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedDistrict.txHash}`}
+                      copied={copiedValue === selectedDistrict.txHash}
+                      onCopy={() => copyText(selectedDistrict.txHash ?? "")}
+                    />
+                  ) : null}
+
+                  {selectedDistrict.id === "governor" ? (
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <MiniStat label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+                      <MiniStat label="Floor" value={formatOkbFromWei(minimumBalanceWei)} />
+                      <MiniStat label="Quorum" value={`${(quorumBps / 100).toFixed(0)}%`} />
+                      <MiniStat label="Support" value={`${(supportBps / 100).toFixed(0)}%`} />
+                    </div>
+                  ) : null}
                 </div>
-                <div className="mt-3 text-sm leading-6 text-slate-300">
-                  Click any district to jump there. On desktop, move with arrow keys or WASD and hit
-                  space near a building to inspect it.
+              ) : null}
+
+              {activeHudTab === "quests" ? (
+                <div className="mt-4">
+                  <div className="rounded-[22px] border border-[#69f0d2]/15 bg-[#69f0d2]/8 p-4">
+                    <div className="pixel-label text-[#b9c7e8]">Current quest</div>
+                    <div className="mt-2 text-lg font-semibold text-white">{questFocus?.label ?? "Awaiting input"}</div>
+                    <div className="mt-2 text-sm leading-6 text-slate-300">{questFocus?.caption ?? "No active quest."}</div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <ActionTile
+                      icon={Bot}
+                      label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
+                      hint="Create the town roster and wallet state."
+                      loading={busyLabel === "Spawn economy"}
+                      disabled={actionMutation.isPending}
+                      onClick={() =>
+                        runAction({
+                          label: "Spawn economy",
+                          path: "/api/agents/init",
+                          body: {
+                            count: 5,
+                            seed: "bazaar-x-live",
+                            initialBudget: 1000,
+                          },
+                        })
+                      }
+                    />
+                    <ActionTile
+                      icon={Landmark}
+                      label={
+                        busyLabel === "Deploy to X Layer"
+                          ? "Deploying..."
+                          : contractAddress
+                            ? "Sync proof"
+                            : "Deploy to X Layer"
+                      }
+                      hint={deployHint}
+                      loading={busyLabel === "Deploy to X Layer"}
+                      disabled={actionMutation.isPending || !canDeploy}
+                      onClick={() =>
+                        runAction({
+                          label: "Deploy to X Layer",
+                          path: "/api/live/deploy",
+                        })
+                      }
+                    />
+                    <ActionTile
+                      icon={Sparkles}
+                      label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
+                      hint="Hire, pay, tax, reinvest, and govern onchain."
+                      tone="accent"
+                      loading={busyLabel === "Play live round"}
+                      disabled={actionMutation.isPending || !canRunLive}
+                      onClick={() =>
+                        runAction({
+                          label: "Play live round",
+                          path: "/api/live/run",
+                        })
+                      }
+                    />
+                    <ActionTile
+                      icon={RefreshCw}
+                      label="Refresh"
+                      hint="Pull the latest chain and runtime state."
+                      tone="ghost"
+                      loading={statusQuery.isFetching}
+                      disabled={actionMutation.isPending || statusQuery.isFetching}
+                      onClick={() => statusQuery.refetch()}
+                    />
+                  </div>
+
+                  <div className="mt-4 grid gap-3">
+                    {questSteps.map((step) => (
+                      <QuestCard key={step.id} step={step} compact />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
+
+              {activeHudTab === "city" ? (
+                <div className="mt-4">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={engageAutoControl}
+                      className={`rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.22em] transition ${
+                        controlMode === "auto"
+                          ? "border-[#69f0d2]/35 bg-[#69f0d2]/12 text-[#cbfff6]"
+                          : "border-white/10 bg-black/20 text-slate-300 hover:border-white/20"
+                      }`}
+                    >
+                      Auto patrol
+                    </button>
+                    <button
+                      type="button"
+                      onClick={engageManualControl}
+                      className={`rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.22em] transition ${
+                        controlMode === "manual"
+                          ? "border-[#ffb35b]/35 bg-[#ffb35b]/12 text-[#ffe3c1]"
+                          : "border-white/10 bg-black/20 text-slate-300 hover:border-white/20"
+                      }`}
+                    >
+                      Manual override
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <MiniStat label="Viewer" value={hasMounted && isConnected && address ? shortHash(address) : "Spectator"} />
+                    <MiniStat label="Wallet" value={viewerBalance} />
+                    <MiniStat label="Gas" value={gatewayGas?.normal ? `${gatewayGas.normal} wei` : "Live"} />
+                    <MiniStat label="Nearby" value={nearbyDistrict?.title ?? "Open road"} />
+                  </div>
+
+                  <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                    <div suppressHydrationWarning className="text-sm leading-6 text-slate-300">
+                      {hasMounted && isConnected && address
+                        ? `Connected on ${chain?.name ?? "unknown network"}.`
+                        : "No wallet is required to explore the town. Connect only if you want to verify viewer network state."}
+                    </div>
+                    <div className="mt-4">
+                      <ConnectWalletButton />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                    <div className="flex items-center gap-2 text-slate-200">
+                      <Footprints className="h-4 w-4 text-[#89ffe9]" />
+                      <div className="pixel-label text-[#b9c7e8]">Controls</div>
+                    </div>
+                    <div className="mt-3 text-sm leading-6 text-slate-300">
+                      Click any district to jump there. On desktop, move with arrow keys or WASD and hit
+                      space near a building to inspect it.
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                    <div className="pixel-label text-[#b9c7e8]">City activity</div>
+                    <div className="mt-3 grid gap-2">
+                      {npcPositions
+                        .filter((agent) => agent.id !== "courier")
+                        .map((agent) => (
+                          <div
+                            key={agent.id}
+                            className="rounded-[16px] border border-white/10 bg-white/[0.03] px-3 py-2"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-sm font-medium text-white">{agent.title}</div>
+                              <div
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: agent.color, boxShadow: `0 0 14px ${agent.color}` }}
+                              />
+                            </div>
+                            <div className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-400">
+                              {agent.role}
+                            </div>
+                            <div className="mt-2 text-sm leading-6 text-slate-300">{agent.status}</div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </section>
           </aside>
         </section>
       </div>
     </main>
+  );
+}
+
+function WorldProp({ prop }: { prop: VillageProp }) {
+  const scale = prop.scale ?? 1;
+
+  return (
+    <div
+      className="pointer-events-none absolute z-[3] -translate-x-1/2 -translate-y-1/2"
+      style={{
+        left: `${prop.x}%`,
+        top: `${prop.y}%`,
+        transform: `translate(-50%, -50%) scale(${scale})`,
+      }}
+    >
+      {prop.kind === "tree" ? (
+        <div className="relative h-10 w-8">
+          <div className="absolute bottom-0 left-1/2 h-3 w-2 -translate-x-1/2 rounded-sm bg-[#593c26]" />
+          <div className="absolute left-1/2 top-2 h-5 w-5 -translate-x-1/2 rounded-[8px] border border-black/10 bg-[#468d53]" />
+          <div className="absolute left-1/2 top-0 h-5 w-6 -translate-x-1/2 rounded-[8px] border border-black/10 bg-[#6abf68]" />
+        </div>
+      ) : null}
+
+      {prop.kind === "field" ? (
+        <div className="relative h-8 w-10 rounded-[8px] border border-black/10 bg-[#8eb34d]">
+          <div className="absolute inset-x-1 top-1 h-1 rounded bg-[#dfe284]" />
+          <div className="absolute inset-x-1 top-3 h-1 rounded bg-[#c7d16d]" />
+          <div className="absolute inset-x-1 top-5 h-1 rounded bg-[#dfe284]" />
+        </div>
+      ) : null}
+
+      {prop.kind === "camp" ? (
+        <div className="relative h-8 w-9">
+          <div className="absolute inset-x-1 top-1 h-4 rounded-t-[12px] border border-black/10 bg-[#cf7b5a]" />
+          <div className="absolute inset-x-0 bottom-0 h-4 rounded-[10px] border border-black/10 bg-[#6e4832]" />
+        </div>
+      ) : null}
+
+      {prop.kind === "cart" ? (
+        <div className="relative h-7 w-10">
+          <div className="absolute inset-x-1 top-1 h-4 rounded-[7px] border border-black/10 bg-[#9e6a3f]" />
+          <div className="absolute bottom-0 left-1 h-2.5 w-2.5 rounded-full border border-black/20 bg-[#2a1c14]" />
+          <div className="absolute bottom-0 right-1 h-2.5 w-2.5 rounded-full border border-black/20 bg-[#2a1c14]" />
+        </div>
+      ) : null}
+
+      {prop.kind === "lamp" ? (
+        <div className="relative h-8 w-5">
+          <div className="absolute bottom-0 left-1/2 h-6 w-1 -translate-x-1/2 rounded-full bg-[#463321]" />
+          <div className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 rounded-full bg-[#ffe29b] shadow-[0_0_20px_rgba(255,226,155,0.55)]" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function HudTabButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.22em] transition ${
+        active
+          ? "border-[#69f0d2]/35 bg-[#69f0d2]/12 text-[#cbfff6]"
+          : "border-white/10 bg-black/20 text-slate-300 hover:border-white/20"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function QuestPill({ step }: { step: QuestStep }) {
+  const palette =
+    step.status === "done"
+      ? "border-[#69f0d2]/25 bg-[#69f0d2]/10 text-[#cbfff6]"
+      : step.status === "ready"
+        ? "border-[#ffb35b]/25 bg-[#ffb35b]/10 text-[#ffe4bf]"
+        : "border-white/10 bg-white/[0.04] text-slate-300";
+
+  return (
+    <div className={`rounded-full border px-3 py-1.5 ${palette}`}>
+      <div className="pixel-label text-[0.72rem]">{step.label}</div>
+    </div>
   );
 }
 
@@ -1307,7 +1876,13 @@ function ActionTile({
   );
 }
 
-function QuestCard({ step }: { step: QuestStep }) {
+function QuestCard({
+  step,
+  compact = false,
+}: {
+  step: QuestStep;
+  compact?: boolean;
+}) {
   const palette =
     step.status === "done"
       ? "border-[#69f0d2]/25 bg-[#69f0d2]/10"
@@ -1316,12 +1891,12 @@ function QuestCard({ step }: { step: QuestStep }) {
         : "border-white/10 bg-white/[0.04]";
 
   return (
-    <article className={`glass-card panel-glow rounded-[22px] border p-4 ${palette}`}>
+    <article className={`glass-card panel-glow rounded-[22px] border ${compact ? "p-3" : "p-4"} ${palette}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="pixel-label text-[#d9e5ff]">{step.label}</div>
         <div className="text-[11px] uppercase tracking-[0.24em] text-slate-300">{step.status}</div>
       </div>
-      <div className="mt-3 text-sm leading-6 text-slate-300">{step.caption}</div>
+      <div className={`text-sm leading-6 text-slate-300 ${compact ? "mt-2" : "mt-3"}`}>{step.caption}</div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <div className="mono text-sm text-white">{step.hash ? shortHash(step.hash) : "Pending"}</div>
         {step.explorerUrl ? (
