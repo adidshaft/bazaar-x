@@ -20,7 +20,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Matter from "matter-js";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRef } from "react";
 import { formatEther } from "viem";
 import { useAccount, useBalance } from "wagmi";
 import { ConnectWalletButton } from "./connect-wallet-button";
@@ -198,6 +200,7 @@ type QuestStep = {
 
 type ControlMode = "auto" | "manual";
 type DockPanel = "focus" | "quests" | "wallet" | "live";
+type UtilityTab = "legend" | "map" | "controls";
 type Direction = "up" | "down" | "left" | "right";
 
 type VillageAgent = {
@@ -393,43 +396,6 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function moveTowardPoint(current: { x: number; y: number }, target: { x: number; y: number }, step: number) {
-  const dx = target.x - current.x;
-  const dy = target.y - current.y;
-  const dist = Math.hypot(dx, dy);
-
-  if (dist <= step || dist === 0) {
-    return target;
-  }
-
-  return {
-    x: current.x + (dx / dist) * step,
-    y: current.y + (dy / dist) * step,
-  };
-}
-
-function movePlayerPosition(current: { x: number; y: number }, direction: Direction, step = 2.8) {
-  const next = { ...current };
-
-  if (direction === "up") {
-    next.y -= step;
-  }
-  if (direction === "down") {
-    next.y += step;
-  }
-  if (direction === "left") {
-    next.x -= step;
-  }
-  if (direction === "right") {
-    next.x += step;
-  }
-
-  return {
-    x: clamp(next.x, 8, 92),
-    y: clamp(next.y, 18, 90),
-  };
-}
-
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
@@ -529,12 +495,20 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const [bootReady, setBootReady] = useState(false);
   const [hasEnteredGame, setHasEnteredGame] = useState(false);
   const [showSystemPanel, setShowSystemPanel] = useState(false);
+  const [utilityTab, setUtilityTab] = useState<UtilityTab>("legend");
   const [playerPosition, setPlayerPosition] = useState({ x: 49, y: 62 });
   const [autoRouteIndex, setAutoRouteIndex] = useState(0);
   const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
   const [worldTick, setWorldTick] = useState(0);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
   const forcedScene = initialScene;
+  const engineRef = useRef<Matter.Engine | null>(null);
+  const playerBodyRef = useRef<Matter.Body | null>(null);
+  const controlModeRef = useRef<ControlMode>("auto");
+  const activeDirectionRef = useRef<Direction | null>(null);
+  const autoRouteIndexRef = useRef(0);
+  const districtPointsRef = useRef<Map<DistrictId, { x: number; y: number }>>(new Map());
+  const selectedIdRef = useRef<DistrictId>("square");
 
   const { address, chain, isConnected } = useAccount();
   const { data: balance } = useBalance({
@@ -547,6 +521,12 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setUtilityTab("controls");
+    }
   }, []);
 
   useEffect(() => {
@@ -875,11 +855,40 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const courierTargetId = courierRoute[autoRouteIndex % courierRoute.length];
   const courierTargetTitle = districtLookup.get(courierTargetId)?.title ?? "route";
 
+  useEffect(() => {
+    controlModeRef.current = controlMode;
+  }, [controlMode]);
+
+  useEffect(() => {
+    activeDirectionRef.current = activeDirection;
+  }, [activeDirection]);
+
+  useEffect(() => {
+    autoRouteIndexRef.current = autoRouteIndex;
+  }, [autoRouteIndex]);
+
+  useEffect(() => {
+    districtPointsRef.current = districtPoints;
+  }, [districtPoints]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
+  function syncPlayerPosition(nextPosition: { x: number; y: number }) {
+    setPlayerPosition(nextPosition);
+
+    if (playerBodyRef.current) {
+      Matter.Body.setPosition(playerBodyRef.current, nextPosition);
+      Matter.Body.setVelocity(playerBodyRef.current, { x: 0, y: 0 });
+    }
+  }
+
   function focusDistrict(district: District) {
     setActivePanel("focus");
     setControlMode("manual");
     setSelectedId(district.id);
-    setPlayerPosition({ x: district.approachX, y: district.approachY });
+    syncPlayerPosition({ x: district.approachX, y: district.approachY });
   }
 
   function engageAutoControl() {
@@ -890,13 +899,6 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
 
   function engageManualControl() {
     setControlMode("manual");
-  }
-
-  function nudgePlayer(direction: Direction) {
-    if (controlMode !== "manual") {
-      engageManualControl();
-    }
-    setPlayerPosition((current) => resolvePlayerMove(current, direction));
   }
 
   function beginDirectionalMove(direction: Direction) {
@@ -1021,23 +1023,23 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     { id: "field-2", kind: "field", x: 10, y: 72, scale: 1.05 },
     { id: "field-3", kind: "field", x: 84, y: 12, scale: 0.95 },
     { id: "camp-1", kind: "camp", x: 69, y: 29, scale: 0.95 },
-    { id: "camp-2", kind: "camp", x: 38, y: 70, scale: 0.95 },
+    { id: "camp-2", kind: "camp", x: 32, y: 76, scale: 0.9 },
     { id: "camp-3", kind: "camp", x: 18, y: 78, scale: 0.88 },
     { id: "cart-1", kind: "cart", x: 57, y: 58, scale: 0.9 },
-    { id: "cart-2", kind: "cart", x: 24, y: 48, scale: 0.78 },
-    { id: "cart-3", kind: "cart", x: 78, y: 73, scale: 0.88 },
+    { id: "cart-2", kind: "cart", x: 18, y: 47, scale: 0.72 },
+    { id: "cart-3", kind: "cart", x: 84, y: 76, scale: 0.82 },
     { id: "cart-4", kind: "cart", x: 58, y: 74, scale: 0.8 },
     { id: "lamp-1", kind: "lamp", x: 44, y: 53, scale: 1 },
     { id: "lamp-2", kind: "lamp", x: 54, y: 43, scale: 1 },
-    { id: "lamp-3", kind: "lamp", x: 66, y: 63, scale: 1 },
-    { id: "lamp-4", kind: "lamp", x: 34, y: 63, scale: 1 },
+    { id: "lamp-3", kind: "lamp", x: 72, y: 65, scale: 1 },
+    { id: "lamp-4", kind: "lamp", x: 28, y: 65, scale: 1 },
     { id: "lamp-5", kind: "lamp", x: 49, y: 76, scale: 1 },
   ];
 
   const villageObstacles: VillageObstacle[] = [
     { id: "hedge-west", kind: "hedge", x: 31, y: 53, width: 7, height: 21 },
     { id: "hedge-east", kind: "hedge", x: 67, y: 52, width: 7, height: 18 },
-    { id: "crate-yard", kind: "crate", x: 76, y: 56, width: 8, height: 6 },
+    { id: "crate-yard", kind: "crate", x: 82, y: 58, width: 8, height: 6 },
     { id: "stone-ring", kind: "rock", x: 37, y: 83, width: 7, height: 6 },
     { id: "south-barrier", kind: "barrier", x: 50, y: 82, width: 16, height: 4 },
     { id: "north-barrier", kind: "barrier", x: 50, y: 17, width: 18, height: 4 },
@@ -1045,25 +1047,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     { id: "bridge-guard-right", kind: "crate", x: 59, y: 37, width: 5, height: 5 },
     { id: "south-hedge", kind: "hedge", x: 33, y: 86, width: 11, height: 10 },
     { id: "east-rock", kind: "rock", x: 90, y: 78, width: 8, height: 7 },
-    { id: "market-crates", kind: "crate", x: 44, y: 66, width: 9, height: 5 },
+    { id: "market-crates", kind: "crate", x: 38, y: 70, width: 9, height: 5 },
   ];
-
-  function blockedByObstacle(position: { x: number; y: number }) {
-    return villageObstacles.some((obstacle) => {
-      if (obstacle.blocking === false) {
-        return false;
-      }
-
-      const withinX = position.x >= obstacle.x - obstacle.width / 2 && position.x <= obstacle.x + obstacle.width / 2;
-      const withinY = position.y >= obstacle.y - obstacle.height / 2 && position.y <= obstacle.y + obstacle.height / 2;
-      return withinX && withinY;
-    });
-  }
-
-  function resolvePlayerMove(current: { x: number; y: number }, direction: Direction, step = 2.8) {
-    const next = movePlayerPosition(current, direction, step);
-    return blockedByObstacle(next) ? current : next;
-  }
 
   useEffect(() => {
     if (!hasMounted) {
@@ -1086,62 +1071,161 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
 
       event.preventDefault();
       if (key === "arrowup" || key === "w") {
-        nudgePlayer("up");
+        beginDirectionalMove("up");
       }
       if (key === "arrowdown" || key === "s") {
-        nudgePlayer("down");
+        beginDirectionalMove("down");
       }
       if (key === "arrowleft" || key === "a") {
-        nudgePlayer("left");
+        beginDirectionalMove("left");
       }
       if (key === "arrowright" || key === "d") {
-        nudgePlayer("right");
+        beginDirectionalMove("right");
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(key)) {
+        endDirectionalMove();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   }, [controlMode, hasMounted, nearbyDistrict]);
 
   useEffect(() => {
-    if (!activeDirection) {
+    if (!hasMounted) {
       return;
     }
 
-    const interval = window.setInterval(() => {
-      setPlayerPosition((current) => resolvePlayerMove(current, activeDirection, 2.35));
-    }, 90);
+    const engine = Matter.Engine.create({
+      gravity: { x: 0, y: 0 },
+    });
 
-    return () => window.clearInterval(interval);
-  }, [activeDirection]);
+    const boundaries = [
+      Matter.Bodies.rectangle(50, 13, 100, 10, { isStatic: true }),
+      Matter.Bodies.rectangle(50, 95, 100, 10, { isStatic: true }),
+      Matter.Bodies.rectangle(4, 54, 8, 100, { isStatic: true }),
+      Matter.Bodies.rectangle(96, 54, 8, 100, { isStatic: true }),
+    ];
+
+    const obstacleBodies = villageObstacles.map((obstacle) =>
+      Matter.Bodies.rectangle(obstacle.x, obstacle.y, obstacle.width, obstacle.height, {
+        isStatic: true,
+        restitution: 0,
+        friction: 0.3,
+      }),
+    );
+
+    const player = Matter.Bodies.circle(playerPosition.x, playerPosition.y, 1.6, {
+      frictionAir: 0.18,
+      restitution: 0,
+      friction: 0.001,
+      inertia: Infinity,
+      slop: 0.06,
+    });
+
+    Matter.Composite.add(engine.world, [...boundaries, ...obstacleBodies, player]);
+
+    engineRef.current = engine;
+    playerBodyRef.current = player;
+
+    let frame = 0;
+    let lastTime = typeof performance !== "undefined" ? performance.now() : Date.now();
+
+    const tick = (time: number) => {
+      const now = time ?? Date.now();
+      const delta = Math.min(1000 / 24, now - lastTime || 1000 / 60);
+      lastTime = now;
+
+      const playerBody = playerBodyRef.current;
+      if (playerBody) {
+        if (controlModeRef.current === "manual") {
+          const direction = activeDirectionRef.current;
+          const desiredVelocity = { x: 0, y: 0 };
+
+          if (direction === "up") {
+            desiredVelocity.y = -1.05;
+          }
+          if (direction === "down") {
+            desiredVelocity.y = 1.05;
+          }
+          if (direction === "left") {
+            desiredVelocity.x = -1.05;
+          }
+          if (direction === "right") {
+            desiredVelocity.x = 1.05;
+          }
+
+          Matter.Body.setVelocity(playerBody, {
+            x: desiredVelocity.x === 0 ? playerBody.velocity.x * 0.72 : desiredVelocity.x,
+            y: desiredVelocity.y === 0 ? playerBody.velocity.y * 0.72 : desiredVelocity.y,
+          });
+        } else {
+          const nextRouteIndex = autoRouteIndexRef.current % courierRoute.length;
+          const targetId = courierRoute[nextRouteIndex];
+          const target = districtPointsRef.current.get(targetId);
+
+          if (target) {
+            const dx = target.x - playerBody.position.x;
+            const dy = target.y - playerBody.position.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < 1.8) {
+              if (selectedIdRef.current !== targetId) {
+                setSelectedId(targetId);
+              }
+              setAutoRouteIndex((index) => (index + 1) % courierRoute.length);
+            } else {
+              const speed = 0.92;
+              Matter.Body.setVelocity(playerBody, {
+                x: (dx / dist) * speed,
+                y: (dy / dist) * speed,
+              });
+            }
+          }
+        }
+      }
+
+      Matter.Engine.update(engine, delta);
+
+      if (playerBodyRef.current) {
+        const nextPosition = {
+          x: clamp(playerBodyRef.current.position.x, 8, 92),
+          y: clamp(playerBodyRef.current.position.y, 18, 90),
+        };
+        setPlayerPosition((current) =>
+          Math.abs(current.x - nextPosition.x) < 0.04 && Math.abs(current.y - nextPosition.y) < 0.04
+            ? current
+            : nextPosition,
+        );
+      }
+
+      frame = window.requestAnimationFrame(tick);
+    };
+
+    frame = window.requestAnimationFrame(tick);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      Matter.Composite.clear(engine.world, false);
+      Matter.Engine.clear(engine);
+      engineRef.current = null;
+      playerBodyRef.current = null;
+    };
+  }, [hasMounted]);
 
   useEffect(() => {
     if (nearbyDistrict) {
       setSelectedId(nearbyDistrict.id);
     }
   }, [nearbyDistrict]);
-
-  useEffect(() => {
-    if (controlMode !== "auto") {
-      return;
-    }
-
-    const targetId = courierRoute[autoRouteIndex % courierRoute.length];
-    const target = districtPoints.get(targetId);
-
-    if (!target) {
-      return;
-    }
-
-    setPlayerPosition((current) => {
-      const next = moveTowardPoint(current, target, 1.4);
-      if (distance(next, target) < 0.8) {
-        setSelectedId(targetId);
-        setAutoRouteIndex((index) => (index + 1) % courierRoute.length);
-      }
-      return next;
-    });
-  }, [autoRouteIndex, controlMode, districtPoints, worldTick]);
 
   const questSteps = useMemo<QuestStep[]>(() => {
     const proposalExecutionStep = findLatestStep(steps, ["execute governance update"]);
@@ -1300,6 +1384,13 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     : controlMode === "auto"
       ? `Auto courier is walking toward ${courierTargetTitle}.`
       : `Head toward ${objectiveDistrict.title} to continue the economy loop.`;
+  const legendItems = [
+    { label: "You", copy: "Golden courier. Your wallet-controlled explorer.", color: "#f3c44f", accent: "courier" as const },
+    { label: "Merchant", copy: "Teal trader that opens shops and starts demand.", color: "#72f0d3", accent: "shop" as const },
+    { label: "Supplier", copy: "Blue logistics agent routing services eastward.", color: "#86a7ff", accent: "supplier" as const },
+    { label: "Worker", copy: "Coral operator that completes paid tasks.", color: "#ff9a8b", accent: "worker" as const },
+    { label: "Governor", copy: "Lilac policy agent that updates the rules.", color: "#d4b5ff", accent: "governor" as const },
+  ];
   const cameraShiftX = (playerPosition.x - 50) * -0.18;
   const cameraShiftY = (playerPosition.y - 56) * -0.14;
   const liveAlert = statusError
@@ -1416,36 +1507,52 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                 top: `${spot.y}%`,
                 width: `${spot.width}%`,
                 height: `${spot.height}%`,
+                zIndex: Math.round(30 + spot.y),
+              }}
+            >
+              <LandmarkSprite spot={spot} />
+            </div>
+          ))}
+
+        {districts.map((district) => {
+          const nearby = nearbyDistrict?.id === district.id;
+          const objective = objectiveDistrict.id === district.id;
+
+          return (
+            <div
+              key={`${district.id}-pad`}
+              className="pointer-events-none absolute z-[5] -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: `${district.approachX}%`,
+                top: `${district.approachY}%`,
+                zIndex: Math.round(40 + district.approachY),
               }}
             >
               <div
-                className="absolute inset-x-[16%] top-[10%] h-[28%] border-[4px] border-[#171411]"
-                style={{ backgroundColor: spot.roof }}
-              />
-              <div
-                className="absolute inset-x-[8%] bottom-[8%] top-[32%] border-[4px] border-[#171411]"
-                style={{ backgroundColor: spot.wall }}
+                className={`h-8 w-8 border-[3px] border-dashed ${nearby ? "scale-125" : objective ? "scale-110" : "scale-100"}`}
+                style={{
+                  borderColor: objective ? "#fff6c6" : district.palette.trim,
+                  backgroundColor: objective ? "rgba(255, 244, 181, 0.18)" : `${district.palette.glow}`,
+                  boxShadow: nearby ? "0 0 0 6px rgba(255,255,255,0.16)" : undefined,
+                }}
               />
             </div>
-          ))}
+          );
+        })}
 
         <div
           className="pointer-events-none absolute z-[7] -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
           style={{
             left: `${playerPosition.x}%`,
             top: `${playerPosition.y}%`,
+            zIndex: Math.round(90 + playerPosition.y),
           }}
         >
-          <div className={`avatar-bob relative h-12 w-12 ${controlMode === "auto" ? "opacity-95" : ""}`}>
-            <div className="absolute left-1/2 top-full h-4 w-7 -translate-x-1/2 bg-black/20 blur-[4px]" />
-            <div className="absolute inset-x-2 top-0 h-3 border-[3px] border-[#171411] bg-[#1a2a33]" />
-            <div className="absolute inset-x-1 top-3 h-6 border-[3px] border-[#171411] bg-[#f3c44f]" />
-            <div className="absolute bottom-0 left-2 h-3 w-2 bg-[#f2caa0]" />
-            <div className="absolute bottom-0 right-2 h-3 w-2 bg-[#f2caa0]" />
-          </div>
+          <AvatarSprite role="courier" color="#f3c44f" size="lg" state={controlMode === "auto" ? "auto" : "idle"} />
           <div className="arcade-face absolute left-1/2 top-[-22px] -translate-x-1/2 whitespace-nowrap text-[0.52rem] text-[#1b1713]">
             {controlMode === "auto" ? "AUTO" : "YOU"}
           </div>
+          <div className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#fff7c2] bg-[radial-gradient(circle,rgba(255,241,162,0.28),transparent_72%)]" />
         </div>
 
         {npcPositions
@@ -1457,18 +1564,10 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               style={{
                 left: `${agent.position.x}%`,
                 top: `${agent.position.y}%`,
+                zIndex: Math.round(80 + agent.position.y),
               }}
             >
-              <div className="avatar-bob relative h-9 w-9">
-                <div className="absolute left-1/2 top-full h-3 w-5 -translate-x-1/2 bg-black/20 blur-[4px]" />
-                <div className="absolute inset-x-1 top-0 h-2 border-[2px] border-[#171411] bg-[#1a2a33]" />
-                <div
-                  className="absolute inset-x-0.5 top-2.5 h-4 border-[2px] border-[#171411]"
-                  style={{ backgroundColor: agent.color }}
-                />
-                <div className="absolute bottom-0 left-1.5 h-2.5 w-1.5 bg-[#f2caa0]" />
-                <div className="absolute bottom-0 right-1.5 h-2.5 w-1.5 bg-[#f2caa0]" />
-              </div>
+              <AvatarSprite role={agent.id} color={agent.color} size="md" />
               {activePanel === "live" ? (
                 <div className="arcade-face absolute left-1/2 top-[-16px] -translate-x-1/2 whitespace-nowrap text-[0.48rem]" style={{ color: "#171411" }}>
                   {agent.role}
@@ -1494,6 +1593,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                 top: `${district.y}%`,
                 width: `${district.width}%`,
                 height: `${district.height}%`,
+                zIndex: Math.round(100 + district.y),
               }}
             >
               <div
@@ -1550,26 +1650,87 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         </div>
       </div>
 
-      <div className="absolute inset-x-3 top-3 z-30 flex items-start justify-between gap-3 sm:inset-x-4 sm:top-4">
-        <div className="pixel-window w-[min(360px,calc(100vw-1rem))] px-4 py-4 text-[#1a1714]">
-          <div className="arcade-face text-[0.48rem] text-[#6b6256]">OKX Build X Hackathon</div>
-          <div className="arcade-face mt-3 text-[clamp(0.82rem,1.6vw,1.15rem)] leading-[1.8]">
-            Bazaar X Village
+      <div className="absolute left-3 top-3 z-30 flex w-[min(320px,calc(100vw-1rem))] flex-col gap-3 sm:left-4 sm:top-4">
+        <div className="pixel-window px-4 py-4 text-[#1a1714]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="arcade-face text-[0.42rem] text-[#6b6256]">OKX Build X Hackathon</div>
+              <div className="arcade-face mt-3 text-[clamp(0.8rem,1.4vw,1.05rem)] leading-[1.8]">
+                Bazaar X Village
+              </div>
+            </div>
+            <div className="arcade-face border-4 border-[#171411] bg-[#171411] px-2 py-1 text-[0.34rem] text-white">
+              {controlMode === "auto" ? "auto courier" : "manual"}
+            </div>
           </div>
           <div className="mt-3 text-sm leading-6 text-[#4d4338]">
             {questFocus?.caption ?? "Walk the village and trigger the onchain loop."}
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             <BriefChip label="Status" value={liveRuntime?.status ?? "ready"} />
             <BriefChip label="Tx" value={String(liveRuntime?.txHashes.length ?? 0)} />
-            <BriefChip
-              label="Treasury"
-              value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")}
-            />
             <BriefChip label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+          </div>
+          <div className="mt-3 border-4 border-[#171411] bg-[#fff8ee] px-3 py-3 text-sm leading-6 text-[#4d4338]">
+            {travelPrompt}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("quests"))}
+              className="pixel-button bg-[#f16f51] px-3 py-2 text-white"
+            >
+              <span className="arcade-face text-[0.42rem]">{nearbyDistrict ? "Inspect" : "Quest"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => (controlMode === "auto" ? engageManualControl() : engageAutoControl())}
+              className="pixel-button bg-[#f8f2e9] px-3 py-2 text-[#171411]"
+            >
+              <span className="arcade-face text-[0.42rem]">{controlMode === "auto" ? "Manual" : "Auto"}</span>
+            </button>
           </div>
         </div>
 
+        {!onboardingVisible ? (
+          <UtilityBoard
+            className="pixel-window-dark px-4 py-4 text-[#f8f2e9]"
+            activeTab={utilityTab}
+            onTabChange={setUtilityTab}
+            legend={
+              <LegendBoard
+                items={legendItems}
+                objectiveLabel={objectiveDistrict.title}
+                nearbyLabel={nearbyDistrict?.title ?? null}
+              />
+            }
+            map={
+              <MiniMap
+                className="w-full px-0 py-0 shadow-none"
+                districts={districts}
+                objectiveDistrictId={objectiveDistrict.id}
+                selectedDistrictId={selectedDistrict.id}
+                playerPosition={playerPosition}
+                npcPositions={npcPositions}
+                onSelectDistrict={(district) => focusDistrict(district)}
+              />
+            }
+            controls={
+              <ControlPad
+                className="w-full px-0 py-0 shadow-none"
+                controlMode={controlMode}
+                nearbyDistrictTitle={nearbyDistrict?.title ?? null}
+                onAuto={engageAutoControl}
+                onInteract={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("focus"))}
+                onDirectionStart={beginDirectionalMove}
+                onDirectionStop={endDirectionalMove}
+              />
+            }
+          />
+        ) : null}
+      </div>
+
+      <div className="absolute right-3 top-3 z-30 flex items-start gap-2 sm:right-4 sm:top-4">
         <div className="flex items-start gap-2">
           {statsModalOpen ? (
             <div className="pixel-window w-[min(320px,calc(100vw-1rem))] px-4 py-4 text-[#1a1714]">
@@ -1625,7 +1786,9 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               </details>
             </div>
           ) : null}
+        </div>
 
+        <div className="flex items-start gap-2">
           <div className="flex flex-col items-end gap-2">
             <button
               type="button"
@@ -1659,62 +1822,6 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           </div>
         </div>
       </div>
-
-      {!onboardingVisible ? (
-        <div className="pointer-events-none absolute inset-x-3 top-[124px] z-30 flex justify-center sm:top-[132px]">
-          <div className="pointer-events-auto pixel-window-dark w-[min(540px,calc(100vw-1.25rem))] px-4 py-3 text-[#f8f2e9]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="arcade-face text-[0.46rem] text-[#f4d594]">
-                  {nearbyDistrict ? "District nearby" : "Guided play"}
-                </div>
-                <div className="mt-2 text-sm leading-6 text-[#d4cabd]">{travelPrompt}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("quests"))}
-                  className="pixel-button bg-[#f16f51] px-3 py-2 text-white"
-                >
-                  <span className="arcade-face text-[0.44rem]">
-                    {nearbyDistrict ? "Inspect" : "Quest"}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => (controlMode === "auto" ? engageManualControl() : engageAutoControl())}
-                  className="pixel-button bg-[#f8f2e9] px-3 py-2 text-[#171411]"
-                >
-                  <span className="arcade-face text-[0.44rem]">
-                    {controlMode === "auto" ? "Manual" : "Auto"}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {!onboardingVisible ? (
-        <div className="pointer-events-none absolute bottom-[96px] left-3 z-30 flex flex-col gap-3 sm:left-4">
-          <MiniMap
-            districts={districts}
-            objectiveDistrictId={objectiveDistrict.id}
-            selectedDistrictId={selectedDistrict.id}
-            playerPosition={playerPosition}
-            npcPositions={npcPositions}
-            onSelectDistrict={(district) => focusDistrict(district)}
-          />
-          <ControlPad
-            controlMode={controlMode}
-            nearbyDistrictTitle={nearbyDistrict?.title ?? null}
-            onAuto={engageAutoControl}
-            onInteract={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("focus"))}
-            onDirectionStart={beginDirectionalMove}
-            onDirectionStop={endDirectionalMove}
-          />
-        </div>
-      ) : null}
 
       <div className="pointer-events-none absolute bottom-[98px] left-1/2 z-30 w-[min(780px,calc(100vw-1rem))] -translate-x-1/2 px-2">
         {activePanel === "focus" ? (
@@ -2025,49 +2132,61 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
 
       {onboardingVisible ? (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-[rgba(14,12,10,0.38)] backdrop-blur-[2px]">
-          <div className="pixel-window w-[min(720px,calc(100vw-1rem))] px-5 py-5 text-[#171411] sm:px-6 sm:py-6">
+          <div className="pixel-window w-[min(920px,calc(100vw-1rem))] px-5 py-5 text-[#171411] sm:px-6 sm:py-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="arcade-face text-[0.52rem] text-[#6b6256]">OKX Build X Hackathon</div>
-                <div className="arcade-face mt-4 text-[clamp(1rem,3vw,1.6rem)] leading-[1.8]">Connect Wallet. Then Play.</div>
+                <div className="arcade-face mt-4 text-[clamp(1rem,3vw,1.7rem)] leading-[1.8]">Connect Wallet. Then Enter The Village.</div>
               </div>
               <div className="arcade-face rounded-none border-4 border-[#171411] bg-[#171411] px-3 py-2 text-[0.4rem] text-white">
-                village build 0.9
+                phase 20 ux pass
               </div>
             </div>
-            <div className="mt-4 max-w-2xl text-sm leading-7 text-[#4d4338]">
-              Step into a larger pixel village where autonomous agents earn, hire, settle on X Layer, route taxes into treasury,
-              and govern the next rule together. The flow is simple: connect, hit play, then explore the economy in motion.
+            <div className="mt-4 max-w-3xl text-sm leading-7 text-[#4d4338]">
+              Bazaar X starts with one login only: your wallet. Once connected, you enter a living town where the merchant, supplier,
+              worker, and governor agents keep working around you on X Layer. Walk the map, read the legend, inspect districts, and trigger the live economy loop when you are ready.
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <EntryCard title="1. Connect wallet" copy="Your wallet is the only login and the only identity you need." />
-              <EntryCard title="2. Hit play game" copy="Once connected, enter the world and unlock the guided economy run." />
-              <EntryCard title="3. Explore the town" copy="Inspect districts, open stats, and trigger live X Layer actions." />
-            </div>
-            <div className="mt-6 grid gap-3 lg:grid-cols-[1.25fr,0.75fr]">
-              <div className="border-4 border-[#171411] bg-white/70 px-4 py-4">
-                <div className="arcade-face text-[0.42rem] text-[#6b6256]">Quick summaries</div>
-                <div className="mt-3 grid gap-2">
-                  <QuickSummaryRow label="Current objective" value={objectiveDistrict.title} caption={questFocus?.caption ?? "Follow the guided economy loop."} />
-                  <QuickSummaryRow label="Onchain proof" value={`${liveRuntime?.txHashes.length ?? 0} tx hashes`} caption="Real payments, treasury movements, and governance actions." />
-                  <QuickSummaryRow label="Player mode" value={canPlayGame ? "Ready to enter" : "Connect wallet"} caption={canPlayGame ? "The Play Game button is now unlocked." : "Connect first to unlock the world."} />
+            <div className="mt-5 grid gap-3 lg:grid-cols-[1.05fr,0.95fr]">
+              <div className="grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <EntryCard title="1. Connect wallet" copy="Wallet is the only identity layer. No account form, no email, no extra login." />
+                  <EntryCard title="2. Read the board" copy="Use the legend board to learn what each character, quest marker, and inspect pad means." />
+                  <EntryCard title="3. Enter village" copy="Walk manually or leave the courier on auto while agents keep doing their jobs." />
+                </div>
+                <div className="border-4 border-[#171411] bg-white/70 px-4 py-4">
+                  <div className="arcade-face text-[0.42rem] text-[#6b6256]">Who is in the town?</div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {legendItems.map((item) => (
+                      <LegendListRow key={item.label} label={item.label} copy={item.copy} role={item.accent} color={item.color} />
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="space-y-3">
-                <ConnectWalletButton variant="pixel" fullWidth />
-                <button
-                  type="button"
-                  disabled={!canPlayGame}
-                  onClick={() => setHasEnteredGame(true)}
-                  className="pixel-button arcade-face flex w-full items-center justify-center gap-2 bg-[#171411] px-4 py-4 text-[0.58rem] text-white disabled:cursor-not-allowed disabled:bg-[#8f8b84] disabled:text-[#f1ede3]"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Play Game
-                </button>
+              <div className="grid gap-3">
+                <div className="border-4 border-[#171411] bg-white/70 px-4 py-4">
+                  <div className="arcade-face text-[0.42rem] text-[#6b6256]">Start panel</div>
+                  <div className="mt-3 grid gap-2">
+                    <QuickSummaryRow label="Current objective" value={objectiveDistrict.title} caption={questFocus?.caption ?? "Follow the guided economy loop."} />
+                    <QuickSummaryRow label="Onchain proof" value={`${liveRuntime?.txHashes.length ?? 0} tx hashes`} caption="Real payments, treasury movements, and governance actions are already captured on X Layer." />
+                    <QuickSummaryRow label="Wallet state" value={isConnected && address ? shortHash(address) : "Not connected"} caption={isConnected ? "Connected. The Enter Village button is unlocked." : "Connect a wallet to unlock live play."} />
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[1fr,1fr]">
+                  <ConnectWalletButton variant="pixel" fullWidth />
+                  <button
+                    type="button"
+                    disabled={!canPlayGame}
+                    onClick={() => setHasEnteredGame(true)}
+                    className="pixel-button arcade-face flex w-full items-center justify-center gap-2 bg-[#171411] px-4 py-4 text-[0.58rem] text-white disabled:cursor-not-allowed disabled:bg-[#8f8b84] disabled:text-[#f1ede3]"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Enter Village
+                  </button>
+                </div>
                 <div className="border-4 border-[#171411] bg-white/70 px-3 py-3 text-sm leading-6 text-[#4d4338]">
                   {canPlayGame
-                    ? "Connected. Press Play Game to enter the village."
-                    : "Connect wallet first. Play unlocks immediately after a successful connection."}
+                    ? "Wallet connected. Enter the village to start with the legend board open and the courier ready."
+                    : "Connect wallet first. Once the wallet is connected, Enter Village unlocks immediately."}
                 </div>
               </div>
             </div>
@@ -2106,6 +2225,7 @@ function WorldProp({ prop }: { prop: VillageProp }) {
         left: `${prop.x}%`,
         top: `${prop.y}%`,
         transform: `translate(-50%, -50%) scale(${scale})`,
+        zIndex: Math.round(20 + prop.y),
       }}
     >
       {prop.kind === "tree" ? (
@@ -2149,6 +2269,283 @@ function WorldProp({ prop }: { prop: VillageProp }) {
   );
 }
 
+function AvatarSprite({
+  role,
+  color,
+  size = "md",
+  state = "idle",
+}: {
+  role: VillageAgent["id"];
+  color: string;
+  size?: "md" | "lg";
+  state?: "idle" | "auto";
+}) {
+  const large = size === "lg";
+  const shellClass = large ? "h-12 w-12" : "h-9 w-9";
+  const shadowClass = large ? "h-4 w-7" : "h-3 w-5";
+
+  return (
+    <div className={`avatar-bob relative ${shellClass} ${state === "auto" ? "opacity-95" : ""}`}>
+      <div className={`absolute left-1/2 top-full -translate-x-1/2 bg-black/20 blur-[4px] ${shadowClass}`} />
+      <div className="absolute left-1/2 top-[14%] h-[24%] w-[26%] -translate-x-1/2 border-[3px] border-[#171411] bg-[#f2caa0]" />
+      <div
+        className="absolute left-1/2 top-[30%] h-[38%] w-[46%] -translate-x-1/2 border-[3px] border-[#171411]"
+        style={{ backgroundColor: color }}
+      />
+      <div className="absolute left-[30%] bottom-[4%] h-[24%] w-[10%] bg-[#f2caa0]" />
+      <div className="absolute right-[30%] bottom-[4%] h-[24%] w-[10%] bg-[#f2caa0]" />
+      <div className="absolute left-[27%] top-[6%] h-[16%] w-[46%] border-[3px] border-[#171411] bg-[#1a2a33]" />
+
+      {role === "shop" ? (
+        <>
+          <div className="absolute left-[18%] top-[2%] h-[8%] w-[64%] border-[3px] border-[#171411] bg-[#2f695f]" />
+          <div className="absolute right-[10%] top-[45%] h-[16%] w-[14%] border-[2px] border-[#171411] bg-[#fff1bf]" />
+        </>
+      ) : null}
+
+      {role === "supplier" ? (
+        <>
+          <div className="absolute left-[8%] top-[42%] h-[18%] w-[16%] border-[2px] border-[#171411] bg-[#b98854]" />
+          <div className="absolute left-[20%] top-[38%] h-[4%] w-[28%] rotate-[24deg] border-[2px] border-[#171411] bg-[#3d4d8c]" />
+        </>
+      ) : null}
+
+      {role === "worker" ? (
+        <>
+          <div className="absolute left-[20%] top-[4%] h-[7%] w-[58%] border-[3px] border-[#171411] bg-[#ffe29b]" />
+          <div className="absolute right-[8%] top-[36%] h-[18%] w-[5%] bg-[#704b33]" />
+          <div className="absolute right-[4%] top-[32%] h-[7%] w-[16%] border-[2px] border-[#171411] bg-[#c5ccd8]" />
+        </>
+      ) : null}
+
+      {role === "governor" ? (
+        <>
+          <div className="absolute left-[16%] top-[20%] h-[12%] w-[70%] border-[3px] border-[#171411] bg-[#f2e2ff]" />
+          <div className="absolute left-[18%] top-[42%] h-[24%] w-[12%] bg-[#8e63b6]" />
+          <div className="absolute right-[18%] top-[42%] h-[24%] w-[12%] bg-[#8e63b6]" />
+        </>
+      ) : null}
+
+      {role === "courier" ? (
+        <>
+          <div className="absolute left-[8%] top-[38%] h-[20%] w-[18%] border-[2px] border-[#171411] bg-[#d9833f]" />
+          <div className="absolute right-[18%] top-[22%] h-[24%] w-[8%] rotate-[22deg] bg-[#fff4b3]" />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function LandmarkSprite({ spot }: { spot: ScenerySpot }) {
+  if (spot.id === "dock") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute inset-x-[6%] bottom-[6%] top-[48%] border-[4px] border-[#171411] bg-[#5a402f]" />
+        <div className="absolute left-[12%] top-[18%] h-[24%] w-[34%] border-[4px] border-[#171411] bg-[#8fb4cc]" />
+        <div className="absolute left-[56%] top-[16%] h-[50%] w-[6%] bg-[#6a4b2f]" />
+        <div className="absolute left-[58%] top-[18%] h-[8%] w-[20%] bg-[#d9e6ef]" />
+      </div>
+    );
+  }
+
+  if (spot.id === "watch") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute inset-x-[26%] bottom-[8%] top-[18%] border-[4px] border-[#171411] bg-[#6c7588]" />
+        <div className="absolute inset-x-[18%] top-[8%] h-[18%] border-[4px] border-[#171411] bg-[#c7cedd]" />
+        <div className="absolute left-[40%] top-[40%] h-[10%] w-[20%] bg-[#243140]" />
+        <div className="absolute left-[40%] top-[58%] h-[10%] w-[20%] bg-[#243140]" />
+      </div>
+    );
+  }
+
+  if (spot.id === "mill") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute inset-x-[18%] bottom-[8%] top-[28%] border-[4px] border-[#171411] bg-[#ceb472]" />
+        <div className="absolute inset-x-[8%] top-[10%] h-[22%] border-[4px] border-[#171411] bg-[#8b693b]" />
+        <div className="absolute right-[6%] top-[36%] h-[34%] w-[28%] rounded-full border-[4px] border-[#171411] bg-[#e7dcc0]" />
+        <div className="absolute right-[19%] top-[40%] h-[26%] w-[2px] bg-[#171411]" />
+        <div className="absolute right-[10%] top-[52%] h-[2px] w-[20%] bg-[#171411]" />
+      </div>
+    );
+  }
+
+  if (spot.id === "orchard") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute left-[12%] bottom-[8%] h-[24%] w-[22%] border-[3px] border-[#171411] bg-[#593c26]" />
+        <div className="absolute left-[6%] top-[22%] h-[38%] w-[34%] border-[4px] border-[#171411] bg-[#6abf68]" />
+        <div className="absolute left-[38%] bottom-[8%] h-[24%] w-[22%] border-[3px] border-[#171411] bg-[#593c26]" />
+        <div className="absolute left-[32%] top-[18%] h-[40%] w-[34%] border-[4px] border-[#171411] bg-[#58a95c]" />
+        <div className="absolute right-[8%] bottom-[10%] top-[42%] border-[4px] border-[#171411] bg-[#7b5732]" />
+      </div>
+    );
+  }
+
+  if (spot.id === "gate") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute inset-x-[8%] bottom-[10%] top-[34%] border-[4px] border-[#171411] bg-[#69552a]" />
+        <div className="absolute left-[12%] top-[16%] h-[28%] w-[18%] border-[4px] border-[#171411] bg-[#d2bd7f]" />
+        <div className="absolute right-[12%] top-[16%] h-[28%] w-[18%] border-[4px] border-[#171411] bg-[#d2bd7f]" />
+        <div className="absolute left-[36%] top-[6%] h-[26%] w-[28%] border-[4px] border-[#171411] bg-[#c88b55]" />
+      </div>
+    );
+  }
+
+  if (spot.id === "workyard") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute left-[8%] top-[16%] h-[26%] w-[30%] border-[4px] border-[#171411] bg-[#d98562]" />
+        <div className="absolute right-[8%] top-[20%] h-[24%] w-[28%] border-[4px] border-[#171411] bg-[#e2b46a]" />
+        <div className="absolute inset-x-[12%] bottom-[10%] top-[48%] border-[4px] border-[#171411] bg-[#875137]" />
+        <div className="absolute left-[18%] bottom-[6%] h-[14%] w-[16%] border-[3px] border-[#171411] bg-[#af7a4f]" />
+        <div className="absolute right-[18%] bottom-[6%] h-[14%] w-[16%] border-[3px] border-[#171411] bg-[#af7a4f]" />
+      </div>
+    );
+  }
+
+  if (spot.id === "hamlet") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute left-[6%] bottom-[12%] top-[36%] w-[40%] border-[4px] border-[#171411] bg-[#7b5732]" />
+        <div className="absolute left-[2%] top-[18%] h-[24%] w-[48%] border-[4px] border-[#171411] bg-[#d7aa69]" />
+        <div className="absolute right-[6%] bottom-[12%] top-[40%] w-[34%] border-[4px] border-[#171411] bg-[#8d6641]" />
+        <div className="absolute right-[4%] top-[24%] h-[20%] w-[38%] border-[4px] border-[#171411] bg-[#c89056]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0">
+      <div
+        className="absolute inset-x-[16%] top-[10%] h-[28%] border-[4px] border-[#171411]"
+        style={{ backgroundColor: spot.roof }}
+      />
+      <div
+        className="absolute inset-x-[8%] bottom-[8%] top-[32%] border-[4px] border-[#171411]"
+        style={{ backgroundColor: spot.wall }}
+      />
+      <div className="absolute left-[24%] top-[48%] h-[10%] w-[12%] bg-[#f7f2e9]" />
+      <div className="absolute right-[24%] top-[48%] h-[10%] w-[12%] bg-[#f7f2e9]" />
+    </div>
+  );
+}
+
+function UtilityBoard({
+  activeTab,
+  onTabChange,
+  legend,
+  map,
+  controls,
+  className,
+}: {
+  activeTab: UtilityTab;
+  onTabChange: (tab: UtilityTab) => void;
+  legend: ReactNode;
+  map: ReactNode;
+  controls: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <div className="flex items-center gap-2">
+        <UtilityTabButton label="Legend" active={activeTab === "legend"} onClick={() => onTabChange("legend")} />
+        <UtilityTabButton label="Map" active={activeTab === "map"} onClick={() => onTabChange("map")} />
+        <UtilityTabButton label="Controls" active={activeTab === "controls"} onClick={() => onTabChange("controls")} />
+      </div>
+      <div className="mt-4">
+        {activeTab === "legend" ? legend : null}
+        {activeTab === "map" ? map : null}
+        {activeTab === "controls" ? controls : null}
+      </div>
+    </div>
+  );
+}
+
+function UtilityTabButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`pixel-button px-3 py-2 ${active ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"}`}
+    >
+      <span className="arcade-face text-[0.38rem]">{label}</span>
+    </button>
+  );
+}
+
+function LegendBoard({
+  items,
+  objectiveLabel,
+  nearbyLabel,
+}: {
+  items: Array<{ label: string; copy: string; color: string; accent: VillageAgent["id"] }>;
+  objectiveLabel: string;
+  nearbyLabel: string | null;
+}) {
+  return (
+    <div className="grid gap-3">
+      <div className="border-4 border-[#171411] bg-[#131923] px-3 py-3">
+        <div className="arcade-face text-[0.42rem] text-[#f4d594]">Legend Board</div>
+        <div className="mt-2 text-sm leading-6 text-[#d4cabd]">
+          Read the town at a glance. Character colors match the moving agents on the map.
+        </div>
+      </div>
+      <div className="grid gap-2">
+        {items.map((item) => (
+          <LegendListRow key={item.label} label={item.label} copy={item.copy} role={item.accent} color={item.color} />
+        ))}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="border-4 border-[#171411] bg-[#131923] px-3 py-3 text-sm leading-6 text-[#d4cabd]">
+          <div className="arcade-face text-[0.36rem] text-[#f8f2e9]">Quest pad</div>
+          Light squares on the road show where you can inspect districts.
+        </div>
+        <div className="border-4 border-[#171411] bg-[#131923] px-3 py-3 text-sm leading-6 text-[#d4cabd]">
+          <div className="arcade-face text-[0.36rem] text-[#f8f2e9]">Current route</div>
+          {nearbyLabel ? `You are within inspect range of ${nearbyLabel}.` : `Head toward ${objectiveLabel}.`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LegendListRow({
+  label,
+  copy,
+  role,
+  color,
+}: {
+  label: string;
+  copy: string;
+  role: VillageAgent["id"];
+  color: string;
+}) {
+  return (
+    <div className="border-4 border-[#171411] bg-[#131923] px-3 py-3">
+      <div className="flex items-center gap-3">
+        <div className="relative h-10 w-10 shrink-0">
+          <AvatarSprite role={role} color={color} />
+        </div>
+        <div className="min-w-0">
+          <div className="arcade-face text-[0.36rem] text-[#f8f2e9]">{label}</div>
+          <div className="mt-1 text-sm leading-6 text-[#d4cabd]">{copy}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DockButton({
   label,
   icon: Icon,
@@ -2175,6 +2572,7 @@ function DockButton({
 }
 
 function MiniMap({
+  className,
   districts,
   objectiveDistrictId,
   selectedDistrictId,
@@ -2182,6 +2580,7 @@ function MiniMap({
   npcPositions,
   onSelectDistrict,
 }: {
+  className?: string;
   districts: District[];
   objectiveDistrictId: DistrictId;
   selectedDistrictId: DistrictId;
@@ -2190,7 +2589,7 @@ function MiniMap({
   onSelectDistrict: (district: District) => void;
 }) {
   return (
-    <div className="pointer-events-auto pixel-window-dark w-[148px] px-3 py-3 text-[#f8f2e9]">
+    <div className={`pointer-events-auto pixel-window-dark w-[148px] px-3 py-3 text-[#f8f2e9] ${className ?? ""}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="arcade-face text-[0.42rem] text-[#f4d594]">Map</div>
         <div className="arcade-face text-[0.34rem] text-[#d4cabd]">live</div>
@@ -2246,6 +2645,7 @@ function MiniMap({
 }
 
 function ControlPad({
+  className,
   controlMode,
   nearbyDistrictTitle,
   onAuto,
@@ -2253,6 +2653,7 @@ function ControlPad({
   onDirectionStart,
   onDirectionStop,
 }: {
+  className?: string;
   controlMode: ControlMode;
   nearbyDistrictTitle: string | null;
   onAuto: () => void;
@@ -2261,7 +2662,7 @@ function ControlPad({
   onDirectionStop: () => void;
 }) {
   return (
-    <div className="pointer-events-auto pixel-window-dark w-[148px] px-3 py-3 text-[#f8f2e9]">
+    <div className={`pointer-events-auto pixel-window-dark w-[148px] px-3 py-3 text-[#f8f2e9] ${className ?? ""}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="arcade-face text-[0.42rem] text-[#f4d594]">Controls</div>
         <Gamepad2 className="h-4 w-4 text-[#d4cabd]" />
