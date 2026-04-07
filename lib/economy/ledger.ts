@@ -1,12 +1,6 @@
-import {
-  executeChange,
-  proposeChange,
-  vote as castVote,
-  enforcePolicy,
-  createDefaultPolicy,
-} from '../../covenant-skill';
 import type { GovernanceProposal, PolicyTransaction } from '../../covenant-skill/types';
 import { deriveId, stableHash } from './hash';
+import { covenantWorldSkill, installedWorldEconomySkills } from './skills';
 import {
   AgentRecord,
   EconomyAction,
@@ -131,7 +125,7 @@ const applySettlement = (
     };
   }
 
-  const decision = enforcePolicy(
+  const decision = covenantWorldSkill.methods.enforcePolicy(
     policyTx,
     {
       treasuryBalance: state.covenant.treasuryBalance,
@@ -454,7 +448,7 @@ export function applyAction(state: EconomyState, action: EconomyAction): Economy
       return result.state;
     }
     case 'propose_change': {
-      const nextCovenant = proposeChange(state.covenant, {
+      const nextCovenant = covenantWorldSkill.methods.proposeChange(state.covenant, {
         id: action.proposalId,
         proposerId: action.agentId,
         title: action.title,
@@ -492,7 +486,7 @@ export function applyAction(state: EconomyState, action: EconomyAction): Economy
       );
     }
     case 'vote': {
-      const nextCovenant = castVote(state.covenant, action.proposalId, action.agentId, action.choice);
+      const nextCovenant = covenantWorldSkill.methods.vote(state.covenant, action.proposalId, action.agentId, action.choice);
       const nextState = {
         ...state,
         covenant: nextCovenant,
@@ -522,7 +516,7 @@ export function applyAction(state: EconomyState, action: EconomyAction): Economy
       );
     }
     case 'execute_change': {
-      const result = executeChange(state.covenant, action.proposalId, state.tick);
+      const result = covenantWorldSkill.methods.executeChange(state.covenant, action.proposalId, state.tick);
       const nextState = {
         ...state,
         covenant: result.state,
@@ -580,12 +574,12 @@ export const createInitialEconomyState = (input: {
   transactions: [],
   events: [],
   covenant: {
-    policy: createDefaultPolicy(),
+    policy: covenantWorldSkill.methods.createDefaultPolicy(),
     treasuryBalance: 0,
     collectedTax: 0,
     proposals: {},
   },
-  milestones: [],
+  milestones: installedWorldEconomySkills.map((skill) => `skill:${skill.id}`),
 });
 
 export const applyMilestone = (state: EconomyState, milestone: string): EconomyState => {

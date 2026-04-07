@@ -31,6 +31,13 @@ type LiveDashboardStatus = {
     round: number;
     treasury: number;
   };
+  skills: Array<{
+    id: string;
+    name: string;
+    description: string;
+    version: string;
+    tags: string[];
+  }>;
   onchain: {
     address: string;
     chainId: number;
@@ -548,6 +555,7 @@ export function BazaarDashboard() {
 
   const dashboardStatus = statusQuery.data?.status ?? null;
   const liveDashboard = dashboardStatus?.liveDashboard ?? null;
+  const installedSkills = dashboardStatus?.skills ?? [];
   const manifest = liveDashboard?.manifest ?? null;
   const liveRuntime = liveDashboard?.runtime ?? null;
   const funding = liveDashboard?.funding ?? null;
@@ -1102,6 +1110,54 @@ export function BazaarDashboard() {
   const showBootSplash = !hasMounted || !bootReady || statusQuery.isLoading;
   const walletGateVisible = !showBootSplash && hasMounted && !isConnected;
   const activeWorkers = npcPositions.filter((agent) => agent.id !== "courier").length;
+  const visibleActivityAgents = npcPositions.filter((agent) => agent.id !== "courier").slice(0, 3);
+  const skillsSummary = installedSkills.length
+    ? installedSkills.map((skill) => skill.name).join(", ")
+    : "No world skills loaded.";
+  const primaryQuestAction =
+    !manifest?.agents.length
+      ? {
+          label: "Spawn economy",
+          hint: "Create the town roster and wallet state.",
+          icon: Bot,
+          disabled: actionMutation.isPending || walletGateVisible,
+          loading: busyLabel === "Spawn economy",
+          onClick: () =>
+            runAction({
+              label: "Spawn economy",
+              path: "/api/agents/init",
+              body: {
+                count: 5,
+                seed: "bazaar-x-live",
+                initialBudget: 1000,
+              },
+            }),
+        }
+      : !contractAddress
+        ? {
+            label: "Deploy to X Layer",
+            hint: deployHint,
+            icon: Landmark,
+            disabled: actionMutation.isPending || !canDeploy || walletGateVisible,
+            loading: busyLabel === "Deploy to X Layer",
+            onClick: () =>
+              runAction({
+                label: "Deploy to X Layer",
+                path: "/api/live/deploy",
+              }),
+          }
+        : {
+            label: "Play live round",
+            hint: "Hire, pay, tax, reinvest, and govern onchain.",
+            icon: Sparkles,
+            disabled: actionMutation.isPending || !canRunLive || walletGateVisible,
+            loading: busyLabel === "Play live round",
+            onClick: () =>
+              runAction({
+                label: "Play live round",
+                path: "/api/live/run",
+              }),
+          };
   const liveAlert = statusError
     ? statusError
     : isUnsupportedViewerNetwork
@@ -1300,6 +1356,15 @@ export function BazaarDashboard() {
           <div className="mt-3 text-sm leading-6 text-[#4d4338]">
             {questFocus?.caption ?? "Walk the village and trigger the onchain loop."}
           </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <BriefChip label="Status" value={liveRuntime?.status ?? "ready"} />
+            <BriefChip label="Tx" value={String(liveRuntime?.txHashes.length ?? 0)} />
+            <BriefChip
+              label="Treasury"
+              value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")}
+            />
+            <BriefChip label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+          </div>
         </div>
 
         <div className="flex items-start gap-2">
@@ -1315,15 +1380,40 @@ export function BazaarDashboard() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-3 space-y-2 text-sm leading-6 text-[#4d4338]">
-                <MiniStat label="Tx" value={String(liveRuntime?.txHashes.length ?? 0)} />
-                <MiniStat label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
-                <MiniStat label="Treasury" value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")} />
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm leading-6 text-[#4d4338]">
                 <MiniStat label="Workers" value={String(activeWorkers)} />
+                <MiniStat label="Skills" value={String(installedSkills.length)} />
               </div>
               <div className={`mt-4 border-4 px-3 py-3 text-sm leading-6 ${statusError || isUnsupportedViewerNetwork ? "border-[#7d221b] bg-[#f6d9d1] text-[#5d1b16]" : "border-[#171411] bg-white/70 text-[#4d4338]"}`}>
                 {liveAlert}
               </div>
+              <details className="mt-4 border-4 border-[#171411] bg-white/70 px-3 py-3">
+                <summary className="arcade-face cursor-pointer text-[0.46rem] text-[#171411]">
+                  installed systems
+                </summary>
+                <div className="mt-3 text-sm leading-6 text-[#4d4338]">{skillsSummary}</div>
+                <div className="mt-3 grid gap-2">
+                  {installedSkills.map((skill) => (
+                    <div key={skill.id} className="border-4 border-[#171411] bg-[#f8f2e9] px-3 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="arcade-face text-[0.44rem] text-[#171411]">{skill.name}</div>
+                        <div className="text-xs text-[#6b6256]">v{skill.version}</div>
+                      </div>
+                      <div className="mt-2 text-sm leading-6 text-[#4d4338]">{skill.description}</div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {skill.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="arcade-face border-2 border-[#171411] bg-white px-2 py-1 text-[0.38rem] text-[#171411]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
             </div>
           ) : null}
 
@@ -1336,7 +1426,18 @@ export function BazaarDashboard() {
               <span className="arcade-face text-[0.48rem]">{showSystemPanel ? "Hide brief" : "Brief"}</span>
               {showSystemPanel ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
-            <ConnectWalletButton variant="pixel" />
+            {hasMounted && isConnected && address ? (
+              <button
+                type="button"
+                onClick={() => setActivePanel((current) => (current === "wallet" ? null : "wallet"))}
+                className="pixel-button inline-flex items-center gap-2 bg-[#ffffff] px-3 py-2 text-[#171411]"
+              >
+                <span className="arcade-face text-[0.48rem]">Wallet</span>
+                <span className="text-xs font-medium">{shortHash(address)}</span>
+              </button>
+            ) : (
+              <ConnectWalletButton variant="pixel" />
+            )}
           </div>
         </div>
       </div>
@@ -1357,7 +1458,26 @@ export function BazaarDashboard() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <details open className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
+            {selectedDistrict.txHash ? (
+              <ProofDock
+                className="mt-4"
+                label="Latest tx"
+                value={selectedDistrict.txHash}
+                href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedDistrict.txHash}`}
+                copied={copiedValue === selectedDistrict.txHash}
+                onCopy={() => copyText(selectedDistrict.txHash ?? "")}
+              />
+            ) : selectedDistrict.address ? (
+              <ProofDock
+                className="mt-4"
+                label="Address"
+                value={selectedDistrict.address}
+                href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/address/${selectedDistrict.address}`}
+                copied={copiedValue === selectedDistrict.address}
+                onCopy={() => copyText(selectedDistrict.address ?? "")}
+              />
+            ) : null}
+            <details className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
               <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">district notes</summary>
               <div className="mt-3 grid gap-2">
                 {selectedDistrict.notes.map((note) => (
@@ -1412,55 +1532,13 @@ export function BazaarDashboard() {
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <ActionTile
-                icon={Bot}
-                label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
-                hint="Create the town roster and wallet state."
-                loading={busyLabel === "Spawn economy"}
-                disabled={actionMutation.isPending || walletGateVisible}
-                onClick={() =>
-                  runAction({
-                    label: "Spawn economy",
-                    path: "/api/agents/init",
-                    body: {
-                      count: 5,
-                      seed: "bazaar-x-live",
-                      initialBudget: 1000,
-                    },
-                  })
-                }
-              />
-              <ActionTile
-                icon={Landmark}
-                label={
-                  busyLabel === "Deploy to X Layer"
-                    ? "Deploying..."
-                    : contractAddress
-                      ? "Sync proof"
-                      : "Deploy to X Layer"
-                }
-                hint={deployHint}
-                loading={busyLabel === "Deploy to X Layer"}
-                disabled={actionMutation.isPending || !canDeploy || walletGateVisible}
-                onClick={() =>
-                  runAction({
-                    label: "Deploy to X Layer",
-                    path: "/api/live/deploy",
-                  })
-                }
-              />
-              <ActionTile
-                icon={Sparkles}
-                label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
-                hint="Hire, pay, tax, reinvest, and govern onchain."
+                icon={primaryQuestAction.icon}
+                label={primaryQuestAction.loading ? `${primaryQuestAction.label}...` : primaryQuestAction.label}
+                hint={primaryQuestAction.hint}
                 tone="accent"
-                loading={busyLabel === "Play live round"}
-                disabled={actionMutation.isPending || !canRunLive || walletGateVisible}
-                onClick={() =>
-                  runAction({
-                    label: "Play live round",
-                    path: "/api/live/run",
-                  })
-                }
+                loading={primaryQuestAction.loading}
+                disabled={primaryQuestAction.disabled}
+                onClick={primaryQuestAction.onClick}
               />
               <ActionTile
                 icon={RefreshCw}
@@ -1472,6 +1550,73 @@ export function BazaarDashboard() {
                 onClick={() => statusQuery.refetch()}
               />
             </div>
+            <details className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
+              <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">
+                manual controls
+              </summary>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <ActionTile
+                  icon={Bot}
+                  label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
+                  hint="Create the town roster and wallet state."
+                  loading={busyLabel === "Spawn economy"}
+                  disabled={actionMutation.isPending || walletGateVisible}
+                  onClick={() =>
+                    runAction({
+                      label: "Spawn economy",
+                      path: "/api/agents/init",
+                      body: {
+                        count: 5,
+                        seed: "bazaar-x-live",
+                        initialBudget: 1000,
+                      },
+                    })
+                  }
+                />
+                <ActionTile
+                  icon={Landmark}
+                  label={
+                    busyLabel === "Deploy to X Layer"
+                      ? "Deploying..."
+                      : contractAddress
+                        ? "Sync proof"
+                        : "Deploy to X Layer"
+                  }
+                  hint={deployHint}
+                  loading={busyLabel === "Deploy to X Layer"}
+                  disabled={actionMutation.isPending || !canDeploy || walletGateVisible}
+                  onClick={() =>
+                    runAction({
+                      label: "Deploy to X Layer",
+                      path: "/api/live/deploy",
+                    })
+                  }
+                />
+                <ActionTile
+                  icon={Sparkles}
+                  label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
+                  hint="Hire, pay, tax, reinvest, and govern onchain."
+                  tone="accent"
+                  loading={busyLabel === "Play live round"}
+                  disabled={actionMutation.isPending || !canRunLive || walletGateVisible}
+                  onClick={() =>
+                    runAction({
+                      label: "Play live round",
+                      path: "/api/live/run",
+                    })
+                  }
+                />
+                <ActionTile
+                  icon={RefreshCw}
+                  label="Refresh"
+                  hint="Pull the latest chain and runtime state."
+                  tone="ghost"
+                  loading={statusQuery.isFetching}
+                  disabled={actionMutation.isPending || statusQuery.isFetching}
+                  onClick={() => statusQuery.refetch()}
+                />
+              </div>
+            </details>
             <div className="mt-4 grid gap-3">
               {questSteps.map((step) => (
                 <QuestCard key={step.id} step={step} compact />
@@ -1551,20 +1696,18 @@ export function BazaarDashboard() {
               <MiniStat label="Treasury" value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")} />
               <MiniStat label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
             </div>
-            <details open className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
+            <details className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
               <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">city activity</summary>
               <div className="mt-3 grid gap-2">
-                {npcPositions
-                  .filter((agent) => agent.id !== "courier")
-                  .map((agent) => (
-                    <div key={agent.id} className="border-4 border-[#171411] bg-[#0f141d] px-3 py-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="arcade-face text-[0.44rem] text-[#f8f2e9]">{agent.title}</div>
-                        <div className="h-3 w-3 border-2 border-[#171411]" style={{ backgroundColor: agent.color }} />
-                      </div>
-                      <div className="mt-2 text-sm leading-6 text-[#d4cabd]">{agent.status}</div>
+                {visibleActivityAgents.map((agent) => (
+                  <div key={agent.id} className="border-4 border-[#171411] bg-[#0f141d] px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="arcade-face text-[0.44rem] text-[#f8f2e9]">{agent.title}</div>
+                      <div className="h-3 w-3 border-2 border-[#171411]" style={{ backgroundColor: agent.color }} />
                     </div>
-                  ))}
+                    <div className="mt-2 text-sm leading-6 text-[#d4cabd]">{agent.status}</div>
+                  </div>
+                ))}
               </div>
             </details>
           </div>
@@ -1833,6 +1976,15 @@ function InfoRow({ children }: { children: string }) {
   return (
     <div className="border-4 border-[#171411] bg-[#0f141d] px-4 py-3 text-sm leading-6 text-[#d4cabd]">
       {children}
+    </div>
+  );
+}
+
+function BriefChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-4 border-[#171411] bg-white/70 px-3 py-2 text-[#171411]">
+      <div className="arcade-face text-[0.38rem] text-[#6b6256]">{label}</div>
+      <div className="mt-1 text-sm font-medium break-words">{value}</div>
     </div>
   );
 }

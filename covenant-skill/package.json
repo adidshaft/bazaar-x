@@ -8,6 +8,8 @@
   "exports": {
     ".": "./index.ts",
     "./engine": "./engine.ts",
-    "./types": "./types.ts"
+    "./types": "./types.ts",
+    "./registry": "./registry.ts",
+    "./skill": "./skill.ts"
   }
 }

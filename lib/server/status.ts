@@ -9,6 +9,7 @@ import {
   WALLETS_ARTIFACT_PATH,
 } from "./config";
 import { getLiveDashboardStatus } from "../onchain/flow";
+import { installedWorldEconomySkills } from "../economy/skills";
 import { readContractSnapshot } from "./onchain";
 import { sanitizeManifestPayload } from "./public";
 
@@ -37,6 +38,7 @@ export async function getLiveStatus() {
   return {
     runtime,
     onchain,
+    skills: installedWorldEconomySkills,
     liveDashboard: sanitizeManifestPayload(liveDashboard),
     sources: {
       artifacts: {

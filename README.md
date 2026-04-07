@@ -96,6 +96,26 @@ Supporting differentiators:
 
 That makes the policy layer portable to other autonomous agent economies.
 
+### World Economy Skills
+
+Bazaar X now treats economy logic as a pluggable skill layer instead of a hard-coded one-off.
+
+Core pieces:
+- `covenant-skill/registry.ts` defines the generic `WorldEconomySkillRegistry`
+- `covenant-skill/skill.ts` exposes Covenant as a reusable installable skill
+- `lib/economy/skills.ts` installs the skill catalog for Bazaar X
+- `lib/economy/ledger.ts` talks to installed skills through the registry-backed interface
+
+That means another game or world economy can keep the same runtime loop and swap in different skills for:
+- policy and taxation
+- inventory rules
+- faction permissions
+- crafting recipes
+- transport tolls
+- seasonal world events
+
+See [docs/skills.md](/Users/amanpandey/projects/bazaar-x/docs/skills.md) for the extension pattern.
+
 ## End-to-End Flow
 
 1. The user opens the explorable town.
@@ -207,6 +227,7 @@ Use the town and narration to show:
 - Treasury growth from taxes.
 - A proposal being voted on.
 - The rule change affecting the next transaction.
+- The installed world skill modules powering the economy.
 
 The core message is simple:
 Bazaar X is a live autonomous economy, not a static dApp.
