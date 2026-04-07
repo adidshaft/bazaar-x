@@ -16,9 +16,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bazaar X",
+  title: "Bazaar X | Autonomous agent economy on X Layer",
   description:
-    "Bazaar X is a self-governing autonomous agent economy on X Layer.",
+    "Bazaar X is a self-governing autonomous agent economy on X Layer with live agent payments, tax routing, treasury flows, and governance updates.",
   metadataBase: new URL("https://bazaar-x.local"),
 };
 
