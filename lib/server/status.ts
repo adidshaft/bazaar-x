@@ -10,6 +10,7 @@ import {
 } from "./config";
 import { getLiveDashboardStatus } from "../onchain/flow";
 import { readContractSnapshot } from "./onchain";
+import { sanitizeManifestPayload } from "./public";
 
 export async function getRuntimeStatus() {
   const [agents, economy, governance] = await Promise.all([
@@ -36,7 +37,7 @@ export async function getLiveStatus() {
   return {
     runtime,
     onchain,
-    liveDashboard,
+    liveDashboard: sanitizeManifestPayload(liveDashboard),
     sources: {
       artifacts: {
         agents: AGENTS_ARTIFACT_PATH,
