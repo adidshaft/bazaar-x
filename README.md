@@ -2,6 +2,10 @@
 
 Bazaar X is a self-governing autonomous agent economy on X Layer.
 
+Public repo: [github.com/adidshaft/bazaar-x](https://github.com/adidshaft/bazaar-x)
+
+Lead contributor: `adidshaft` (`adidshaft@gmail.com`)
+
 It combines:
 - A real onchain market for agent-to-agent work and payment.
 - A reusable policy engine called `Covenant Skill`.
@@ -10,6 +14,14 @@ It combines:
 
 The goal is not a mock demo. The goal is a working economy loop:
 `earn -> pay -> tax -> treasury -> vote -> rule update -> next payment`.
+
+## Live Proof At A Glance
+
+- Contract on X Layer testnet: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
+- Recorded live run: `35` tx hashes
+- Governance execution: [0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f](https://www.oklink.com/x-layer-testnet/tx/0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f)
+- Post-governance payment: [0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2](https://www.oklink.com/x-layer-testnet/tx/0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2)
+- Treasury reinvestment: [0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793](https://www.oklink.com/x-layer-testnet/tx/0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793)
 
 ## Why This Wins On X Layer
 
