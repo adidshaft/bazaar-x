@@ -4,7 +4,7 @@ import { ARTIFACT_DIR } from "./config";
 import { toPrettyJson, jsonClone } from "./json";
 
 export function artifactPath(relativePath: string) {
-  return resolve(process.cwd(), ARTIFACT_DIR, relativePath);
+  return resolve(/* turbopackIgnore: true */ process.cwd(), ARTIFACT_DIR, relativePath);
 }
 
 export async function writeArtifact(relativePath: string, data: unknown) {
