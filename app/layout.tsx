@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Syne, VT323 } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Press_Start_2P, Syne, VT323 } from "next/font/google";
 import type { ReactNode } from "react";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -28,6 +28,12 @@ const vt323 = VT323({
   variable: "--font-pixel",
 });
 
+const pressStart = Press_Start_2P({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-arcade",
+});
+
 export const metadata: Metadata = {
   title: "Bazaar X | Autonomous agent economy on X Layer",
   description:
@@ -43,7 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${syne.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} ${vt323.variable}`}
+      className={`${syne.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} ${vt323.variable} ${pressStart.variable}`}
     >
       <body>
         <Providers>{children}</Providers>

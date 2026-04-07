@@ -7,11 +7,25 @@ function shortAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-export function ConnectWalletButton() {
+type ConnectWalletButtonProps = {
+  variant?: "default" | "pixel";
+  fullWidth?: boolean;
+};
+
+export function ConnectWalletButton({
+  variant = "default",
+  fullWidth = false,
+}: ConnectWalletButtonProps) {
   const [hasMounted, setHasMounted] = useState(false);
   const { address, chain, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+
+  const isPixel = variant === "pixel";
+  const widthClass = fullWidth ? "w-full justify-center" : "";
+  const baseClass = isPixel
+    ? `arcade-face inline-flex items-center gap-2 border-4 border-[#171411] bg-[#f16f51] px-4 py-3 text-[0.66rem] text-white shadow-[0_6px_0_rgba(23,20,17,0.95)] transition hover:translate-y-[1px] hover:shadow-[0_5px_0_rgba(23,20,17,0.95)] ${widthClass}`
+    : `inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${widthClass}`;
 
   useEffect(() => {
     setHasMounted(true);
@@ -22,10 +36,14 @@ export function ConnectWalletButton() {
       <button
         type="button"
         disabled
-        className="inline-flex items-center gap-2 rounded-full border border-[#69f0d2]/20 bg-[#69f0d2]/8 px-4 py-2 text-sm font-medium text-[#bffdf1]/80 opacity-70"
+        className={
+          isPixel
+            ? `${baseClass} cursor-wait bg-[#8b8a86] text-[#f5f4ef] opacity-80`
+            : `${baseClass} rounded-full border border-[#69f0d2]/20 bg-[#69f0d2]/8 font-medium text-[#bffdf1]/80 opacity-70`
+        }
       >
         <span className="h-2 w-2 rounded-full bg-[#69f0d2]" />
-        Connect viewer wallet
+        Connect wallet
       </button>
     );
   }
@@ -35,7 +53,11 @@ export function ConnectWalletButton() {
       <button
         type="button"
         onClick={() => disconnect()}
-        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm text-slate-200 transition hover:border-[#69f0d2]/40 hover:text-white"
+        className={
+          isPixel
+            ? `${baseClass} bg-[#1d3043] text-[#f7fafc]`
+            : `${baseClass} rounded-full border border-white/10 bg-white/[0.05] text-slate-200 hover:border-[#69f0d2]/40 hover:text-white`
+        }
       >
         <span className="h-2 w-2 rounded-full bg-[#69f0d2]" />
         {shortAddress(address)}
@@ -51,10 +73,14 @@ export function ConnectWalletButton() {
       type="button"
       onClick={() => connector && connect({ connector })}
       disabled={!connector || isPending}
-      className="inline-flex items-center gap-2 rounded-full border border-[#69f0d2]/30 bg-[#69f0d2]/10 px-4 py-2 text-sm font-medium text-[#bffdf1] transition hover:border-[#69f0d2]/60 hover:bg-[#69f0d2]/15 disabled:cursor-not-allowed disabled:opacity-60"
+      className={
+        isPixel
+          ? `${baseClass} disabled:cursor-not-allowed disabled:bg-[#8b8a86] disabled:text-[#ece8df] disabled:opacity-80`
+          : `${baseClass} rounded-full border border-[#69f0d2]/30 bg-[#69f0d2]/10 font-medium text-[#bffdf1] hover:border-[#69f0d2]/60 hover:bg-[#69f0d2]/15 disabled:cursor-not-allowed disabled:opacity-60`
+      }
     >
       <span className="h-2 w-2 rounded-full bg-[#69f0d2]" />
-      {isPending ? "Connecting..." : "Connect viewer wallet"}
+      {isPending ? "Connecting..." : "Connect wallet"}
     </button>
   );
 }
