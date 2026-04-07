@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   createProposalDraft,
   persistAgentsSnapshot,
   loadLatestAgentsSnapshot,
   initializeAgents,
 } from "../../../../lib/server/agents";
-import { errorResponse, readJsonBody } from "../../../../lib/server/http";
+import { errorResponse, jsonResponse, readJsonBody } from "../../../../lib/server/http";
 
 export const runtime = "nodejs";
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     snapshot.governance.proposals.push(proposal);
     await persistAgentsSnapshot(snapshot);
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         ok: true,
         proposal,

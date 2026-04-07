@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createProposalDraft, initializeAgents, loadLatestAgentsSnapshot } from "../../../../lib/server/agents";
-import { errorResponse, readJsonBody } from "../../../../lib/server/http";
+import { errorResponse, jsonResponse, readJsonBody } from "../../../../lib/server/http";
 
 export const runtime = "nodejs";
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       weight: Math.max(1, Math.floor(agent.budget / 250)),
     }));
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         ok: true,
         proposalDraft,

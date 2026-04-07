@@ -13,7 +13,11 @@ export function sanitizeWalletManifest(manifest: WalletManifest) {
       label: treasury.label,
       address: treasury.address,
     },
-    agents: agents.map(({ privateKey: _privateKey, ...agent }) => agent),
+    agents: agents.map((agent) => {
+      const publicAgent = { ...agent };
+      delete (publicAgent as { privateKey?: string }).privateKey;
+      return publicAgent;
+    }),
   };
 }
 

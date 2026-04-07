@@ -1,5 +1,5 @@
 export function jsonClone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(JSON.stringify(value, jsonReplacer)) as T;
 }
 
 export function jsonReplacer(_: string, value: unknown) {

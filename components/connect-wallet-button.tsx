@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 function shortAddress(address: string) {
@@ -7,9 +8,27 @@ function shortAddress(address: string) {
 }
 
 export function ConnectWalletButton() {
+  const [hasMounted, setHasMounted] = useState(false);
   const { address, chain, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  if (!hasMounted) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="inline-flex items-center gap-2 rounded-full border border-[#69f0d2]/20 bg-[#69f0d2]/8 px-4 py-2 text-sm font-medium text-[#bffdf1]/80 opacity-70"
+      >
+        <span className="h-2 w-2 rounded-full bg-[#69f0d2]" />
+        Connect viewer wallet
+      </button>
+    );
+  }
 
   if (isConnected && address) {
     return (

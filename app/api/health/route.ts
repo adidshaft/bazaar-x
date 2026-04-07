@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { jsonResponse } from "../../../lib/server/http";
 
 export const runtime = "nodejs";
 
 export function GET() {
-  return NextResponse.json(
+  return jsonResponse(
     {
       ok: true,
       service: "bazaar-x-backend",

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonClone } from "./json";
 
 export class ApiError extends Error {
   status: number;
@@ -22,9 +23,13 @@ export async function readJsonBody(request: NextRequest) {
   }
 }
 
+export function jsonResponse(payload: unknown, init?: ResponseInit) {
+  return NextResponse.json(jsonClone(payload), init);
+}
+
 export function errorResponse(error: unknown) {
   if (error instanceof ApiError) {
-    return NextResponse.json(
+    return jsonResponse(
       {
         ok: false,
         error: {
@@ -38,7 +43,7 @@ export function errorResponse(error: unknown) {
   }
 
   const message = error instanceof Error ? error.message : "Unexpected server error.";
-  return NextResponse.json(
+  return jsonResponse(
     {
       ok: false,
       error: {
