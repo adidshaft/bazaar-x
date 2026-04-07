@@ -3,11 +3,15 @@
 import {
   ArrowUpRight,
   Bot,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   ChevronUp,
   Copy,
+  Gamepad2,
   Landmark,
   LoaderCircle,
+  LocateFixed,
   Map as MapIcon,
   RefreshCw,
   Wallet,
@@ -16,7 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { formatEther } from "viem";
 import { useAccount, useBalance } from "wagmi";
 import { ConnectWalletButton } from "./connect-wallet-button";
@@ -194,6 +198,7 @@ type QuestStep = {
 
 type ControlMode = "auto" | "manual";
 type DockPanel = "focus" | "quests" | "wallet" | "live";
+type Direction = "up" | "down" | "left" | "right";
 
 type VillageAgent = {
   id: AgentRole | "courier";
@@ -391,6 +396,28 @@ function moveTowardPoint(current: { x: number; y: number }, target: { x: number;
   };
 }
 
+function movePlayerPosition(current: { x: number; y: number }, direction: Direction, step = 2.8) {
+  const next = { ...current };
+
+  if (direction === "up") {
+    next.y -= step;
+  }
+  if (direction === "down") {
+    next.y += step;
+  }
+  if (direction === "left") {
+    next.x -= step;
+  }
+  if (direction === "right") {
+    next.x += step;
+  }
+
+  return {
+    x: clamp(next.x, 8, 92),
+    y: clamp(next.y, 18, 90),
+  };
+}
+
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
@@ -491,6 +518,7 @@ export function BazaarDashboard() {
   const [showSystemPanel, setShowSystemPanel] = useState(false);
   const [playerPosition, setPlayerPosition] = useState({ x: 49, y: 62 });
   const [autoRouteIndex, setAutoRouteIndex] = useState(0);
+  const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
   const [worldTick, setWorldTick] = useState(0);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
 
@@ -831,12 +859,31 @@ export function BazaarDashboard() {
   }
 
   function engageAutoControl() {
+    setActiveDirection(null);
     setControlMode("auto");
     setAutoRouteIndex(nearestRouteIndex(courierRoute, districtPoints, playerPosition));
   }
 
   function engageManualControl() {
     setControlMode("manual");
+  }
+
+  function nudgePlayer(direction: Direction) {
+    if (controlMode !== "manual") {
+      engageManualControl();
+    }
+    setPlayerPosition((current) => movePlayerPosition(current, direction));
+  }
+
+  function beginDirectionalMove(direction: Direction) {
+    if (controlMode !== "manual") {
+      engageManualControl();
+    }
+    setActiveDirection(direction);
+  }
+
+  function endDirectionalMove() {
+    setActiveDirection(null);
   }
 
   const villageAgents = useMemo<VillageAgent[]>(
@@ -971,35 +1018,35 @@ export function BazaarDashboard() {
       }
 
       event.preventDefault();
-      if (controlMode !== "manual") {
-        engageManualControl();
+      if (key === "arrowup" || key === "w") {
+        nudgePlayer("up");
       }
-      setPlayerPosition((current) => {
-        const step = 2.8;
-        const next = { ...current };
-        if (key === "arrowup" || key === "w") {
-          next.y -= step;
-        }
-        if (key === "arrowdown" || key === "s") {
-          next.y += step;
-        }
-        if (key === "arrowleft" || key === "a") {
-          next.x -= step;
-        }
-        if (key === "arrowright" || key === "d") {
-          next.x += step;
-        }
-
-        return {
-          x: clamp(next.x, 8, 92),
-          y: clamp(next.y, 18, 90),
-        };
-      });
+      if (key === "arrowdown" || key === "s") {
+        nudgePlayer("down");
+      }
+      if (key === "arrowleft" || key === "a") {
+        nudgePlayer("left");
+      }
+      if (key === "arrowright" || key === "d") {
+        nudgePlayer("right");
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [controlMode, hasMounted, nearbyDistrict]);
+
+  useEffect(() => {
+    if (!activeDirection) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setPlayerPosition((current) => movePlayerPosition(current, activeDirection, 2.35));
+    }, 90);
+
+    return () => window.clearInterval(interval);
+  }, [activeDirection]);
 
   useEffect(() => {
     if (nearbyDistrict) {
@@ -1107,6 +1154,15 @@ export function BazaarDashboard() {
     questSteps.find((step) => step.status === "ready") ??
     questSteps.find((step) => step.status === "locked") ??
     questSteps[questSteps.length - 1];
+  const objectiveDistrictId: DistrictId =
+    questFocus?.id === "deploy"
+      ? "core"
+      : questFocus?.id === "play"
+        ? "worker"
+        : questFocus?.id === "govern"
+          ? "governor"
+          : "square";
+  const objectiveDistrict = districtLookup.get(objectiveDistrictId) ?? selectedDistrict;
   const showBootSplash = !hasMounted || !bootReady || statusQuery.isLoading;
   const walletGateVisible = !showBootSplash && hasMounted && !isConnected;
   const activeWorkers = npcPositions.filter((agent) => agent.id !== "courier").length;
@@ -1158,6 +1214,13 @@ export function BazaarDashboard() {
                 path: "/api/live/run",
               }),
           };
+  const travelPrompt = nearbyDistrict
+    ? `You are near ${nearbyDistrict.title}. Press space or tap inspect.`
+    : controlMode === "auto"
+      ? `Auto courier is walking toward ${courierTargetTitle}.`
+      : `Head toward ${objectiveDistrict.title} to continue the economy loop.`;
+  const cameraShiftX = (playerPosition.x - 50) * -0.18;
+  const cameraShiftY = (playerPosition.y - 56) * -0.14;
   const liveAlert = statusError
     ? statusError
     : isUnsupportedViewerNetwork
@@ -1170,6 +1233,13 @@ export function BazaarDashboard() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.45),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.18),transparent_40%,rgba(0,0,0,0.06))]" />
 
       <div className="absolute inset-0 overflow-hidden">
+        <div
+          className="absolute inset-[-5%] transition-transform duration-500"
+          style={{ transform: `translate(${cameraShiftX}%, ${cameraShiftY}%) scale(1.035)` }}
+        >
+          <div className="pixel-cloud absolute left-[10%] top-[6%] h-10 w-24 opacity-75" />
+          <div className="pixel-cloud pixel-cloud-delayed absolute right-[18%] top-[12%] h-8 w-20 opacity-60" />
+          <div className="pixel-cloud absolute left-[66%] top-[18%] h-6 w-16 opacity-55" />
         <div className="pixel-water absolute left-[31%] top-[7%] h-[50%] w-[23%] border-[6px] border-[#f3ebfb] shadow-[0_0_0_4px_#8f8a97]" style={{ clipPath: "polygon(32% 0%,100% 0%,100% 100%,0 100%,0 26%)" }} />
         <div className="pixel-water absolute right-[-3%] top-[9%] h-[46%] w-[18%] border-[6px] border-[#f3ebfb] shadow-[0_0_0_4px_#8f8a97]" />
         <div className="absolute left-[55%] top-[52%] h-[8%] w-[14%] border-[4px] border-[#171411] bg-[#2f8d39]" />
@@ -1292,6 +1362,7 @@ export function BazaarDashboard() {
         {districts.map((district) => {
           const selected = selectedDistrict.id === district.id;
           const nearby = nearbyDistrict?.id === district.id;
+          const objective = objectiveDistrict.id === district.id;
           const isSquare = district.id === "square";
 
           return (
@@ -1308,14 +1379,27 @@ export function BazaarDashboard() {
               }}
             >
               <div
-                className="absolute inset-x-[12%] bottom-[-12%] h-[22%] blur-[8px]"
+                className="absolute inset-x-[12%] bottom-[-12%] h-[22%] blur-[6px]"
                 style={{ backgroundColor: district.palette.glow }}
               />
+              {nearby ? (
+                <div className="quest-beacon absolute inset-[3%] border-[4px] border-[#fff8d4] opacity-90" />
+              ) : null}
+              {objective ? (
+                <div className="quest-beacon absolute left-1/2 top-[-34%] -translate-x-1/2">
+                  <span className="arcade-face bg-[#f16f51] px-2 py-1 text-[0.38rem] text-white shadow-[0_4px_0_rgba(23,20,17,0.9)]">
+                    quest
+                  </span>
+                </div>
+              ) : null}
               <div
                 className={`absolute inset-x-[16%] top-[16%] h-[30%] border-[4px] border-[#171411] ${selected ? "scale-[1.02]" : ""}`}
                 style={{
                   backgroundColor: district.palette.roof,
-                  boxShadow: selected ? `0 0 0 4px rgba(255,255,255,0.35), 0 10px 24px ${district.palette.glow}` : undefined,
+                  boxShadow:
+                    selected || objective
+                      ? `0 0 0 4px rgba(255,255,255,0.35), 0 8px 18px ${district.palette.glow}`
+                      : undefined,
                 }}
               />
               <div
@@ -1345,6 +1429,7 @@ export function BazaarDashboard() {
             </button>
           );
         })}
+        </div>
       </div>
 
       <div className="absolute inset-x-3 top-3 z-30 flex items-start justify-between gap-3 sm:inset-x-4 sm:top-4">
@@ -1442,9 +1527,65 @@ export function BazaarDashboard() {
         </div>
       </div>
 
+      {!walletGateVisible ? (
+        <div className="pointer-events-none absolute inset-x-3 top-[124px] z-30 flex justify-center sm:top-[132px]">
+          <div className="pointer-events-auto pixel-window-dark w-[min(540px,calc(100vw-1.25rem))] px-4 py-3 text-[#f8f2e9]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="arcade-face text-[0.46rem] text-[#f4d594]">
+                  {nearbyDistrict ? "District nearby" : "Guided play"}
+                </div>
+                <div className="mt-2 text-sm leading-6 text-[#d4cabd]">{travelPrompt}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("quests"))}
+                  className="pixel-button bg-[#f16f51] px-3 py-2 text-white"
+                >
+                  <span className="arcade-face text-[0.44rem]">
+                    {nearbyDistrict ? "Inspect" : "Quest"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (controlMode === "auto" ? engageManualControl() : engageAutoControl())}
+                  className="pixel-button bg-[#f8f2e9] px-3 py-2 text-[#171411]"
+                >
+                  <span className="arcade-face text-[0.44rem]">
+                    {controlMode === "auto" ? "Manual" : "Auto"}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {!walletGateVisible ? (
+        <div className="pointer-events-none absolute bottom-[96px] left-3 z-30 flex flex-col gap-3 sm:left-4">
+          <MiniMap
+            districts={districts}
+            objectiveDistrictId={objectiveDistrict.id}
+            selectedDistrictId={selectedDistrict.id}
+            playerPosition={playerPosition}
+            npcPositions={npcPositions}
+            onSelectDistrict={(district) => focusDistrict(district)}
+          />
+          <ControlPad
+            controlMode={controlMode}
+            nearbyDistrictTitle={nearbyDistrict?.title ?? null}
+            onAuto={engageAutoControl}
+            onInteract={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("focus"))}
+            onDirectionStart={beginDirectionalMove}
+            onDirectionStop={endDirectionalMove}
+          />
+        </div>
+      ) : null}
+
       <div className="pointer-events-none absolute bottom-[98px] left-1/2 z-30 w-[min(780px,calc(100vw-1rem))] -translate-x-1/2 px-2">
         {activePanel === "focus" ? (
-          <div className="pointer-events-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
+          <div className="pointer-events-auto max-h-[min(48svh,430px)] overflow-y-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="arcade-face text-[0.5rem] text-[#f4d594]">{selectedDistrict.title}</div>
@@ -1514,7 +1655,7 @@ export function BazaarDashboard() {
         ) : null}
 
         {activePanel === "quests" ? (
-          <div className="pointer-events-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
+          <div className="pointer-events-auto max-h-[min(52svh,460px)] overflow-y-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="arcade-face text-[0.5rem] text-[#f4d594]">Quest Rail</div>
@@ -1626,12 +1767,12 @@ export function BazaarDashboard() {
         ) : null}
 
         {activePanel === "wallet" ? (
-          <div className="pointer-events-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
+          <div className="pointer-events-auto max-h-[min(44svh,420px)] overflow-y-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="arcade-face text-[0.5rem] text-[#f4d594]">Wallet + Controls</div>
                 <div className="mt-2 text-sm leading-6 text-[#d4cabd]">
-                  Wallet connection is the only login. Switch between auto patrol and manual control anytime.
+                  Wallet connection is the only login. Use the minimap and control pad for touch play, or switch between auto patrol and manual anytime.
                 </div>
               </div>
               <button
@@ -1674,7 +1815,7 @@ export function BazaarDashboard() {
         ) : null}
 
         {activePanel === "live" ? (
-          <div className="pointer-events-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
+          <div className="pointer-events-auto max-h-[min(44svh,420px)] overflow-y-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="arcade-face text-[0.5rem] text-[#f4d594]">Live City</div>
@@ -1715,7 +1856,7 @@ export function BazaarDashboard() {
       </div>
 
       <div className="absolute bottom-4 left-1/2 z-30 w-[min(720px,calc(100vw-1rem))] -translate-x-1/2 px-2">
-        <div className="pixel-window-dark flex items-center justify-between gap-2 px-2 py-2 text-[#f8f2e9]">
+        <div className="pixel-window-dark grid grid-cols-2 gap-2 px-2 py-2 text-[#f8f2e9] sm:flex sm:items-center sm:justify-between">
           <DockButton
             label="Focus"
             icon={MapIcon}
@@ -1744,15 +1885,24 @@ export function BazaarDashboard() {
       </div>
 
       {walletGateVisible ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
-          <div className="pixel-window w-[min(520px,calc(100vw-1rem))] px-5 py-5 text-[#171411]">
-            <div className="arcade-face text-[0.62rem] text-[#6b6256]">Enter Bazaar X</div>
-            <div className="arcade-face mt-3 text-[0.9rem] leading-[1.7]">Wallet connection is the only login.</div>
-            <div className="mt-4 text-sm leading-6 text-[#4d4338]">
-              Connect your wallet to enter the village, steer the courier, and trigger the live X Layer economy loop.
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[rgba(14,12,10,0.38)] backdrop-blur-[2px]">
+          <div className="pixel-window w-[min(720px,calc(100vw-1rem))] px-5 py-5 text-[#171411] sm:px-6 sm:py-6">
+            <div className="arcade-face text-[0.52rem] text-[#6b6256]">OKX Build X Hackathon</div>
+            <div className="arcade-face mt-4 text-[clamp(1rem,3vw,1.6rem)] leading-[1.8]">Enter Bazaar X Village</div>
+            <div className="mt-4 max-w-2xl text-sm leading-7 text-[#4d4338]">
+              Wallet connection is the only login. Step into a living pixel town where agents work, get paid on X Layer,
+              route tax into treasury, and change the next transaction through governance.
             </div>
-            <div className="mt-5">
-              <ConnectWalletButton variant="pixel" fullWidth />
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <EntryCard title="1. Connect" copy="No email, no menu maze. Your wallet is your player pass." />
+              <EntryCard title="2. Explore" copy="Walk manually or let the courier auto-patrol the city." />
+              <EntryCard title="3. Trigger" copy="Inspect districts, run the live loop, and watch proofs land onchain." />
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="arcade-face text-[0.44rem] text-[#6b6256]">single screen | live txs | playable world economy</div>
+              <div className="w-full sm:w-[260px]">
+                <ConnectWalletButton variant="pixel" fullWidth />
+              </div>
             </div>
           </div>
         </div>
@@ -1835,13 +1985,197 @@ function DockButton({
     <button
       type="button"
       onClick={onClick}
-      className={`pixel-button flex min-w-[92px] items-center justify-center gap-2 px-3 py-2 ${
+      className={`pixel-button flex w-full min-w-[92px] items-center justify-center gap-2 px-3 py-2 sm:w-auto ${
         active ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"
       }`}
     >
       <Icon className="h-4 w-4" />
       <span className="arcade-face text-[0.44rem]">{label}</span>
     </button>
+  );
+}
+
+function MiniMap({
+  districts,
+  objectiveDistrictId,
+  selectedDistrictId,
+  playerPosition,
+  npcPositions,
+  onSelectDistrict,
+}: {
+  districts: District[];
+  objectiveDistrictId: DistrictId;
+  selectedDistrictId: DistrictId;
+  playerPosition: { x: number; y: number };
+  npcPositions: Array<VillageAgent & { position: { x: number; y: number } }>;
+  onSelectDistrict: (district: District) => void;
+}) {
+  return (
+    <div className="pointer-events-auto pixel-window-dark w-[148px] px-3 py-3 text-[#f8f2e9]">
+      <div className="flex items-center justify-between gap-2">
+        <div className="arcade-face text-[0.42rem] text-[#f4d594]">Map</div>
+        <div className="arcade-face text-[0.34rem] text-[#d4cabd]">live</div>
+      </div>
+      <div className="pixel-minimap mt-3 relative h-[104px] overflow-hidden border-4 border-[#171411] bg-[#111722]">
+        {districts.map((district) => {
+          const isSelected = selectedDistrictId === district.id;
+          const isObjective = objectiveDistrictId === district.id;
+
+          return (
+            <button
+              key={district.id}
+              type="button"
+              onClick={() => onSelectDistrict(district)}
+              className={`absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 border-2 border-[#171411] ${
+                isSelected ? "scale-125" : ""
+              } ${isObjective ? "quest-beacon" : ""}`}
+              style={{
+                left: `${district.approachX}%`,
+                top: `${district.approachY}%`,
+                backgroundColor: district.palette.roof,
+              }}
+              aria-label={`Open ${district.title}`}
+            />
+          );
+        })}
+        {npcPositions
+          .filter((agent) => agent.id !== "courier")
+          .map((agent) => (
+            <div
+              key={agent.id}
+              className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-none border-2 border-[#171411]"
+              style={{
+                left: `${agent.position.x}%`,
+                top: `${agent.position.y}%`,
+                backgroundColor: agent.color,
+              }}
+            />
+          ))}
+        <div
+          className="absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 border-2 border-[#171411] bg-[#f3c44f]"
+          style={{
+            left: `${playerPosition.x}%`,
+            top: `${playerPosition.y}%`,
+          }}
+        />
+      </div>
+      <div className="mt-3 text-[11px] leading-5 text-[#d4cabd]">
+        Yellow is you. Red beacon marks the next story stop.
+      </div>
+    </div>
+  );
+}
+
+function ControlPad({
+  controlMode,
+  nearbyDistrictTitle,
+  onAuto,
+  onInteract,
+  onDirectionStart,
+  onDirectionStop,
+}: {
+  controlMode: ControlMode;
+  nearbyDistrictTitle: string | null;
+  onAuto: () => void;
+  onInteract: () => void;
+  onDirectionStart: (direction: Direction) => void;
+  onDirectionStop: () => void;
+}) {
+  return (
+    <div className="pointer-events-auto pixel-window-dark w-[148px] px-3 py-3 text-[#f8f2e9]">
+      <div className="flex items-center justify-between gap-2">
+        <div className="arcade-face text-[0.42rem] text-[#f4d594]">Controls</div>
+        <Gamepad2 className="h-4 w-4 text-[#d4cabd]" />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <span />
+        <DirectionButton
+          label="up"
+          icon={<ChevronUp className="h-4 w-4" />}
+          onPress={() => onDirectionStart("up")}
+          onRelease={onDirectionStop}
+        />
+        <button
+          type="button"
+          onClick={onAuto}
+          className="pixel-button inline-flex items-center justify-center bg-[#f8f2e9] px-2 py-2 text-[#171411]"
+        >
+          <LocateFixed className="h-4 w-4" />
+        </button>
+        <DirectionButton
+          label="left"
+          icon={<ChevronLeft className="h-4 w-4" />}
+          onPress={() => onDirectionStart("left")}
+          onRelease={onDirectionStop}
+        />
+        <button
+          type="button"
+          onClick={onInteract}
+          className={`pixel-button px-2 py-2 ${
+            nearbyDistrictTitle ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"
+          }`}
+        >
+          <span className="arcade-face text-[0.36rem]">{nearbyDistrictTitle ? "Use" : controlMode}</span>
+        </button>
+        <DirectionButton
+          label="right"
+          icon={<ChevronRight className="h-4 w-4" />}
+          onPress={() => onDirectionStart("right")}
+          onRelease={onDirectionStop}
+        />
+        <span />
+        <DirectionButton
+          label="down"
+          icon={<ChevronDown className="h-4 w-4" />}
+          onPress={() => onDirectionStart("down")}
+          onRelease={onDirectionStop}
+        />
+        <span />
+      </div>
+      <div className="mt-3 text-[11px] leading-5 text-[#d4cabd]">
+        Hold directions to move. {nearbyDistrictTitle ? `Inspect ${nearbyDistrictTitle} from the center button.` : "Use center to keep manual mode close at hand."}
+      </div>
+    </div>
+  );
+}
+
+function DirectionButton({
+  label,
+  icon,
+  onPress,
+  onRelease,
+}: {
+  label: string;
+  icon: ReactNode;
+  onPress: () => void;
+  onRelease: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onMouseDown={onPress}
+      onMouseUp={onRelease}
+      onMouseLeave={onRelease}
+      onTouchStart={(event) => {
+        event.preventDefault();
+        onPress();
+      }}
+      onTouchEnd={onRelease}
+      onTouchCancel={onRelease}
+      className="pixel-button inline-flex items-center justify-center bg-[#f8f2e9] px-2 py-2 text-[#171411] touch-manipulation"
+    >
+      {icon}
+    </button>
+  );
+}
+
+function EntryCard({ title, copy }: { title: string; copy: string }) {
+  return (
+    <div className="border-4 border-[#171411] bg-[#f8f2e9] px-4 py-4">
+      <div className="arcade-face text-[0.42rem] text-[#171411]">{title}</div>
+      <div className="mt-3 text-sm leading-6 text-[#4d4338]">{copy}</div>
+    </div>
   );
 }
 
