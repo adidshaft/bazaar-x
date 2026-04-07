@@ -62,6 +62,31 @@ body::before {
   backdrop-filter: blur(22px);
 }
 
+.panel-glow {
+  position: relative;
+  isolation: isolate;
+}
+
+.panel-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(105, 240, 210, 0.24),
+    rgba(122, 139, 255, 0.14),
+    rgba(255, 185, 106, 0.12)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .text-gradient {
   background: linear-gradient(90deg, #f7fbff 0%, #a9fbeb 42%, #91a0ff 86%);
   -webkit-background-clip: text;
@@ -91,6 +116,38 @@ body::before {
   filter: blur(22px);
   opacity: 0.9;
   pointer-events: none;
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(48px);
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+.hero-orb-left {
+  top: 80px;
+  left: -80px;
+  height: 280px;
+  width: 280px;
+  background: rgba(122, 139, 255, 0.34);
+}
+
+.hero-orb-right {
+  top: 220px;
+  right: -60px;
+  height: 260px;
+  width: 260px;
+  background: rgba(105, 240, 210, 0.28);
+}
+
+.signal-dot {
+  height: 8px;
+  width: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 16px currentColor;
 }
 
 .fade-in {
