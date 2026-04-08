@@ -13,6 +13,8 @@ import {
   LoaderCircle,
   LocateFixed,
   Map as MapIcon,
+  Pause,
+  Play,
   RefreshCw,
   Wallet,
   Sparkles,
@@ -201,6 +203,7 @@ type QuestStep = {
 type ControlMode = "auto" | "manual";
 type DrawerSection = "focus" | "quests" | "wallet" | "live" | "legend" | "stats";
 type Direction = "up" | "down" | "left" | "right";
+type EventTone = "mint" | "sky" | "amber" | "rose" | "violet";
 
 type VillageAgent = {
   id: AgentRole | "courier";
@@ -227,7 +230,7 @@ type ScenerySpot = {
 
 type VillageProp = {
   id: string;
-  kind: "tree" | "field" | "camp" | "cart" | "lamp";
+  kind: "tree" | "field" | "camp" | "cart" | "lamp" | "banner" | "well" | "forge" | "hay";
   x: number;
   y: number;
   scale?: number;
@@ -243,6 +246,24 @@ type VillageObstacle = {
   width: number;
   height: number;
   blocking?: boolean;
+};
+
+type DemoStop = {
+  id: string;
+  title: string;
+  caption: string;
+  districtId?: DistrictId;
+  panel?: DrawerSection | null;
+  dwellMs?: number;
+};
+
+type WorldEvent = {
+  id: string;
+  districtId: DistrictId;
+  label: string;
+  caption: string;
+  tone: EventTone;
+  expiresAt: number;
 };
 
 const districtFrame = {
@@ -370,6 +391,27 @@ function toRelativeTime(timestamp?: string) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function compactStatusText(value: string, maxLength = 34) {
+  const cleaned = value
+    .replace(/\b(Bazaar Forge|Supply Coil|Node Pilot|Covenant Council)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/[.]+$/g, "")
+    .trim();
+
+  if (!cleaned) {
+    return "Town activity";
+  }
+
+  if (cleaned.length <= maxLength) {
+    return cleaned;
+  }
+
+  const slice = cleaned.slice(0, maxLength);
+  const safeBreak = slice.lastIndexOf(" ");
+  const truncated = safeBreak > 18 ? slice.slice(0, safeBreak) : slice;
+  return `${truncated.trim()}...`;
+}
+
 function ruleValue(rules: unknown, index: number) {
   if (Array.isArray(rules) && rules.length > index) {
     return rules[index];
@@ -385,6 +427,63 @@ function findLatestStep(steps: RuntimeStep[], matches: string[]) {
     const key = step.key.toLowerCase();
     return matches.some((match) => label.includes(match) || detail.includes(match) || key.includes(match));
   });
+}
+
+function buildWorldEvent(step: RuntimeStep): Omit<WorldEvent, "expiresAt"> | null {
+  const label = step.label.toLowerCase();
+  const detail = step.detail ?? step.label;
+
+  if (label.includes("treasury")) {
+    return {
+      id: step.txHash ?? `${step.key}:${step.completedAt ?? step.startedAt}`,
+      districtId: "treasury",
+      label: "Treasury Updated",
+      caption: detail,
+      tone: "mint",
+    };
+  }
+
+  if (label.includes("govern") || label.includes("proposal") || label.includes("vote")) {
+    return {
+      id: step.txHash ?? `${step.key}:${step.completedAt ?? step.startedAt}`,
+      districtId: "governor",
+      label: "Rule Shifted",
+      caption: detail,
+      tone: "violet",
+    };
+  }
+
+  if (label.includes("payment") || label.includes("worker")) {
+    return {
+      id: step.txHash ?? `${step.key}:${step.completedAt ?? step.startedAt}`,
+      districtId: "worker",
+      label: "Payment Settled",
+      caption: detail,
+      tone: "rose",
+    };
+  }
+
+  if (label.includes("supplier") || label.includes("service") || label.includes("subcontract")) {
+    return {
+      id: step.txHash ?? `${step.key}:${step.completedAt ?? step.startedAt}`,
+      districtId: "supplier",
+      label: "Route Confirmed",
+      caption: detail,
+      tone: "sky",
+    };
+  }
+
+  if (label.includes("shop") || label.includes("bazaar") || label.includes("register-shop")) {
+    return {
+      id: step.txHash ?? `${step.key}:${step.completedAt ?? step.startedAt}`,
+      districtId: "shop",
+      label: "Market Demand Opened",
+      caption: detail,
+      tone: "amber",
+    };
+  }
+
+  return null;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -492,13 +591,17 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const [controlMode, setControlMode] = useState<ControlMode>("auto");
   const [activePanel, setActivePanel] = useState<DrawerSection | null>(null);
   const [bootReady, setBootReady] = useState(false);
+  const [bootExpired, setBootExpired] = useState(false);
   const [hasEnteredGame, setHasEnteredGame] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoStopIndex, setDemoStopIndex] = useState(0);
   const [playerPosition, setPlayerPosition] = useState({ x: 49, y: 62 });
   const [autoRouteIndex, setAutoRouteIndex] = useState(0);
   const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
   const [worldTick, setWorldTick] = useState(0);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
   const [manualTarget, setManualTarget] = useState<{ x: number; y: number } | null>(null);
+  const [worldEvents, setWorldEvents] = useState<WorldEvent[]>([]);
   const forcedScene = initialScene;
   const engineRef = useRef<Matter.Engine | null>(null);
   const playerBodyRef = useRef<Matter.Body | null>(null);
@@ -508,6 +611,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const autoRouteIndexRef = useRef(0);
   const districtPointsRef = useRef<Map<DistrictId, { x: number; y: number }>>(new Map());
   const selectedIdRef = useRef<DistrictId>("square");
+  const seededWorldEventsRef = useRef(false);
+  const seenWorldEventsRef = useRef(new Set<string>());
 
   const { address, chain, isConnected } = useAccount();
   const { data: balance } = useBalance({
@@ -525,7 +630,15 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setBootReady(true);
-    }, 900);
+    }, 950);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setBootExpired(true);
+    }, 2800);
 
     return () => window.clearTimeout(timer);
   }, []);
@@ -594,6 +707,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const sceneForcesBoot = forcedScene === "boot";
   const sceneForcesOnboarding = forcedScene === "onboarding";
   const sceneForcesGame = forcedScene === "game" || forcedScene === "stats";
+  const sceneBypassesBoot = sceneForcesOnboarding || sceneForcesGame;
   const previewMode = sceneForcesGame && !isConnected;
 
   const taxBps = Number(ruleValue(bazaarSnapshot?.rules, 0) ?? deployment?.initialRules.taxBps ?? 500);
@@ -868,25 +982,29 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     selectedIdRef.current = selectedId;
   }, [selectedId]);
 
-  function syncPlayerPosition(nextPosition: { x: number; y: number }) {
-    setPlayerPosition(nextPosition);
-    setManualTarget(null);
-    manualTargetRef.current = null;
+  function startDemoMode() {
+    setDemoMode(true);
+    setDemoStopIndex(0);
+    setActivePanel(null);
+    setControlMode("manual");
+  }
 
-    if (playerBodyRef.current) {
-      Matter.Body.setPosition(playerBodyRef.current, nextPosition);
-      Matter.Body.setVelocity(playerBodyRef.current, { x: 0, y: 0 });
-    }
+  function stopDemoMode() {
+    setDemoMode(false);
   }
 
   function focusDistrict(district: District) {
+    stopDemoMode();
     setActivePanel("focus");
     setControlMode("manual");
     setSelectedId(district.id);
-    syncPlayerPosition({ x: district.approachX, y: district.approachY });
+    const nextTarget = { x: district.approachX, y: district.approachY };
+    setManualTarget(nextTarget);
+    manualTargetRef.current = nextTarget;
   }
 
   function engageAutoControl() {
+    stopDemoMode();
     setActiveDirection(null);
     setControlMode("auto");
     setManualTarget(null);
@@ -895,10 +1013,12 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   }
 
   function engageManualControl() {
+    stopDemoMode();
     setControlMode("manual");
   }
 
   function beginDirectionalMove(direction: Direction) {
+    stopDemoMode();
     if (controlMode !== "manual") {
       engageManualControl();
     }
@@ -1000,8 +1120,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   );
 
   const scenerySpots: ScenerySpot[] = [
-    { id: "inn", title: "Inn", x: 8, y: 24, width: 13, height: 11, roof: "#d26f55", wall: "#7e402f" },
-    { id: "archive", title: "Archive", x: 31, y: 14, width: 11, height: 8, roof: "#96a8d8", wall: "#4b587a" },
+    { id: "inn", title: "Inn", x: 7, y: 23, width: 14, height: 11, roof: "#d26f55", wall: "#7e402f" },
+    { id: "archive", title: "Archive", x: 30, y: 14, width: 11, height: 8, roof: "#96a8d8", wall: "#4b587a" },
     { id: "watch", title: "Watch", x: 92, y: 18, width: 9, height: 12, roof: "#c7cedd", wall: "#586071" },
     { id: "orchard", title: "Orchard", x: 10, y: 92, width: 11, height: 9, roof: "#7dbf59", wall: "#476537" },
     { id: "dock", title: "Dock", x: 91, y: 90, width: 12, height: 9, roof: "#8fb4cc", wall: "#4a5e68" },
@@ -1009,6 +1129,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     { id: "mill", title: "Mill", x: 72, y: 17, width: 10, height: 9, roof: "#ceb472", wall: "#6f5f31" },
     { id: "workyard", title: "Workyard", x: 86, y: 69, width: 11, height: 8, roof: "#d98562", wall: "#875137" },
     { id: "hamlet", title: "Hamlet", x: 22, y: 95, width: 12, height: 8, roof: "#d7aa69", wall: "#7b5732" },
+    { id: "greenhouse", title: "Greenhouse", x: 66, y: 92, width: 10, height: 8, roof: "#b8d7d1", wall: "#64857d" },
+    { id: "silo", title: "Silo", x: 82, y: 8, width: 8, height: 9, roof: "#d8cbc0", wall: "#7d7268" },
   ];
 
   const villageProps: VillageProp[] = [
@@ -1033,6 +1155,15 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     { id: "lamp-3", kind: "lamp", x: 72, y: 65, scale: 1 },
     { id: "lamp-4", kind: "lamp", x: 28, y: 65, scale: 1 },
     { id: "lamp-5", kind: "lamp", x: 49, y: 76, scale: 1 },
+    { id: "banner-1", kind: "banner", x: 23, y: 58, scale: 0.9 },
+    { id: "banner-2", kind: "banner", x: 78, y: 41, scale: 0.95 },
+    { id: "banner-3", kind: "banner", x: 59, y: 87, scale: 0.95 },
+    { id: "banner-4", kind: "banner", x: 26, y: 84, scale: 0.9 },
+    { id: "well-1", kind: "well", x: 47, y: 63, scale: 0.95 },
+    { id: "forge-1", kind: "forge", x: 75, y: 79, scale: 0.92 },
+    { id: "forge-2", kind: "forge", x: 18, y: 61, scale: 0.84 },
+    { id: "hay-1", kind: "hay", x: 71, y: 14, scale: 0.86 },
+    { id: "hay-2", kind: "hay", x: 12, y: 75, scale: 0.84 },
   ];
 
   const villageObstacles: VillageObstacle[] = [
@@ -1250,6 +1381,66 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     }
   }, [nearbyDistrict]);
 
+  useEffect(() => {
+    const successfulSteps = steps.filter((step) => step.status === "success");
+    if (!successfulSteps.length) {
+      return;
+    }
+
+    if (!seededWorldEventsRef.current) {
+      seededWorldEventsRef.current = true;
+      successfulSteps.forEach((step) => {
+        seenWorldEventsRef.current.add(step.txHash ?? `${step.key}:${step.completedAt ?? step.startedAt}`);
+      });
+
+      const seedEvents = successfulSteps
+        .slice(-4)
+        .map((step) => buildWorldEvent(step))
+        .filter((event): event is Omit<WorldEvent, "expiresAt"> => Boolean(event))
+        .map((event, index) => ({
+          ...event,
+          expiresAt: Date.now() + 4200 + index * 500,
+        }));
+
+      if (seedEvents.length) {
+        setWorldEvents(seedEvents);
+      }
+      return;
+    }
+
+    const nextEvents = successfulSteps
+      .filter((step) => {
+        const id = step.txHash ?? `${step.key}:${step.completedAt ?? step.startedAt}`;
+        if (seenWorldEventsRef.current.has(id)) {
+          return false;
+        }
+        seenWorldEventsRef.current.add(id);
+        return true;
+      })
+      .map((step) => buildWorldEvent(step))
+      .filter((event): event is Omit<WorldEvent, "expiresAt"> => Boolean(event))
+      .map((event, index) => ({
+        ...event,
+        expiresAt: Date.now() + 5200 + index * 450,
+      }));
+
+    if (nextEvents.length) {
+      setWorldEvents((current) => [...current, ...nextEvents].slice(-8));
+    }
+  }, [steps]);
+
+  useEffect(() => {
+    if (!worldEvents.length) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setWorldEvents((current) => current.filter((event) => event.expiresAt > Date.now()));
+    }, 300);
+
+    return () => window.clearInterval(timer);
+  }, [worldEvents.length]);
+
   const questSteps = useMemo<QuestStep[]>(() => {
     const proposalExecutionStep = findLatestStep(steps, ["execute governance update"]);
 
@@ -1343,7 +1534,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           ? "governor"
           : "square";
   const objectiveDistrict = districtLookup.get(objectiveDistrictId) ?? selectedDistrict;
-  const showBootSplash = sceneForcesBoot || !hasMounted || !bootReady || statusQuery.isLoading;
+  const showBootSplash = sceneForcesBoot || (!sceneBypassesBoot && (!hasMounted || (!bootReady && !bootExpired)));
   const canPlayGame = sceneForcesGame || isConnected;
   const onboardingVisible =
     !showBootSplash && ((sceneForcesOnboarding && !hasEnteredGame) || (!sceneForcesGame && !hasEnteredGame));
@@ -1449,13 +1640,90 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
     { label: "treasury", value: formatOkb(treasuryOkbValue) },
     { label: "tax", value: `${(taxBps / 100).toFixed(2)}%` },
   ];
-  const drawerSections: Array<{ id: DrawerSection; label: string; icon: LucideIcon }> = [
-    { id: "focus", label: "Inspect", icon: MapIcon },
-    { id: "quests", label: "Quests", icon: Sparkles },
-    { id: "legend", label: "Legend", icon: Bot },
-    { id: "stats", label: "Stats", icon: Gamepad2 },
-    { id: "live", label: "Tracker", icon: Landmark },
-    { id: "wallet", label: "Wallet", icon: Wallet },
+  const demoStops = useMemo<DemoStop[]>(
+    () => [
+      {
+        id: "intro",
+        title: "Bazaar Square",
+        caption: "Start with the town hub, where the whole economy loop becomes legible.",
+        districtId: "square",
+        panel: null,
+        dwellMs: 3200,
+      },
+      {
+        id: "shop-tour",
+        title: "Merchant Demand",
+        caption: "The merchant opens the first paid demand in the loop.",
+        districtId: "shop",
+        panel: "focus",
+        dwellMs: 4200,
+      },
+      {
+        id: "supplier-tour",
+        title: "Supplier Routing",
+        caption: "Supply flows through the east lane as services are listed and routed.",
+        districtId: "supplier",
+        panel: "focus",
+        dwellMs: 4200,
+      },
+      {
+        id: "worker-tour",
+        title: "Worker Settlement",
+        caption: "The worker proves paid execution and makes the economy tangible.",
+        districtId: "worker",
+        panel: "focus",
+        dwellMs: 4200,
+      },
+      {
+        id: "governor-tour",
+        title: "Governor Policy",
+        caption: "The governor proposes and executes new rules that shape the next payment.",
+        districtId: "governor",
+        panel: "focus",
+        dwellMs: 4400,
+      },
+      {
+        id: "tracker-tour",
+        title: "Live Chain Proof",
+        caption: "The tracker reveals the X Layer runtime, treasury, and activity streams behind the town.",
+        districtId: "treasury",
+        panel: "live",
+        dwellMs: 5200,
+      },
+    ],
+    [],
+  );
+  const drawerSections = useMemo<Array<{ id: DrawerSection; label: string; icon: LucideIcon }>>(
+    () => [
+      { id: "focus", label: "Inspect", icon: MapIcon },
+      { id: "quests", label: "Quests", icon: Sparkles },
+      { id: "legend", label: "Legend", icon: Bot },
+      { id: "stats", label: "Stats", icon: Gamepad2 },
+      { id: "live", label: "Tracker", icon: Landmark },
+      { id: "wallet", label: "Wallet", icon: Wallet },
+    ],
+    [],
+  );
+  const onboardingSteps = [
+    {
+      label: hasMounted && isConnected ? "Wallet linked" : "Step 1",
+      title: hasMounted && isConnected && address ? shortHash(address) : "Connect wallet",
+      copy: hasMounted && isConnected
+        ? "Your courier is ready to enter the town."
+        : "Wake the village by linking a browser wallet.",
+    },
+    {
+      label: "Step 2",
+      title: "Play game",
+      copy: canPlayGame
+        ? "Enter the village and walk the economy loop."
+        : "The play button unlocks right after wallet connection.",
+    },
+    {
+      label: "Step 3",
+      title: "Inspect + prove",
+      copy: "Open the drawer only when you want proof, quests, stats, or controls.",
+    },
   ];
 
   function togglePanel(section: DrawerSection) {
@@ -1491,11 +1759,52 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               ? "Direct connection to the X Layer node. Reading agent actions and transaction states in real time."
               : "Wallet connection is the only login. Switch between auto patrol and manual control anytime.";
   const drawerIsTerminal = visiblePanel === "live";
+  const activeDemoStop = demoMode ? demoStops[demoStopIndex % demoStops.length] : null;
+  const playerIsMoving = controlMode === "auto" || Boolean(activeDirection || manualTarget || demoMode);
+
+  useEffect(() => {
+    if (!demoMode || showBootSplash || onboardingVisible) {
+      return;
+    }
+
+    const stop = demoStops[demoStopIndex % demoStops.length];
+    if (stop.districtId) {
+      const point = districtPoints.get(stop.districtId);
+      if (point) {
+        setSelectedId(stop.districtId);
+        setControlMode("manual");
+        setManualTarget(point);
+        manualTargetRef.current = point;
+      }
+    }
+
+    const panelTimer = window.setTimeout(() => {
+      setActivePanel(stop.panel ?? null);
+    }, stop.panel ? 1500 : 300);
+
+    const advanceTimer = window.setTimeout(() => {
+      setDemoStopIndex((current) => (current + 1) % demoStops.length);
+    }, stop.dwellMs ?? 4200);
+
+    return () => {
+      window.clearTimeout(panelTimer);
+      window.clearTimeout(advanceTimer);
+    };
+  }, [
+    demoMode,
+    demoStopIndex,
+    demoStops,
+    districtPoints,
+    onboardingVisible,
+    showBootSplash,
+  ]);
 
   function handleWorldPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (onboardingVisible) {
       return;
     }
+
+    stopDemoMode();
 
     const element = event.currentTarget;
     const bounds = element.getBoundingClientRect();
@@ -1513,7 +1822,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   }
 
   return (
-    <main className="relative h-[100svh] w-full overflow-hidden bg-[#f5f1e7] text-[#15120f]">
+    <main className="game-frame world-vignette relative h-[100svh] w-full overflow-hidden bg-[#f5f1e7] text-[#15120f]">
       <div className="pixel-plaza absolute inset-0" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.45),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.18),transparent_40%,rgba(0,0,0,0.06))]" />
 
@@ -1528,20 +1837,20 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           <div className="absolute left-[24%] top-[0%] h-[9%] w-[52%] border-b-[6px] border-[#171411] bg-[repeating-linear-gradient(90deg,#a2845f_0,#a2845f_18px,#d4bc8e_18px,#d4bc8e_28px)]" />
           <div className="pixel-water absolute left-[28%] top-[4%] h-[54%] w-[24%] border-[6px] border-[#f3ebfb] shadow-[0_0_0_4px_#8f8a97]" style={{ clipPath: "polygon(32% 0%,100% 0%,100% 100%,0 100%,0 26%)" }} />
           <div className="pixel-water absolute right-[-1%] top-[8%] h-[48%] w-[19%] border-[6px] border-[#f3ebfb] shadow-[0_0_0_4px_#8f8a97]" />
-          <div className="absolute left-[43%] top-[34%] h-[7%] w-[17%] border-[4px] border-[#171411] bg-[repeating-linear-gradient(90deg,#7f5a37_0,#7f5a37_12px,#b18258_12px,#b18258_20px)]" />
-          <div className="absolute left-[54%] top-[55%] h-[8%] w-[17%] border-[4px] border-[#171411] bg-[#2f8d39]" />
-          <div className="absolute left-[70%] top-[39%] h-[20%] w-[4%] border-[4px] border-[#171411] bg-[#2f8d39]" />
-          <div className="absolute right-[3%] top-[48%] h-[11%] w-[11%] border-[4px] border-[#171411] bg-[#2f8d39]" />
-          <div className="absolute left-[10%] top-[8%] h-[16%] w-[9%] border-[4px] border-[#171411] bg-[#3b9d46]" />
-          <div className="absolute left-[6%] bottom-[14%] h-[11%] w-[13%] border-[4px] border-[#171411] bg-[#62b946]" />
+          <div className="lane-shadow absolute left-[43%] top-[34%] h-[7%] w-[17%] border-[4px] border-[#171411] bg-[repeating-linear-gradient(90deg,#7f5a37_0,#7f5a37_12px,#b18258_12px,#b18258_20px)]" />
+          <div className="lane-shadow absolute left-[54%] top-[55%] h-[8%] w-[17%] border-[4px] border-[#171411] bg-[#2f8d39]" />
+          <div className="lane-shadow absolute left-[70%] top-[39%] h-[20%] w-[4%] border-[4px] border-[#171411] bg-[#2f8d39]" />
+          <div className="lane-shadow absolute right-[3%] top-[48%] h-[11%] w-[11%] border-[4px] border-[#171411] bg-[#2f8d39]" />
+          <div className="lane-shadow absolute left-[10%] top-[8%] h-[16%] w-[9%] border-[4px] border-[#171411] bg-[#3b9d46]" />
+          <div className="lane-shadow absolute left-[6%] bottom-[14%] h-[11%] w-[13%] border-[4px] border-[#171411] bg-[#62b946]" />
           <div className="absolute bottom-[10%] right-[8%] h-[16%] w-[14%] rounded-full border-[6px] border-[#171411] bg-[radial-gradient(circle,#d5e7ff_0%,#89c2ff_45%,#3f7bc0_100%)] opacity-85" />
-          <div className="absolute left-[41%] top-[56%] h-[10%] w-[18%] border-[4px] border-[#171411] bg-[linear-gradient(180deg,#d6945f_0%,#c37346_50%,#8d4424_50%,#8d4424_100%)]" />
-          <div className="absolute left-[46%] top-[59%] h-[8%] w-[7%] border-[4px] border-[#171411] bg-[#f3dd88]" />
+          <div className="lane-shadow absolute left-[41%] top-[56%] h-[10%] w-[18%] border-[4px] border-[#171411] bg-[linear-gradient(180deg,#d6945f_0%,#c37346_50%,#8d4424_50%,#8d4424_100%)]" />
+          <div className="lane-shadow absolute left-[46%] top-[59%] h-[8%] w-[7%] border-[4px] border-[#171411] bg-[#f3dd88]" />
           <div className="absolute bottom-[10%] left-[-2%] h-[20%] w-[15%] bg-[linear-gradient(180deg,#6a4c36_0%,#6a4c36_55%,#523828_55%,#523828_100%)]" />
           <div className="absolute bottom-[0%] left-0 right-0 h-[12%] bg-[linear-gradient(180deg,#674b38_0%,#674b38_48%,#4e3527_48%,#4e3527_100%)]" />
-          <div className="absolute left-[15%] top-[60%] h-[4%] w-[68%] border-y-[4px] border-[#171411] bg-[#b8a692]" />
-          <div className="absolute left-[46%] top-[18%] h-[58%] w-[6%] border-x-[4px] border-[#171411] bg-[#b8a692]" />
-          <div className="absolute left-[18%] top-[72%] h-[4%] w-[66%] border-y-[4px] border-[#171411] bg-[#b8a692]" />
+          <div className="lane-shadow absolute left-[15%] top-[60%] h-[4%] w-[68%] border-y-[4px] border-[#171411] bg-[#b8a692]" />
+          <div className="lane-shadow absolute left-[46%] top-[18%] h-[58%] w-[6%] border-x-[4px] border-[#171411] bg-[#b8a692]" />
+          <div className="lane-shadow absolute left-[18%] top-[72%] h-[4%] w-[66%] border-y-[4px] border-[#171411] bg-[#b8a692]" />
 
           <svg
             viewBox="0 0 1000 700"
@@ -1635,6 +1944,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
             zIndex: Math.round(90 + playerPosition.y),
           }}
         >
+          <div className="absolute left-1/2 top-[86%] h-3 w-8 -translate-x-1/2 rounded-full bg-[rgba(23,20,17,0.18)] blur-[1px]" />
+          <DustTrail active={playerIsMoving} />
           <AvatarSprite role="courier" color="#f3c44f" size="lg" state={controlMode === "auto" ? "auto" : "idle"} />
           <div className="arcade-face absolute left-1/2 top-[-26px] -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-[rgba(241,111,81,0.9)] px-[4px] py-[2px] text-[0.46rem] text-white shadow-lg border border-[#1a1510]">
             {controlMode === "auto" ? "AUTO" : "YOU"}
@@ -1670,13 +1981,14 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                 zIndex: Math.round(80 + agent.position.y),
               }}
             >
+              <div className="absolute left-1/2 top-[84%] h-2.5 w-7 -translate-x-1/2 rounded-full bg-[rgba(23,20,17,0.16)] blur-[1px]" />
               <AvatarSprite role={agent.id} color={agent.color} size="lg" />
               <div className="arcade-face absolute left-1/2 top-[-20px] -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-[rgba(26,21,16,0.85)] px-[4px] py-[2px] text-[0.42rem] tracking-wider text-white backdrop-blur-[2px] border border-[rgba(255,255,255,0.15)] shadow-lg transition-transform hover:scale-110">
                 {agent.role}
               </div>
-              <div className="absolute left-1/2 top-[120%] -translate-x-1/2 w-[160px] text-center pointer-events-none opacity-[0.85] pt-[1px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
-                <span className="arcade-face text-[0.32rem] text-[#ffecd1] leading-[1.4]">
-                  {agent.status}
+              <div className="absolute left-1/2 top-[120%] -translate-x-1/2 w-[136px] text-center pointer-events-none pt-[1px]">
+                <span className="status-whisper arcade-face inline-block rounded-[6px] px-2 py-1 text-[0.28rem] leading-[1.45] text-[#ffecd1]">
+                  {compactStatusText(agent.status, 28)}
                 </span>
               </div>
             </div>
@@ -1763,10 +2075,36 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
             </button>
           );
         })}
+
+        {worldEvents.map((event, index) => {
+          const district = districtLookup.get(event.districtId);
+          if (!district) {
+            return null;
+          }
+
+          return (
+            <WorldEventBubble
+              key={event.id}
+              event={event}
+              x={district.x + (index % 2 === 0 ? -3.5 : 3.5)}
+              y={district.y - 20 - (index % 3) * 4}
+            />
+          );
+        })}
         </div>
       </div>
 
-      <div className="absolute left-3 top-3 z-30 flex w-[min(290px,calc(100vw-6rem))] flex-col gap-2 sm:left-4 sm:top-4 sm:w-[320px]">
+      {activeDemoStop ? (
+        <div className="pointer-events-none absolute left-1/2 top-3 z-30 w-[min(540px,calc(100vw-10rem))] -translate-x-1/2 px-2 sm:top-4">
+          <div className="demo-banner pixel-window-dark bounce-in border-[#1a1510] px-4 py-3 text-center text-[#f8f2e9]">
+            <div className="arcade-face text-[0.42rem] text-[#f4d594]">Demo Tour</div>
+            <div className="mt-2 arcade-face text-[0.56rem] text-white">{activeDemoStop.title}</div>
+            <div className="mt-2 text-sm leading-6 text-[#d4cabd]">{activeDemoStop.caption}</div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="absolute left-3 top-3 z-30 flex w-[min(236px,calc(100vw-5rem))] flex-col gap-2 sm:left-4 sm:top-4 sm:w-[292px]">
         <div className="pixel-window px-3 py-3 text-[#1a1714]">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -1789,7 +2127,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               onClick={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : openPanel("quests"))}
               className="pixel-button bg-[#f16f51] px-2 py-2 text-white"
             >
-              <span className="arcade-face text-[0.38rem]">{nearbyDistrict ? "Inspect Nearby" : "Open Quests"}</span>
+              <span className="arcade-face text-[0.38rem]">{nearbyDistrict ? "Inspect" : "Quests"}</span>
             </button>
             <button
               type="button"
@@ -1797,6 +2135,16 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               className="pixel-button bg-[#eae0d2] px-2 py-2 text-[#1a1510]"
             >
               <span className="arcade-face text-[0.38rem]">{controlMode === "auto" ? "Go Manual" : "Resume Auto"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => (demoMode ? stopDemoMode() : startDemoMode())}
+              className={`pixel-button col-span-2 px-2 py-2 ${demoMode ? "bg-[#171411] text-[#f8f2e9]" : "bg-[#f4d594] text-[#2f251c]"}`}
+            >
+              <span className="arcade-face inline-flex items-center gap-2 text-[0.38rem]">
+                {demoMode ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                {demoMode ? "Stop Demo" : "Demo Tour"}
+              </span>
             </button>
           </div>
         </div>
@@ -1806,7 +2154,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         </div>
       </div>
 
-      <div className="absolute right-3 top-3 z-30 flex flex-col items-end gap-2 sm:right-4 sm:top-4">
+      <div className="absolute right-3 top-3 z-30 hidden flex-col items-end gap-2 sm:right-4 sm:top-4 sm:flex">
         <div className="pixel-window-dark hidden gap-2 px-3 py-2 text-[#f8f2e9] md:grid md:grid-cols-3">
           {compactHudStats.map((item) => (
             <div key={item.label} className="min-w-[82px] border-2 border-[#2f251c] bg-[#131923] px-2 py-2">
@@ -1839,14 +2187,17 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
       </div>
 
       {!onboardingVisible ? (
-        <div className="absolute bottom-3 left-1/2 z-30 flex w-[calc(100vw-1rem)] max-w-[540px] -translate-x-1/2 gap-2 sm:bottom-auto sm:left-4 sm:top-1/2 sm:w-auto sm:max-w-none sm:-translate-x-0 sm:-translate-y-1/2 sm:flex-col">
+        <div className="absolute bottom-3 left-1/2 z-30 flex w-[calc(100vw-1rem)] max-w-[540px] -translate-x-1/2 gap-2 sm:bottom-auto sm:left-4 sm:top-[58%] sm:w-auto sm:max-w-none sm:-translate-x-0 sm:-translate-y-1/2 sm:flex-col">
           {drawerSections.map((section) => (
             <RailButton
               key={section.id}
               label={section.label}
               icon={section.icon}
               active={visiblePanel === section.id}
-              onClick={() => togglePanel(section.id)}
+              onClick={() => {
+                stopDemoMode();
+                togglePanel(section.id);
+              }}
             />
           ))}
         </div>
@@ -1887,7 +2238,10 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                     label={section.label}
                     active={visiblePanel === section.id}
                     terminal={drawerIsTerminal}
-                    onClick={() => openPanel(section.id)}
+                    onClick={() => {
+                      stopDemoMode();
+                      openPanel(section.id);
+                    }}
                   />
                 ))}
               </div>
@@ -2189,37 +2543,58 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
       ) : null}
 
       {onboardingVisible ? (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[rgba(14,12,10,0.5)] backdrop-blur-md">
-          <div className="flex flex-col items-center justify-center fade-in">
-            <h1 className="arcade-face mt-6 text-[clamp(2.5rem,7vw,5rem)] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] mb-10 tracking-wider">Bazaar<span className="text-[#f16f51]">X</span></h1>
-            
-            <div className="pixel-window-dark w-[min(480px,calc(100vw-2rem))] p-8 text-center shadow-[0_24px_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(244,213,148,0.05),transparent_60%)] pointer-events-none" />
-              <p className="text-[0.95rem] text-[#d4cabd] mb-8 leading-relaxed relative z-10">
-                Connect your wallet to wake the village. Watch the autonomous agent loop run on X Layer, or control the narrative manually via the Courier.
+        <div className="onboarding-grid absolute inset-0 z-40 flex flex-col items-center justify-center bg-[rgba(14,12,10,0.56)] px-3 backdrop-blur-md">
+          <div className="fade-in flex w-full max-w-[760px] flex-col items-center justify-center pt-4 sm:pt-6">
+            <div className="pixel-window-dark relative w-full overflow-hidden p-6 text-center shadow-[0_24px_50px_rgba(0,0,0,0.5)] sm:p-8">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(244,213,148,0.07),transparent_60%)]" />
+              <div className="relative z-10 arcade-face text-[0.42rem] tracking-[0.24em] text-[#f4d594]">X Layer World Economy</div>
+              <h1 className="relative z-10 arcade-face mb-5 mt-4 text-center text-[clamp(1.95rem,5vw,3.7rem)] tracking-[0.08em] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)]">
+                Bazaar<span className="text-[#f16f51]">X</span>
+              </h1>
+              <p className="relative z-10 mx-auto max-w-[620px] text-[0.98rem] leading-relaxed text-[#d4cabd]">
+                Connect your wallet to wake the village, then hit Play Game to enter a living agent town where work, tax, treasury, and governance all settle on X Layer.
               </p>
-              
-              <div className="flex flex-col items-center gap-4 relative z-10">
+
+              <div className="relative z-10 mt-6 grid gap-3 text-left sm:grid-cols-3">
+                {onboardingSteps.map((step) => (
+                  <div key={step.label} className="border-4 border-[#1a1510] bg-[rgba(10,10,10,0.28)] px-4 py-4">
+                    <div className="arcade-face text-[0.34rem] text-[#f4d594]">{step.label}</div>
+                    <div className="mt-2 arcade-face text-[0.46rem] text-white">{step.title}</div>
+                    <div className="mt-2 text-sm leading-6 text-[#d4cabd]">{step.copy}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="relative z-10 mt-6 flex flex-col items-center gap-4">
                 <ConnectWalletButton variant="pixel" fullWidth />
                 <button
                   type="button"
                   disabled={!canPlayGame}
                   onClick={() => setHasEnteredGame(true)}
-                  className="pixel-button arcade-face flex w-full items-center justify-center gap-2 bg-[#f4d594] px-4 py-4 text-[0.65rem] text-[#2f251c] disabled:cursor-not-allowed disabled:bg-[#4f4339] disabled:text-[#8d8272] transition-colors hover:bg-white"
+                  className="pixel-button arcade-face flex w-full items-center justify-center gap-2 bg-[#f4d594] px-4 py-4 text-[0.65rem] text-[#2f251c] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:bg-[#4f4339] disabled:text-[#8d8272]"
                 >
                   <Sparkles className="h-5 w-5" />
-                  Enter Village
+                  Play Game
                 </button>
               </div>
 
-              {canPlayGame ? (
-                <div className="mt-8 border-t-2 border-[rgba(255,255,255,0.05)] pt-5 relative z-10">
-                  <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#a3d07e] uppercase tracking-widest">
-                     <div className="h-2 w-2 rounded-full bg-[#a3d07e] animate-pulse" />
-                     Ready to enter
-                  </div>
+              <div className="relative z-10 mt-6 grid gap-3 text-left sm:grid-cols-2">
+                <div className="border-4 border-[#1a1510] bg-[rgba(10,10,10,0.2)] px-4 py-4 text-sm leading-6 text-[#d4cabd]">
+                  <div className="arcade-face text-[0.36rem] text-white">Controls</div>
+                  Tap the map or use WASD to roam. Use Space or the center pad when you are close enough to inspect a district.
                 </div>
-              ) : null}
+                <div className="border-4 border-[#1a1510] bg-[rgba(10,10,10,0.2)] px-4 py-4 text-sm leading-6 text-[#d4cabd]">
+                  <div className="arcade-face text-[0.36rem] text-white">Need Proof?</div>
+                  The drawer keeps chain proof, legend, stats, and wallet tools out of the way until you want them.
+                </div>
+              </div>
+
+              <div className="relative z-10 mt-6 border-t-2 border-[rgba(255,255,255,0.05)] pt-5">
+                <div className={`flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest ${canPlayGame ? "text-[#a3d07e]" : "text-[#c9b8a1]"}`}>
+                  <div className={`h-2 w-2 rounded-full ${canPlayGame ? "animate-pulse bg-[#a3d07e]" : "bg-[#8d8272]"}`} />
+                  {canPlayGame ? "Ready to enter" : "Wallet connection required"}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2230,7 +2605,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           <div className="pixel-window w-[min(520px,calc(100vw-1rem))] px-5 py-5 text-[#171411]">
             <div className="arcade-face text-[0.5rem] text-[#6b6256]">Loading village</div>
             <div className="arcade-face mt-4 text-[clamp(1rem,2vw,1.35rem)] leading-[1.8]">Bazaar X is waking up.</div>
-            <div className="mt-4 h-5 border-4 border-[#171411] bg-white p-1">
+            <div className="pixel-loader-bar mt-4 h-5 border-4 border-[#171411] bg-white p-1">
               <div
                 className="h-full bg-[linear-gradient(90deg,#171411_0%,#f16f51_24%,#ffb35b_70%,#72f0d3_100%)] transition-all duration-500"
                 style={{ width: `${bootReady ? 100 : Math.min(88, 12 + worldTick * 6)}%` }}
@@ -2295,6 +2670,41 @@ function WorldProp({ prop }: { prop: VillageProp }) {
           <div className="absolute inset-x-[-120px] bottom-[-100px] h-[200px] w-[240px] lamp-glow pointer-events-none z-[-1]" />
           <div className="absolute bottom-0 left-1/2 h-6 w-1 -translate-x-1/2 bg-[#463321]" />
           <div className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 border-2 border-[#171411] bg-[#ffe29b] shadow-[0_0_20px_rgba(255,226,155,0.65)]" />
+        </div>
+      ) : null}
+
+      {prop.kind === "banner" ? (
+        <div className="relative h-9 w-5">
+          <div className="absolute bottom-0 left-1/2 h-8 w-1 -translate-x-1/2 bg-[#463321]" />
+          <div className="absolute left-[54%] top-1 h-4 w-3 border-[2px] border-[#171411] bg-[#f16f51]" />
+          <div className="absolute left-[56%] top-2 h-1 w-1 bg-[#fff4d3]" />
+        </div>
+      ) : null}
+
+      {prop.kind === "well" ? (
+        <div className="relative h-8 w-9">
+          <div className="absolute inset-x-1 bottom-0 h-4 border-[3px] border-[#171411] bg-[#8e7758]" />
+          <div className="absolute inset-x-2 bottom-1 h-2 bg-[#6dc3df]" />
+          <div className="absolute left-1.5 top-0 h-4 w-1 bg-[#593c26]" />
+          <div className="absolute right-1.5 top-0 h-4 w-1 bg-[#593c26]" />
+          <div className="absolute inset-x-1 top-0 h-2 border-[2px] border-[#171411] bg-[#b17b4c]" />
+        </div>
+      ) : null}
+
+      {prop.kind === "forge" ? (
+        <div className="relative h-8 w-10">
+          <div className="absolute inset-x-1 bottom-0 h-4 border-[3px] border-[#171411] bg-[#6e4832]" />
+          <div className="absolute inset-x-0 top-1 h-3 border-[3px] border-[#171411] bg-[#c26a49]" />
+          <div className="absolute right-1 top-[-1px] h-4 w-2 border-[2px] border-[#171411] bg-[#55515f]" />
+          <div className="absolute left-2 top-3 h-1.5 w-2 rounded-full bg-[#ffe29b] shadow-[0_0_8px_rgba(255,226,155,0.85)]" />
+        </div>
+      ) : null}
+
+      {prop.kind === "hay" ? (
+        <div className="relative h-6 w-9">
+          <div className="absolute inset-0 border-[3px] border-[#171411] bg-[#d9be63]" />
+          <div className="absolute inset-x-1 top-1 h-0.5 bg-[#fff0a5]" />
+          <div className="absolute inset-x-1 top-3 h-0.5 bg-[#fff0a5]" />
         </div>
       ) : null}
     </div>
@@ -2364,6 +2774,68 @@ function AvatarSprite({
           <div className="absolute right-[18%] top-[22%] h-[24%] w-[8%] rotate-[22deg] bg-[#fff4b3]" />
         </>
       ) : null}
+    </div>
+  );
+}
+
+function DustTrail({ active }: { active: boolean }) {
+  if (!active) {
+    return null;
+  }
+
+  return (
+    <>
+      {[
+        { dx: -9, dy: 10, size: "h-2 w-2", delay: "0ms" },
+        { dx: 6, dy: 12, size: "h-1.5 w-1.5", delay: "120ms" },
+        { dx: 1, dy: 15, size: "h-1 w-1", delay: "220ms" },
+      ].map((puff, index) => (
+        <div
+          key={`${puff.dx}-${puff.dy}-${index}`}
+          className={`pointer-events-none absolute z-[6] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(255,243,214,0.55)] ${puff.size} pixel-dust`}
+          style={{
+            left: `${puff.dx}px`,
+            top: `${puff.dy}px`,
+            animationDelay: puff.delay,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+function WorldEventBubble({
+  event,
+  x,
+  y,
+}: {
+  event: WorldEvent;
+  x: number;
+  y: number;
+}) {
+  const toneClass =
+    event.tone === "mint"
+      ? "border-[#7cf2b9] bg-[rgba(38,86,57,0.88)] text-[#dffff0]"
+      : event.tone === "sky"
+        ? "border-[#9cbcff] bg-[rgba(32,49,92,0.9)] text-[#e9efff]"
+        : event.tone === "rose"
+          ? "border-[#ffb0a4] bg-[rgba(98,43,39,0.9)] text-[#fff0ec]"
+          : event.tone === "violet"
+            ? "border-[#dcbcff] bg-[rgba(67,44,98,0.9)] text-[#f8efff]"
+            : "border-[#f4d594] bg-[rgba(91,64,23,0.9)] text-[#fff8df]";
+
+  return (
+    <div
+      className="pointer-events-none absolute z-[12] -translate-x-1/2 -translate-y-1/2"
+      style={{
+        left: `${x}%`,
+        top: `${y}%`,
+      }}
+    >
+      <div className={`world-event-bubble border-[3px] px-2 py-1 shadow-[0_8px_16px_rgba(0,0,0,0.25)] ${toneClass}`}>
+        <div className="arcade-face text-[0.32rem]">{event.label}</div>
+        <div className="mt-1 max-w-[130px] text-[0.54rem] leading-4 opacity-90">{event.caption}</div>
+      </div>
     </div>
   );
 }
@@ -2445,6 +2917,28 @@ function LandmarkSprite({ spot }: { spot: ScenerySpot }) {
         <div className="absolute left-[2%] top-[18%] h-[24%] w-[48%] border-[4px] border-[#171411] bg-[#d7aa69]" />
         <div className="absolute right-[6%] bottom-[12%] top-[40%] w-[34%] border-[4px] border-[#171411] bg-[#8d6641]" />
         <div className="absolute right-[4%] top-[24%] h-[20%] w-[38%] border-[4px] border-[#171411] bg-[#c89056]" />
+      </div>
+    );
+  }
+
+  if (spot.id === "greenhouse") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute inset-x-[8%] bottom-[10%] top-[34%] border-[4px] border-[#171411] bg-[#64857d]" />
+        <div className="absolute inset-x-[4%] top-[10%] h-[28%] border-[4px] border-[#171411] bg-[#b8d7d1]" />
+        <div className="absolute inset-x-[16%] top-[24%] h-[8%] bg-[#f7f2e9]/70" />
+        <div className="absolute inset-y-[18%] left-[35%] w-[4%] bg-[#f7f2e9]/70" />
+        <div className="absolute inset-y-[18%] right-[35%] w-[4%] bg-[#f7f2e9]/70" />
+      </div>
+    );
+  }
+
+  if (spot.id === "silo") {
+    return (
+      <div className="absolute inset-0">
+        <div className="absolute inset-x-[24%] bottom-[10%] top-[20%] rounded-t-[18px] border-[4px] border-[#171411] bg-[#7d7268]" />
+        <div className="absolute inset-x-[16%] top-[10%] h-[20%] rounded-t-[18px] border-[4px] border-[#171411] bg-[#d8cbc0]" />
+        <div className="absolute left-[42%] top-[44%] h-[10%] w-[16%] bg-[#f7f2e9]" />
       </div>
     );
   }
@@ -2548,9 +3042,14 @@ function DistrictSprite({
       <>
         <div className="absolute inset-x-[16%] top-[18%] h-[18%] border-[4px] border-[#171411] bg-[#f8df8c]" style={glowStyle} />
         <div className="absolute inset-x-[10%] bottom-[12%] top-[32%] border-[4px] border-[#171411] bg-[#735823]" />
-        <div className="absolute left-[18%] top-[44%] h-[18%] w-[18%] border-[3px] border-[#171411] bg-[#f06c50]" />
-        <div className="absolute right-[18%] top-[44%] h-[18%] w-[18%] border-[3px] border-[#171411] bg-[#72f0d3]" />
+        <div className="absolute left-[12%] top-[42%] h-[18%] w-[16%] border-[3px] border-[#171411] bg-[#f06c50]" />
+        <div className="absolute left-[17%] top-[38%] h-[8%] w-[14%] border-[3px] border-[#171411] bg-[#fff0bf]" />
+        <div className="absolute right-[12%] top-[42%] h-[18%] w-[16%] border-[3px] border-[#171411] bg-[#72f0d3]" />
+        <div className="absolute right-[17%] top-[38%] h-[8%] w-[14%] border-[3px] border-[#171411] bg-[#fff0bf]" />
         <div className="absolute left-1/2 top-[42%] h-[24%] w-[24%] -translate-x-1/2 rounded-full border-[4px] border-[#171411] bg-[#f7f2e9]" />
+        <div className="absolute left-1/2 top-[48%] h-[10%] w-[10%] -translate-x-1/2 rounded-full border-[3px] border-[#171411] bg-[#8ec6ff]" />
+        <div className="absolute left-[38%] top-[68%] h-[6%] w-[8%] border-[2px] border-[#171411] bg-[#b17b4c]" />
+        <div className="absolute right-[38%] top-[68%] h-[6%] w-[8%] border-[2px] border-[#171411] bg-[#b17b4c]" />
       </>
     );
   }
@@ -2560,8 +3059,13 @@ function DistrictSprite({
       <>
         <div className="absolute inset-x-[16%] top-[10%] h-[18%] border-[4px] border-[#171411] bg-[#ffb35b]" style={glowStyle} />
         <div className="absolute inset-x-[12%] bottom-[10%] top-[24%] border-[4px] border-[#171411] bg-[#8c431d]" />
-        <div className="absolute inset-x-[24%] top-[32%] h-[18%] border-[4px] border-[#171411] bg-[#ad5b2d]" />
-        <div className="absolute left-[42%] top-[52%] h-[22%] w-[16%] border-[3px] border-[#171411] bg-[#1d1b18]" />
+        <div className="absolute inset-x-[24%] top-[30%] h-[18%] border-[4px] border-[#171411] bg-[#ad5b2d]" />
+        <div className="absolute left-[14%] top-[18%] h-[18%] w-[12%] border-[4px] border-[#171411] bg-[#c96b3a]" />
+        <div className="absolute right-[14%] top-[18%] h-[18%] w-[12%] border-[4px] border-[#171411] bg-[#c96b3a]" />
+        <div className="absolute left-[42%] top-[50%] h-[24%] w-[16%] border-[3px] border-[#171411] bg-[#1d1b18]" />
+        <div className="absolute left-[32%] top-[18%] h-[8%] w-[6%] bg-[#ffe7b2]" />
+        <div className="absolute right-[32%] top-[18%] h-[8%] w-[6%] bg-[#ffe7b2]" />
+        <div className="absolute left-1/2 top-[8%] h-[8%] w-[8%] -translate-x-1/2 bg-[#f4d594]" />
       </>
     );
   }
@@ -2572,8 +3076,11 @@ function DistrictSprite({
         <div className="absolute inset-x-[14%] top-[16%] h-[16%] border-[4px] border-[#171411] bg-[#72f0d3]" style={glowStyle} />
         <div className="absolute inset-x-[10%] bottom-[12%] top-[30%] border-[4px] border-[#171411] bg-[#1d685c]" />
         <div className="absolute inset-x-[12%] top-[36%] h-[12%] bg-[repeating-linear-gradient(90deg,#fff8d7_0,#fff8d7_16px,#f06c50_16px,#f06c50_32px)]" />
-        <div className="absolute left-[24%] top-[54%] h-[16%] w-[14%] bg-[#f7f2e9]" />
-        <div className="absolute right-[24%] top-[54%] h-[16%] w-[14%] bg-[#f7f2e9]" />
+        <div className="absolute left-[16%] top-[60%] h-[10%] w-[14%] border-[3px] border-[#171411] bg-[#b17b4c]" />
+        <div className="absolute right-[16%] top-[60%] h-[10%] w-[14%] border-[3px] border-[#171411] bg-[#b17b4c]" />
+        <div className="absolute left-[24%] top-[52%] h-[16%] w-[14%] bg-[#f7f2e9]" />
+        <div className="absolute right-[24%] top-[52%] h-[16%] w-[14%] bg-[#f7f2e9]" />
+        <div className="absolute left-[42%] top-[18%] h-[6%] w-[16%] border-[3px] border-[#171411] bg-[#f4d594]" />
       </>
     );
   }
@@ -2583,9 +3090,13 @@ function DistrictSprite({
       <>
         <div className="absolute inset-x-[16%] top-[16%] h-[18%] border-[4px] border-[#171411] bg-[#86a7ff]" style={glowStyle} />
         <div className="absolute inset-x-[8%] bottom-[12%] top-[32%] border-[4px] border-[#171411] bg-[#2b458e]" />
+        <div className="absolute left-[12%] bottom-[10%] h-[14%] w-[20%] border-[3px] border-[#171411] bg-[#b17b4c]" />
+        <div className="absolute left-[24%] bottom-[18%] h-[10%] w-[14%] border-[3px] border-[#171411] bg-[#d7b489]" />
+        <div className="absolute right-[12%] bottom-[10%] h-[14%] w-[20%] border-[3px] border-[#171411] bg-[#b17b4c]" />
         <div className="absolute left-[18%] top-[50%] h-[14%] w-[18%] border-[3px] border-[#171411] bg-[#b8c6f3]" />
         <div className="absolute right-[18%] top-[50%] h-[14%] w-[18%] border-[3px] border-[#171411] bg-[#b8c6f3]" />
         <div className="absolute left-[40%] top-[20%] h-[10%] w-[20%] border-[3px] border-[#171411] bg-[#dfe6ff]" />
+        <div className="absolute right-[8%] top-[18%] h-[22%] w-[6%] border-[3px] border-[#171411] bg-[#5d78c7]" />
       </>
     );
   }
@@ -2595,10 +3106,28 @@ function DistrictSprite({
       <>
         <div className="absolute inset-x-[14%] top-[18%] h-[16%] border-[4px] border-[#171411] bg-[#ff9a8b]" style={glowStyle} />
         <div className="absolute inset-x-[10%] bottom-[12%] top-[34%] border-[4px] border-[#171411] bg-[#863743]" />
+        <div className="absolute left-[16%] top-[60%] h-[12%] w-[18%] border-[3px] border-[#171411] bg-[#704b33]" />
         <div className="absolute left-[20%] top-[46%] h-[22%] w-[14%] bg-[#ffc49b]" />
         <div className="absolute left-[18%] top-[42%] h-[8%] w-[22%] border-[3px] border-[#171411] bg-[#ffe29b]" />
         <div className="absolute right-[18%] top-[42%] h-[8%] w-[12%] border-[3px] border-[#171411] bg-[#c5ccd8]" />
         <div className="absolute right-[22%] top-[50%] h-[18%] w-[4%] bg-[#704b33]" />
+        <div className="absolute right-[12%] top-[22%] h-[26%] w-[8%] border-[3px] border-[#171411] bg-[#55515f]" />
+        <div className="absolute right-[11%] top-[18%] h-[8%] w-[10%] rounded-full bg-[#ffe29b] shadow-[0_0_10px_rgba(255,226,155,0.75)]" />
+      </>
+    );
+  }
+
+  if (district.id === "governor") {
+    return (
+      <>
+        <div className="absolute inset-x-[18%] top-[16%] h-[14%] border-[4px] border-[#171411] bg-[#d4b5ff]" style={glowStyle} />
+        <div className="absolute inset-x-[14%] bottom-[12%] top-[28%] border-[4px] border-[#171411] bg-[#5c3c7d]" />
+        <div className="absolute left-[16%] top-[24%] h-[22%] w-[12%] border-[4px] border-[#171411] bg-[#8e63b6]" />
+        <div className="absolute right-[16%] top-[24%] h-[22%] w-[12%] border-[4px] border-[#171411] bg-[#8e63b6]" />
+        <div className="absolute left-[42%] top-[42%] h-[30%] w-[16%] border-[3px] border-[#171411] bg-[#2e223c]" />
+        <div className="absolute left-[28%] top-[50%] h-[12%] w-[12%] border-[3px] border-[#171411] bg-[#f1e2ff]" />
+        <div className="absolute right-[28%] top-[50%] h-[12%] w-[12%] border-[3px] border-[#171411] bg-[#f1e2ff]" />
+        <div className="absolute left-1/2 top-[12%] h-[10%] w-[10%] -translate-x-1/2 bg-[#f4d594]" />
       </>
     );
   }
@@ -2608,18 +3137,26 @@ function DistrictSprite({
       <>
         <div className="absolute inset-x-[16%] top-[18%] h-[14%] border-[4px] border-[#171411] bg-[#b7f47e]" style={glowStyle} />
         <div className="absolute inset-x-[12%] bottom-[12%] top-[30%] border-[4px] border-[#171411] bg-[#3d6f2d]" />
+        <div className="absolute left-[18%] top-[26%] h-[30%] w-[10%] border-[3px] border-[#171411] bg-[#d7e3ab]" />
+        <div className="absolute right-[18%] top-[26%] h-[30%] w-[10%] border-[3px] border-[#171411] bg-[#d7e3ab]" />
         <div className="absolute left-1/2 top-[46%] h-[24%] w-[24%] -translate-x-1/2 border-[4px] border-[#171411] bg-[#d7e3ab]" />
         <div className="absolute left-1/2 top-[54%] h-[8%] w-[8%] -translate-x-1/2 rounded-full border-[3px] border-[#171411] bg-[#c8a44f]" />
+        <div className="absolute left-[21%] top-[34%] h-[6%] w-[4%] rounded-full bg-[#ffd663]" />
+        <div className="absolute right-[21%] top-[38%] h-[6%] w-[4%] rounded-full bg-[#ffd663]" />
       </>
     );
   }
 
   return (
     <>
-      <div className="absolute inset-x-[16%] top-[16%] h-[16%] border-[4px] border-[#171411]" style={{ backgroundColor: district.palette.roof, ...glowStyle }} />
-      <div className="absolute inset-x-[10%] bottom-[12%] top-[32%] border-[4px] border-[#171411]" style={{ backgroundColor: district.palette.wall }} />
-      <div className="absolute left-[24%] top-[50%] h-[14%] w-[14%] bg-[#f7f2e9]" />
-      <div className="absolute right-[24%] top-[50%] h-[14%] w-[14%] bg-[#f7f2e9]" />
+      <div className="absolute inset-x-[16%] top-[14%] h-[16%] border-[4px] border-[#171411]" style={{ backgroundColor: district.palette.roof, ...glowStyle }} />
+      <div className="absolute inset-x-[10%] bottom-[12%] top-[30%] border-[4px] border-[#171411]" style={{ backgroundColor: district.palette.wall }} />
+      <div className="absolute left-[14%] top-[20%] h-[14%] w-[10%] border-[4px] border-[#171411] bg-[#f1e2ff]" />
+      <div className="absolute right-[14%] top-[20%] h-[14%] w-[10%] border-[4px] border-[#171411] bg-[#f1e2ff]" />
+      <div className="absolute left-[24%] top-[48%] h-[14%] w-[14%] bg-[#f7f2e9]" />
+      <div className="absolute right-[24%] top-[48%] h-[14%] w-[14%] bg-[#f7f2e9]" />
+      <div className="absolute left-1/2 top-[60%] h-[18%] w-[18%] -translate-x-1/2 border-[3px] border-[#171411] bg-[#2e223c]" />
+      <div className="absolute left-1/2 top-[10%] h-[8%] w-[8%] -translate-x-1/2 bg-[#f4d594]" />
     </>
   );
 }
