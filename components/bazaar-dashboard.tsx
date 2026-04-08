@@ -3,62 +3,21 @@
 import {
   ArrowUpRight,
   Bot,
-  CircleAlert,
   Copy,
-  Gavel,
   Landmark,
   LoaderCircle,
   RefreshCw,
-  ShieldCheck,
+  ShieldAlert,
   Sparkles,
-  Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatEther } from "viem";
 import { useAccount, useBalance } from "wagmi";
 import { ConnectWalletButton } from "./connect-wallet-button";
 
-type AgentRole = "Shop" | "Supplier" | "Worker" | "Governor";
-
-type AgentCard = {
-  role: AgentRole;
-  name: string;
-  wallet: string;
-  budget: string;
-  goal: string;
-  status: string;
-  trust: number;
-  action: string;
-  hash: string;
-  badge: string;
-  fullAddress?: string;
-};
-
-type ProposalCard = {
-  id: string;
-  title: string;
-  description: string;
-  effect: string;
-  votesFor: number;
-  votesAgainst: number;
-  quorum: string;
-  status: "Open" | "Passed" | "Queued";
-};
-
-type TransactionCard = {
-  hash: string;
-  label: string;
-  from: string;
-  to: string;
-  amount: string;
-  fee: string;
-  block: string;
-  time: string;
-  status: "Confirmed" | "Queued";
-  explorerUrl?: string;
-  detail?: string;
-};
+type AgentRole = "shop" | "supplier" | "worker" | "governor";
 
 type LiveDashboardStatus = {
   runtime: {
@@ -81,7 +40,7 @@ type LiveDashboardStatus = {
       deployer: { address: string };
       treasury: { address: string };
       agents: Array<{
-        role: "shop" | "supplier" | "worker" | "governor";
+        role: AgentRole;
         name: string;
         handle: string;
         goal: string;
@@ -162,133 +121,119 @@ type ActionRequest = {
   body?: Record<string, unknown>;
 };
 
-const fallbackAgents: AgentCard[] = [
-  {
-    role: "Shop",
+type SceneActor = {
+  id: "core" | "treasury" | AgentRole;
+  title: string;
+  kicker: string;
+  note: string;
+  address?: string;
+  value: string;
+  status: string;
+  txHash?: string;
+  explorerUrl?: string;
+  x: number;
+  y: number;
+  height: number;
+  palette: {
+    top: string;
+    left: string;
+    right: string;
+    outline: string;
+    glow: string;
+  };
+};
+
+type ProofCard = {
+  id: string;
+  title: string;
+  caption: string;
+  hash?: string;
+  explorerUrl?: string;
+};
+
+const fallbackAgents = {
+  shop: {
     name: "Bazaar Forge",
-    wallet: "0x8F...A201",
-    budget: "1,250 OKB",
-    goal: "Open demand, route work, and turn market activity into treasury growth.",
-    status: "Selling service bundles",
-    trust: 92,
-    action: "Listed 3 service tiers on X Layer",
-    hash: "0x91b6...f2c1",
-    badge: "Primary liquidity source",
+    goal: "Creates demand and turns work into revenue.",
+    budget: "1.250 OKB",
   },
-  {
-    role: "Supplier",
+  supplier: {
     name: "Supply Coil",
-    wallet: "0x2C...E09D",
-    budget: "620 OKB",
-    goal: "Source inventory, fulfill jobs, and subcontract work when demand spikes.",
-    status: "Fulfilling worker request",
-    trust: 88,
-    action: "Accepted hire from Bazaar Forge",
-    hash: "0x12de...a8f0",
-    badge: "Fastest fulfillment",
+    goal: "Routes inventory and hires downstream labor.",
+    budget: "0.620 OKB",
   },
-  {
-    role: "Worker",
+  worker: {
     name: "Node Pilot",
-    wallet: "0x7B...1141",
-    budget: "410 OKB",
-    goal: "Execute labor, collect revenue, and remain solvent under covenant rules.",
-    status: "Processing a paid task",
-    trust: 84,
-    action: "Completed policy-safe execution",
-    hash: "0x43aa...7ce8",
-    badge: "Most active agent",
+    goal: "Executes tasks and compounds earned value.",
+    budget: "0.410 OKB",
   },
-  {
-    role: "Governor",
+  governor: {
     name: "Covenant Council",
-    wallet: "0xC0...FEB9",
-    budget: "Treasury controlled",
-    goal: "Tune tax, reserve floor, and governance thresholds to keep the economy healthy.",
-    status: "Voting on next rule update",
-    trust: 97,
-    action: "Queued proposal after quorum crossed",
-    hash: "0x9f02...3bc4",
-    badge: "Protocol steward",
+    goal: "Adjusts tax and reserve rules.",
+    budget: "Governance seat",
   },
-];
+} as const;
 
-const fallbackProposals: ProposalCard[] = [
-  {
-    id: "P-07",
-    title: "Raise treasury tax from 2.5% to 3.25%",
-    description: "Higher loop friction funds governance, audits, and emergency reserves.",
-    effect: "More tax intake, slower but healthier growth.",
-    votesFor: 68,
-    votesAgainst: 12,
-    quorum: "81% of active stake",
-    status: "Open",
+const actorPalette = {
+  core: {
+    top: "#ffcc70",
+    left: "#8e4c14",
+    right: "#c8741f",
+    outline: "#ffe7b7",
+    glow: "rgba(255, 196, 108, 0.35)",
   },
-  {
-    id: "P-06",
-    title: "Increase min balance floor to 75 OKB",
-    description: "Keeps agents solvent before they may hire or pay downstream actors.",
-    effect: "Prevents brittle wallets from overcommitting.",
-    votesFor: 71,
-    votesAgainst: 9,
-    quorum: "Passed threshold",
-    status: "Passed",
+  treasury: {
+    top: "#b5f784",
+    left: "#356b2a",
+    right: "#5b9a36",
+    outline: "#e4ffce",
+    glow: "rgba(181, 247, 132, 0.25)",
   },
-];
+  shop: {
+    top: "#6ce8d6",
+    left: "#155d57",
+    right: "#2ea89d",
+    outline: "#ccfffb",
+    glow: "rgba(108, 232, 214, 0.28)",
+  },
+  supplier: {
+    top: "#8ea8ff",
+    left: "#2b4188",
+    right: "#5b73c9",
+    outline: "#dde4ff",
+    glow: "rgba(142, 168, 255, 0.28)",
+  },
+  worker: {
+    top: "#ff8f8f",
+    left: "#7b2f3a",
+    right: "#c05666",
+    outline: "#ffd8dc",
+    glow: "rgba(255, 143, 143, 0.25)",
+  },
+  governor: {
+    top: "#d4b3ff",
+    left: "#5c398f",
+    right: "#8d63c9",
+    outline: "#f0e2ff",
+    glow: "rgba(212, 179, 255, 0.28)",
+  },
+} as const;
 
-const fallbackTransactions: TransactionCard[] = [
-  {
-    hash: "0x7a4d1e...d291",
-    label: "Shop creation",
-    from: "Bazaar Forge",
-    to: "Bazaar X",
-    amount: "12 OKB",
-    fee: "0.0004 OKB",
-    block: "19,442,813",
-    time: "12s ago",
-    status: "Confirmed",
-  },
-  {
-    hash: "0xc5f019...87fe",
-    label: "Worker hire payment",
-    from: "Bazaar Forge",
-    to: "Node Pilot",
-    amount: "48 OKB",
-    fee: "0.0004 OKB",
-    block: "19,442,811",
-    time: "1m ago",
-    status: "Confirmed",
-  },
-  {
-    hash: "0x93aa71...ae2c",
-    label: "Tax routed to treasury",
-    from: "Node Pilot",
-    to: "Treasury",
-    amount: "1.2 OKB",
-    fee: "0.0004 OKB",
-    block: "19,442,810",
-    time: "2m ago",
-    status: "Confirmed",
-  },
-];
+const actorLayout = {
+  core: { x: 470, y: 210, height: 112 },
+  treasury: { x: 548, y: 392, height: 74 },
+  shop: { x: 210, y: 216, height: 94 },
+  supplier: { x: 744, y: 194, height: 88 },
+  worker: { x: 774, y: 356, height: 72 },
+  governor: { x: 205, y: 372, height: 72 },
+} as const;
 
-const economyLoop = [
-  "Demand opens",
-  "Service lists",
-  "Hire settles",
-  "Tax routes",
-  "Treasury grows",
-  "Governance updates",
-];
-
-const covenantFunctions = [
-  "enforcePolicy(tx)",
-  "checkBalanceRules()",
-  "applyTax()",
-  "proposeChange()",
-  "vote()",
-  "executeChange()",
-];
+const proofQueries = [
+  { id: "deploy", title: "Deploy", match: "deploy bazaar x contract" },
+  { id: "proposal", title: "Governance", match: "execute governance update" },
+  { id: "payment", title: "Settlement", match: "post-governance payment" },
+  { id: "treasury", title: "Treasury", match: "treasury reinvests" },
+] as const;
 
 function shortHash(value: string) {
   if (value.length <= 12) {
@@ -359,21 +304,6 @@ function ruleValue(rules: unknown, index: number) {
   return null;
 }
 
-function statusTrust(status: string) {
-  switch (status) {
-    case "completed":
-      return 97;
-    case "running":
-      return 88;
-    case "ready":
-      return 82;
-    case "failed":
-      return 42;
-    default:
-      return 70;
-  }
-}
-
 async function postJson(path: string, body: Record<string, unknown> = {}) {
   const response = await fetch(path, {
     method: "POST",
@@ -386,8 +316,8 @@ async function postJson(path: string, body: Record<string, unknown> = {}) {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new Error(
-      (payload as { error?: string; message?: string } | null)?.error ??
-        (payload as { error?: string; message?: string } | null)?.message ??
+      (payload as { error?: { message?: string }; message?: string } | null)?.error?.message ??
+        (payload as { error?: { message?: string }; message?: string } | null)?.message ??
         "Request failed.",
     );
   }
@@ -400,19 +330,23 @@ async function fetchStatus() {
     cache: "no-store",
   });
 
+  const payload = (await response.json().catch(() => null)) as
+    | DashboardResponse
+    | { error?: { message?: string }; message?: string }
+    | null;
+
   if (!response.ok) {
-    const payload = await response.json().catch(() => null);
+    const errorPayload = payload as { error?: { message?: string }; message?: string } | null;
     throw new Error(
-      (payload as { error?: string; message?: string } | null)?.error ??
-        (payload as { error?: string; message?: string } | null)?.message ??
-        "Failed to load status.",
+      errorPayload?.error?.message ?? errorPayload?.message ?? "Failed to load status.",
     );
   }
 
-  return (await response.json()) as DashboardResponse;
+  return payload as DashboardResponse;
 }
 
 export function BazaarDashboard() {
+  const [hasMounted, setHasMounted] = useState(false);
   const { address, chain, isConnected } = useAccount();
   const { data: balance } = useBalance({
     address,
@@ -422,9 +356,12 @@ export function BazaarDashboard() {
   });
   const queryClient = useQueryClient();
 
-  const [selectedAgentKey, setSelectedAgentKey] = useState(fallbackAgents[0]?.name ?? "agent");
-  const [activeProposalId, setActiveProposalId] = useState(fallbackProposals[0]?.id ?? "proposal");
+  const [selectedId, setSelectedId] = useState<SceneActor["id"]>("core");
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const statusQuery = useQuery({
     queryKey: ["dashboard-status"],
@@ -440,7 +377,7 @@ export function BazaarDashboard() {
     },
   });
 
-  async function handleAction(request: ActionRequest) {
+  async function runAction(request: ActionRequest) {
     await actionMutation.mutateAsync(request);
   }
 
@@ -458,24 +395,24 @@ export function BazaarDashboard() {
 
   const dashboardStatus = statusQuery.data?.status ?? null;
   const liveDashboard = dashboardStatus?.liveDashboard ?? null;
-  const liveRuntime = liveDashboard?.runtime ?? null;
-  const deployment = liveRuntime?.deployment ?? null;
-  const bazaarSnapshot = liveDashboard?.bazaarSnapshot ?? null;
   const manifest = liveDashboard?.manifest ?? null;
+  const liveRuntime = liveDashboard?.runtime ?? null;
   const funding = liveDashboard?.funding ?? null;
+  const bazaarSnapshot = liveDashboard?.bazaarSnapshot ?? null;
+  const deployment = liveRuntime?.deployment ?? null;
   const gatewayGas = liveDashboard?.onchainSnapshot?.gatewayGas?.data?.[0] ?? null;
+
   const explorerBaseUrl =
     manifest?.explorerBaseUrl ??
     deployment?.explorerBaseUrl ??
     "https://www.oklink.com/x-layer-testnet";
   const contractAddress = bazaarSnapshot?.address ?? deployment?.contractAddress ?? "";
   const treasuryAddress = bazaarSnapshot?.treasury ?? manifest?.treasury.address ?? "";
-  const deployTxHash = deployment?.deployTxHash ?? "";
+  const deployTxHash = deployment?.deployTxHash;
 
-  const taxBps = Number(ruleValue(bazaarSnapshot?.rules, 0) ?? deployment?.initialRules.taxBps ?? 250);
+  const taxBps = Number(ruleValue(bazaarSnapshot?.rules, 0) ?? deployment?.initialRules.taxBps ?? 500);
   const minimumBalanceWei =
     ruleValue(bazaarSnapshot?.rules, 1) ?? deployment?.initialRules.minimumBalanceWei ?? null;
-  const minimumBalance = formatOkbFromWei(minimumBalanceWei);
   const quorumBps = Number(
     ruleValue(bazaarSnapshot?.rules, 2) ?? deployment?.initialRules.quorumBps ?? 7500,
   );
@@ -486,190 +423,187 @@ export function BazaarDashboard() {
     ruleValue(bazaarSnapshot?.rules, 4) ?? deployment?.initialRules.votingPeriodSeconds ?? 10,
   );
 
-  const agents = useMemo<AgentCard[]>(() => {
-    if (!manifest) {
-      return fallbackAgents;
-    }
-
+  const actorRecords = useMemo(() => {
+    const manifestAgents = new Map(
+      manifest?.agents.map((agent) => [agent.role, agent]) ?? [],
+    );
     const fundingByAddress = new Map(
       funding?.agents.map((record) => [record.address.toLowerCase(), record]) ?? [],
     );
     const steps = liveRuntime?.steps ?? [];
 
-    return manifest.agents.map((agent) => {
-      const latestStep = [...steps].reverse().find((step) => {
-        return (
-          step.key.includes(agent.role) ||
-          step.label.toLowerCase().includes(agent.name.split(" ")[0]?.toLowerCase() ?? "")
-        );
-      });
-      const balanceRecord = fundingByAddress.get(agent.address.toLowerCase());
-      const runtimeStatus = liveRuntime?.status ?? "ready";
+    const agentStep = (role: AgentRole) =>
+      [...steps].reverse().find(
+        (step) => step.key.includes(role) || step.label.toLowerCase().includes(role),
+      );
+
+    const buildAgent = (role: AgentRole): SceneActor => {
+      const manifestAgent = manifestAgents.get(role);
+      const fallback = fallbackAgents[role];
+      const balanceRecord = manifestAgent
+        ? fundingByAddress.get(manifestAgent.address.toLowerCase())
+        : null;
+      const latestStep = agentStep(role);
 
       return {
-        role: `${agent.role[0]?.toUpperCase()}${agent.role.slice(1)}` as AgentRole,
-        name: agent.name,
-        wallet: shortHash(agent.address),
-        budget: balanceRecord ? formatOkb(balanceRecord.balanceOkb) : formatOkb(agent.bootstrapOkb),
-        goal: agent.goal,
-        status: balanceRecord?.funded ? `Funded on ${manifest.network}` : "Awaiting funding",
-        trust: statusTrust(runtimeStatus),
-        action: latestStep?.label ?? "Ready for live flow",
-        hash: latestStep?.txHash ? shortHash(latestStep.txHash) : "pending",
-        badge:
-          agent.role === "worker"
-            ? "Most active agent"
-            : agent.role === "governor"
-              ? "Protocol steward"
-              : agent.role === "supplier"
-                ? "Fastest fulfillment"
-                : "Primary liquidity source",
-        fullAddress: agent.address,
+        id: role,
+        title: manifestAgent?.name ?? fallback.name,
+        kicker:
+          role === "shop"
+            ? "Demand engine"
+            : role === "supplier"
+              ? "Fulfillment relay"
+              : role === "worker"
+                ? "Execution labor"
+                : "Policy steward",
+        note: manifestAgent?.goal ?? fallback.goal,
+        address: manifestAgent?.address,
+        value: balanceRecord
+          ? formatOkb(balanceRecord.balanceOkb)
+          : fallback.budget.endsWith("OKB")
+            ? fallback.budget
+            : fallback.budget,
+        status: latestStep?.label ?? (balanceRecord?.funded ? "Wallet funded" : "Waiting"),
+        txHash: latestStep?.txHash,
+        explorerUrl: latestStep?.explorerUrl,
+        x: actorLayout[role].x,
+        y: actorLayout[role].y,
+        height: actorLayout[role].height,
+        palette: actorPalette[role],
       };
-    });
-  }, [funding?.agents, liveRuntime?.status, liveRuntime?.steps, manifest]);
+    };
 
-  const selectedAgent = agents.find((agent) => agent.name === selectedAgentKey) ?? agents[0];
+    const core: SceneActor = {
+      id: "core",
+      title: "Bazaar Core",
+      kicker: "Settlement contract",
+      note:
+        "Handles shops, hires, tax routing, treasury accounting, and governance execution on X Layer.",
+      address: contractAddress || undefined,
+      value: contractAddress ? shortHash(contractAddress) : "Deploy pending",
+      status: liveRuntime?.status ?? "ready",
+      txHash: deployTxHash,
+      explorerUrl: deployTxHash ? `${explorerBaseUrl}/tx/${deployTxHash}` : undefined,
+      x: actorLayout.core.x,
+      y: actorLayout.core.y,
+      height: actorLayout.core.height,
+      palette: actorPalette.core,
+    };
 
-  const proposals = useMemo<ProposalCard[]>(() => {
-    if (!liveRuntime?.proposalId) {
-      return fallbackProposals;
-    }
+    const treasury: SceneActor = {
+      id: "treasury",
+      title: "Treasury Vault",
+      kicker: "Reserve wallet",
+      note: "Collects tax, holds reserves, and reinvests value back into the market.",
+      address: treasuryAddress || undefined,
+      value: formatOkb(
+        bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0",
+      ),
+      status: funding?.treasury.funded ? "Treasury funded" : "Funding needed",
+      txHash:
+        [...steps].reverse().find((step) => step.label.toLowerCase().includes("treasury"))?.txHash ??
+        undefined,
+      explorerUrl:
+        [...steps].reverse().find((step) => step.label.toLowerCase().includes("treasury"))?.explorerUrl ??
+        (treasuryAddress ? `${explorerBaseUrl}/address/${treasuryAddress}` : undefined),
+      x: actorLayout.treasury.x,
+      y: actorLayout.treasury.y,
+      height: actorLayout.treasury.height,
+      palette: actorPalette.treasury,
+    };
 
-    const executed = liveRuntime.status === "completed";
+    return [core, treasury, buildAgent("shop"), buildAgent("supplier"), buildAgent("worker"), buildAgent("governor")];
+  }, [
+    bazaarSnapshot?.treasuryBalanceOkb,
+    contractAddress,
+    deployTxHash,
+    explorerBaseUrl,
+    funding?.agents,
+    funding?.treasury.balanceOkb,
+    funding?.treasury.funded,
+    liveRuntime?.status,
+    liveRuntime?.steps,
+    manifest?.agents,
+    treasuryAddress,
+  ]);
 
-    return [
-      {
-        id: `P-${liveRuntime.proposalId}`,
-        title: `Raise covenant tax to ${(taxBps / 100).toFixed(2)}%`,
-        description:
-          "The governor proposed a higher treasury take-rate after the first productive loop completed onchain.",
-        effect:
-          liveRuntime.secondTaxWei && liveRuntime.firstTaxWei
-            ? `Observed tax moved from ${formatOkbFromWei(liveRuntime.firstTaxWei)} to ${formatOkbFromWei(liveRuntime.secondTaxWei)}.`
-            : "The next payment should reflect the updated covenant rules.",
-        votesFor: executed ? 100 : 75,
-        votesAgainst: executed ? 0 : 25,
-        quorum: executed ? "Executed onchain" : "Awaiting execution window",
-        status: executed ? "Passed" : "Open",
-      },
-    ];
-  }, [liveRuntime, taxBps]);
-
-  const activeProposal = proposals.find((proposal) => proposal.id === activeProposalId) ?? proposals[0];
-
-  const transactions = useMemo<TransactionCard[]>(() => {
-    if (!liveRuntime?.steps?.length) {
-      return fallbackTransactions;
-    }
-
-    return [...liveRuntime.steps]
-      .filter((step) => step.txHash)
-      .reverse()
-      .map((step) => ({
-        hash: step.txHash ?? step.key,
-        label: step.label,
-        from: step.meta?.shopId ? "Bazaar X" : step.key.split("-")[0] ?? "Agent",
-        to: contractAddress ? shortHash(contractAddress) : "X Layer",
-        amount:
-          typeof step.meta?.priceOkb === "string"
-            ? `${step.meta.priceOkb} OKB`
-            : typeof step.meta?.taxOkb === "string"
-              ? `${step.meta.taxOkb} OKB`
-              : "Onchain action",
-        fee: gatewayGas?.normal ? `${gatewayGas.normal} wei` : "Live gas",
-        block: step.status === "success" ? "confirmed" : "pending",
-        time: toRelativeTime(step.completedAt ?? step.startedAt),
-        status: step.status === "success" ? "Confirmed" : "Queued",
-        explorerUrl: step.explorerUrl,
-        detail: step.detail,
-      }));
-  }, [contractAddress, gatewayGas?.normal, liveRuntime?.steps]);
-
-  const latestSteps = useMemo(() => {
-    return [...(liveRuntime?.steps ?? [])].reverse().slice(0, 8);
-  }, [liveRuntime?.steps]);
-
-  const completedSteps = liveRuntime?.steps.filter((step) => step.status === "success").length ?? 0;
-  const totalSteps = liveRuntime?.steps.length ?? 0;
-  const progressPercent = totalSteps ? Math.round((completedSteps / totalSteps) * 100) : 0;
-  const lastRefresh = statusQuery.dataUpdatedAt
-    ? toRelativeTime(new Date(statusQuery.dataUpdatedAt).toISOString())
-    : "Waiting";
-  const viewerBalance = balance ? formatOkb(Number(balance.formatted)) : "Not connected";
-  const isUnsupportedViewerNetwork = Boolean(isConnected && chain && chain.id !== 1952 && chain.id !== 196);
-  const canDeploy = Boolean(funding?.readyForDeploy || deployment);
-  const canRunLive = Boolean(deployment || funding?.readyForDeploy);
+  const selectedActor = actorRecords.find((actor) => actor.id === selectedId) ?? actorRecords[0];
+  const viewerBalance =
+    hasMounted && balance ? formatOkb(Number(balance.formatted)) : "Not connected";
+  const canDeploy = Boolean(funding?.readyForDeploy || contractAddress);
+  const canRunLive = Boolean(contractAddress || funding?.readyForDeploy);
   const busyLabel = actionMutation.isPending ? actionMutation.variables?.label ?? null : null;
   const statusError =
     (statusQuery.error instanceof Error ? statusQuery.error.message : null) ??
     (actionMutation.error instanceof Error ? actionMutation.error.message : null);
+  const isUnsupportedViewerNetwork = Boolean(
+    hasMounted && isConnected && chain && chain.id !== 1952 && chain.id !== 196,
+  );
+  const lastRefresh = hasMounted && statusQuery.dataUpdatedAt
+    ? toRelativeTime(new Date(statusQuery.dataUpdatedAt).toISOString())
+    : "waiting";
 
-  const activeStats = [
-    {
-      label: "Live contract",
-      value: contractAddress ? shortHash(contractAddress) : "Not deployed",
-      note: contractAddress
-        ? `Running on ${manifest?.network ?? "X Layer testnet"} with explorer-ready proof.`
-        : "Deploy the contract to turn the dashboard into live proof.",
-    },
-    {
-      label: "Treasury reserve",
-      value: formatOkb(
-        bazaarSnapshot?.treasuryBalanceOkb ??
-          funding?.treasury.balanceOkb ??
-          dashboardStatus?.runtime.treasury,
-      ),
-      note: "Taxes route here automatically and treasury can reinvest into the market.",
-    },
-    {
-      label: "Tracked txs",
-      value: String(liveRuntime?.txHashes.length ?? transactions.length),
-      note: "Registrations, hires, governance, and treasury moves all produce receipts.",
-    },
-    {
-      label: "Runtime status",
-      value: liveRuntime?.status ?? "preview",
-      note:
-        liveRuntime?.error ??
-        (funding?.readyForFlow
-          ? "All wallets are ready for the full live loop."
-          : `Need ${funding?.requiredDeployerBalanceOkb ?? "0"} OKB on the deployer to go live.`),
-    },
-  ] as const;
+  const proofCards = useMemo<ProofCard[]>(() => {
+    const steps = liveRuntime?.steps ?? [];
 
-  const proofCards = [
+    return proofQueries.map((query) => {
+      const match = steps.find((step) =>
+        step.label.toLowerCase().includes(query.match),
+      );
+
+      if (query.id === "deploy") {
+        return {
+          id: query.id,
+          title: query.title,
+          caption: contractAddress
+            ? `Contract ${shortHash(contractAddress)}`
+            : "Contract not deployed yet",
+          hash: match?.txHash ?? deployTxHash,
+          explorerUrl:
+            match?.explorerUrl ??
+            (deployTxHash ? `${explorerBaseUrl}/tx/${deployTxHash}` : undefined),
+        };
+      }
+
+      return {
+        id: query.id,
+        title: query.title,
+        caption: match?.detail ?? "Replay the live flow to materialize this proof.",
+        hash: match?.txHash,
+        explorerUrl: match?.explorerUrl,
+      };
+    });
+  }, [contractAddress, deployTxHash, explorerBaseUrl, liveRuntime?.steps]);
+
+  const proofSummary = [
     {
-      title: "Contract",
-      value: contractAddress ? shortHash(contractAddress) : "Awaiting deploy",
-      note: deployTxHash ? `Deploy tx ${shortHash(deployTxHash)}` : "Use the live deploy action to materialize proof.",
-      address: contractAddress,
-      link: contractAddress ? `${explorerBaseUrl}/address/${contractAddress}` : undefined,
+      label: "Live txs",
+      value: String(liveRuntime?.txHashes.length ?? 0),
     },
     {
-      title: "Treasury",
+      label: "Tax",
+      value: `${(taxBps / 100).toFixed(2)}%`,
+    },
+    {
+      label: "Min balance",
+      value: formatOkbFromWei(minimumBalanceWei),
+    },
+    {
+      label: "Treasury",
       value: formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0"),
-      note: treasuryAddress ? shortHash(treasuryAddress) : "Treasury wallet not ready yet.",
-      address: treasuryAddress,
-      link: treasuryAddress ? `${explorerBaseUrl}/address/${treasuryAddress}` : undefined,
-    },
-    {
-      title: "Covenant",
-      value: `${(taxBps / 100).toFixed(2)}% tax`,
-      note: `${minimumBalance} floor · ${quorumBps / 100}% quorum · ${supportBps / 100}% support`,
-    },
-    {
-      title: "Run status",
-      value: liveRuntime?.status ?? "ready",
-      note: totalSteps ? `${completedSteps}/${totalSteps} steps completed · ${progressPercent}%` : "No live run recorded yet.",
     },
   ];
 
-  const judgeSignals = [
-    `${liveRuntime?.txHashes.length ?? 0} recorded tx hashes`,
-    contractAddress ? `Contract live at ${shortHash(contractAddress)}` : "Contract deploy ready",
-    `Current rules: ${(taxBps / 100).toFixed(2)}% tax, ${minimumBalance} floor`,
-  ];
+  const connections = [
+    { from: "shop", to: "core", label: "Demand" },
+    { from: "supplier", to: "core", label: "Listing" },
+    { from: "worker", to: "supplier", label: "Subcontract" },
+    { from: "governor", to: "core", label: "Vote" },
+    { from: "core", to: "treasury", label: "Tax" },
+  ] as const;
+  const selectedActorTxHref = selectedActor?.txHash
+    ? selectedActor.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedActor.txHash}`
+    : undefined;
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -677,72 +611,38 @@ export function BazaarDashboard() {
       <div className="hero-orb hero-orb-left" />
       <div className="hero-orb hero-orb-right" />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-10">
-        <header className="glass-card panel-glow fade-in relative overflow-hidden rounded-[32px] border border-white/10 px-5 py-5 sm:px-7 sm:py-7">
-          <div className="absolute inset-0 soft-grid opacity-20" />
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-
-          <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_420px]">
-            <div className="space-y-6">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8">
+        <section className="glass-card panel-glow relative overflow-hidden rounded-[32px] border border-white/10 px-5 py-5 sm:px-7">
+          <div className="absolute inset-0 soft-grid opacity-15" />
+          <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_380px]">
+            <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-[#69f0d2]/30 bg-[#69f0d2]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#a6fff1]">
-                  OKX Build X
-                </span>
-                <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-slate-300">
-                  X Layer Arena
-                </span>
-                <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-slate-300">
-                  {manifest?.network ?? "testnet"} · chain {manifest?.chainId ?? 1952}
-                </span>
-                <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-slate-300">
-                  {statusQuery.isFetching ? "Refreshing" : `Updated ${lastRefresh}`}
-                </span>
+                <Tag>OKX Build X</Tag>
+                <Tag subtle>X Layer Arena</Tag>
+                <Tag subtle>{`${manifest?.network ?? "x-layer-testnet"} · chain ${manifest?.chainId ?? 1952}`}</Tag>
+                <Tag subtle>{statusQuery.isFetching ? "Refreshing" : `Updated ${lastRefresh}`}</Tag>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-white/[0.15] bg-white/[0.06] shadow-soft">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#69f0d2] via-[#7a8bff] to-[#ffb96a] text-base font-semibold text-slate-950">
-                    BX
-                  </div>
-                </div>
-
-                <div className="max-w-4xl">
-                  <h1 className="balance-text text-3xl font-semibold tracking-tight text-white sm:text-5xl xl:text-6xl">
-                    <span className="text-gradient">Bazaar X</span> makes autonomous agents earn,
-                    pay, tax, reinvest, and govern on X Layer.
-                  </h1>
-                  <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
-                    This is not a mock control panel. It is a live economy loop with wallets,
-                    treasury flows, covenant enforcement, proposal execution, and explorer-linked
-                    proof that judges can replay.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {judgeSignals.map((signal) => (
-                  <div
-                    key={signal}
-                    className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-slate-200"
-                  >
-                    <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                      <ShieldCheck className="h-4 w-4 text-[#69f0d2]" />
-                      Proof
-                    </div>
-                    {signal}
-                  </div>
-                ))}
+              <div className="max-w-4xl">
+                <h1 className="display-face balance-text text-4xl font-semibold text-white sm:text-5xl xl:text-6xl">
+                  Bazaar X makes a live agent economy feel like a strategy game.
+                </h1>
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                  One board. Four agents. Real X Layer transactions. Click any district to inspect
+                  who earned, who paid tax, and how governance changed the next move.
+                </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <ActionButton
+                <ControlButton
                   icon={Bot}
-                  label={busyLabel === "Initialize agents" ? "Initializing..." : "Initialize agents"}
-                  hint="Seed the local planner and runtime artifacts."
-                  loading={busyLabel === "Initialize agents"}
+                  label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
+                  hint="Materialize the agent wallets and starting state."
+                  loading={busyLabel === "Spawn economy"}
+                  disabled={actionMutation.isPending}
                   onClick={() =>
-                    handleAction({
-                      label: "Initialize agents",
+                    runAction({
+                      label: "Spawn economy",
                       path: "/api/agents/init",
                       body: {
                         count: 5,
@@ -751,53 +651,54 @@ export function BazaarDashboard() {
                       },
                     })
                   }
-                  disabled={actionMutation.isPending}
                 />
-                <ActionButton
+                <ControlButton
                   icon={Landmark}
-                  label={busyLabel === "Deploy live contract" ? "Deploying..." : contractAddress ? "Load live contract" : "Deploy live contract"}
+                  label={
+                    busyLabel === "Deploy to X Layer"
+                      ? "Deploying..."
+                      : contractAddress
+                        ? "Sync proof"
+                        : "Deploy to X Layer"
+                  }
                   hint={
                     contractAddress
-                      ? "Reuse the recorded X Layer deployment and sync status."
+                      ? "Reuse the recorded deployment and pull fresh proof."
                       : canDeploy
                         ? "Deploy Bazaar X to X Layer testnet."
-                        : `Need ${funding?.requiredDeployerBalanceOkb ?? "0"} OKB on deployer.`
+                        : `Need ${funding?.requiredDeployerBalanceOkb ?? "0"} OKB.`
                   }
-                  loading={busyLabel === "Deploy live contract"}
+                  loading={busyLabel === "Deploy to X Layer"}
+                  disabled={actionMutation.isPending || !canDeploy}
                   onClick={() =>
-                    handleAction({
-                      label: "Deploy live contract",
+                    runAction({
+                      label: "Deploy to X Layer",
                       path: "/api/live/deploy",
                     })
                   }
-                  disabled={actionMutation.isPending || !canDeploy}
                 />
-                <ActionButton
+                <ControlButton
                   icon={Sparkles}
-                  label={busyLabel === "Run live flow" ? "Running live flow..." : "Run live X Layer flow"}
-                  hint={
-                    canRunLive
-                      ? "Broadcast the full market + governance loop."
-                      : "Deploy first or fund the deployer to continue."
-                  }
+                  label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
+                  hint="Run hire, payment, tax, treasury, and governance onchain."
                   tone="accent"
-                  loading={busyLabel === "Run live flow"}
+                  loading={busyLabel === "Play live round"}
+                  disabled={actionMutation.isPending || !canRunLive}
                   onClick={() =>
-                    handleAction({
-                      label: "Run live flow",
+                    runAction({
+                      label: "Play live round",
                       path: "/api/live/run",
                     })
                   }
-                  disabled={actionMutation.isPending || !canRunLive}
                 />
-                <ActionButton
+                <ControlButton
                   icon={RefreshCw}
-                  label={busyLabel === "Refresh status" ? "Refreshing..." : "Refresh status"}
-                  hint="Pull the latest runtime, funding, and chain snapshot."
+                  label="Refresh"
+                  hint="Pull fresh chain and runtime state."
                   tone="ghost"
                   loading={statusQuery.isFetching}
-                  onClick={() => statusQuery.refetch()}
                   disabled={actionMutation.isPending || statusQuery.isFetching}
+                  onClick={() => statusQuery.refetch()}
                 />
               </div>
 
@@ -809,599 +710,394 @@ export function BazaarDashboard() {
 
               {isUnsupportedViewerNetwork ? (
                 <Callout tone="warn" title="Wrong viewer network">
-                  Your browser wallet is connected to {chain?.name ?? "an unsupported network"}.
-                  Switch to X Layer testnet (`1952`) or X Layer mainnet (`196`) for a clean demo.
-                </Callout>
-              ) : null}
-
-              {statusQuery.isSuccess && funding && !funding.readyForFlow ? (
-                <Callout tone="neutral" title="Funding gate">
-                  The deployer still needs at least {funding?.requiredDeployerBalanceOkb ?? "0"} OKB
-                  before the full live flow can be replayed from scratch.
+                  Switch the browser wallet to X Layer testnet (`1952`) or X Layer mainnet (`196`)
+                  for a clean demo.
                 </Callout>
               ) : null}
             </div>
 
-            <div className="grid gap-4">
+            <div>
               <div className="rounded-[28px] border border-white/10 bg-black/25 p-5">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
                       Viewer wallet
                     </div>
-                    <div className="mt-2 text-lg font-semibold text-white">
-                      {isConnected && address ? shortHash(address) : "Inspect with any injected wallet"}
+                    <div suppressHydrationWarning className="mt-2 text-lg font-semibold text-white">
+                      {hasMounted && isConnected && address
+                        ? shortHash(address)
+                        : "Optional spectator wallet"}
                     </div>
-                    <div className="mt-2 text-sm leading-6 text-slate-300">
-                      {isConnected && address
+                    <div suppressHydrationWarning className="mt-2 text-sm leading-6 text-slate-300">
+                      {hasMounted && isConnected && address
                         ? `Connected on ${chain?.name ?? "unknown network"}`
-                        : "Connect a wallet to confirm X Layer network readiness from the browser."}
+                        : "Watch the board without connecting, or attach a wallet to verify network readiness."}
                     </div>
                   </div>
                   <ConnectWalletButton />
                 </div>
-
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <MiniMetric label="Wallet balance" value={viewerBalance} />
-                  <MiniMetric label="Last sync" value={lastRefresh} />
-                </div>
-              </div>
-
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
-                  <Gavel className="h-4 w-4 text-[#ffb96a]" />
-                  Judge path
-                </div>
-                <div className="mt-4 space-y-4">
-                  {[
-                    "Show the live contract and treasury.",
-                    "Replay a payment and tax flow on X Layer.",
-                    "Execute governance, then prove the next settlement changed.",
-                  ].map((line, index) => (
-                    <div key={line} className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/20 text-sm font-semibold text-white">
-                        {index + 1}
-                      </div>
-                      <p className="pt-1 text-sm leading-6 text-slate-300">{line}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {statusQuery.isLoading && !dashboardStatus ? (
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <article
-                key={index}
-                className="glass-card rounded-[24px] border border-white/10 p-5 animate-pulse"
-              >
-                <div className="h-3 w-24 rounded-full bg-white/10" />
-                <div className="mt-4 h-8 w-2/3 rounded-full bg-white/10" />
-                <div className="mt-4 h-3 w-full rounded-full bg-white/10" />
-              </article>
-            ))}
-          </section>
-        ) : (
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {activeStats.map((item, index) => (
-              <StatTile key={item.label} index={index} {...item} />
-            ))}
-          </section>
-        )}
-
-        <section className="grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
-          {proofCards.map((card, index) => (
-            <ProofCard
-              key={card.title}
-              title={card.title}
-              value={card.value}
-              note={card.note}
-              link={card.link}
-              copyValue={card.address}
-              copied={copiedValue === card.address}
-              onCopy={card.address ? () => copyText(card.address) : undefined}
-              index={index}
-            />
-          ))}
-        </section>
-
-        <section id="agents" className="grid gap-5 xl:grid-cols-12">
-          <div className="xl:col-span-8">
-            <Panel title="Agent economy" kicker="Who earns, hires, and governs">
-              <div className="grid gap-4 md:grid-cols-2">
-                {agents.map((agent) => (
-                  <button
-                    type="button"
-                    key={agent.fullAddress ?? agent.name}
-                    className={`group rounded-[24px] border p-4 text-left transition duration-200 hover:-translate-y-0.5 ${
-                      selectedAgent?.name === agent.name
-                        ? "border-[#69f0d2]/40 bg-[#69f0d2]/10"
-                        : "border-white/10 bg-white/[0.04] hover:border-white/20"
-                    }`}
-                    onClick={() => setSelectedAgentKey(agent.name)}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                          {agent.role}
-                        </div>
-                        <div className="mt-1 text-lg font-semibold text-white">{agent.name}</div>
-                      </div>
-                      <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-300">
-                        {agent.trust}% trust
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-300">{agent.goal}</p>
-                    <div className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-slate-300">
-                      {agent.badge}
-                    </div>
-                    <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-400">
-                      <span className="mono">{agent.wallet}</span>
-                      <span>{agent.status}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-5 grid gap-4 rounded-[28px] border border-white/10 bg-black/20 p-5 lg:grid-cols-[1.15fr_0.85fr]">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
-                    Selected agent
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <h3 className="text-2xl font-semibold text-white">{selectedAgent?.name}</h3>
-                    <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs text-slate-300">
-                      {selectedAgent?.role}
-                    </span>
-                  </div>
-                  <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-                    {selectedAgent?.goal}
-                  </p>
-                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <MiniMetric label="Budget" value={selectedAgent?.budget ?? "n/a"} />
-                    <MiniMetric label="Latest action" value={selectedAgent?.action ?? "n/a"} />
-                    <MiniMetric label="Latest tx" value={selectedAgent?.hash ?? "n/a"} />
-                  </div>
-                  {selectedAgent?.fullAddress ? (
-                    <div className="mt-4">
-                      <AddressRow
-                        label="Agent wallet"
-                        value={selectedAgent.fullAddress}
-                        href={`${explorerBaseUrl}/address/${selectedAgent.fullAddress}`}
-                        copied={copiedValue === selectedAgent.fullAddress}
-                        onCopy={() => copyText(selectedAgent.fullAddress ?? "")}
-                      />
-                    </div>
-                  ) : null}
+                  <MetricPill label="Balance" value={viewerBalance} />
+                  <MetricPill
+                    label="Gas snapshot"
+                    value={gatewayGas?.normal ? `${gatewayGas.normal} wei` : "live"}
+                  />
                 </div>
 
-                <div className="rounded-[24px] border border-white/10 bg-white/[0.05] p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                        Covenant Skill
-                      </div>
-                      <div className="mt-1 text-base font-semibold text-white">
-                        Portable policy engine
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-[#7a8bff]/35 bg-[#7a8bff]/10 px-2.5 py-1 text-[11px] text-[#cfd6ff]">
-                      Reusable module
-                    </span>
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                    Live proof
                   </div>
-                  <div className="mt-4 grid gap-2">
-                    {covenantFunctions.map((fn) => (
-                      <div
-                        key={fn}
-                        className="rounded-[16px] border border-white/10 bg-black/20 px-3 py-2 mono text-sm text-slate-200"
-                      >
-                        {fn}
-                      </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {proofSummary.map((item) => (
+                      <MetricPill key={item.label} label={item.label} value={item.value} />
                     ))}
                   </div>
                 </div>
               </div>
-            </Panel>
-          </div>
-
-          <div className="grid gap-5 xl:col-span-4">
-            <Panel title="Readiness" kicker="What is safe to run">
-              <div className="space-y-4">
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.22em] text-slate-400">
-                        Live runtime
-                      </div>
-                      <div className="mt-2 text-lg font-semibold text-white">
-                        {liveRuntime?.status ?? "ready"}
-                      </div>
-                    </div>
-                    <StatusBadge status={liveRuntime?.status ?? "ready"} />
-                  </div>
-
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.08]">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#69f0d2] via-[#7a8bff] to-[#ffb96a]"
-                      style={{ width: `${Math.max(progressPercent, 10)}%` }}
-                    />
-                  </div>
-                  <div className="mt-3 text-xs leading-6 text-slate-400">
-                    {totalSteps
-                      ? `${completedSteps} of ${totalSteps} execution steps recorded in the latest run.`
-                      : "No live run has been recorded yet."}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <TinyStat
-                    label="Deployer"
-                    value={funding?.deployer.funded ? "Ready" : "Needs OKB"}
-                  />
-                  <TinyStat
-                    label="Agents"
-                    value={`${funding?.agents.filter((agent) => agent.funded).length ?? 0}/${funding?.agents.length ?? 0}`}
-                  />
-                  <TinyStat
-                    label="Gas"
-                    value={gatewayGas?.normal ? `${gatewayGas.normal}` : "Live"}
-                  />
-                </div>
-
-                <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-                  <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
-                    Wallet readiness
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    <BarRow
-                      label="Deployer funded"
-                      value={funding?.deployer.funded ? 100 : 35}
-                      accent="bg-[#69f0d2]"
-                    />
-                    <BarRow
-                      label="Agents funded"
-                      value={
-                        funding?.agents.length
-                          ? Math.round(
-                              (funding.agents.filter((agent) => agent.funded).length /
-                                funding.agents.length) *
-                                100,
-                            )
-                          : 0
-                      }
-                      accent="bg-[#7a8bff]"
-                    />
-                    <BarRow
-                      label="Ready for full loop"
-                      value={funding?.readyForFlow ? 100 : funding?.readyForDeploy ? 76 : 28}
-                      accent="bg-[#ffb96a]"
-                    />
-                  </div>
-                </div>
-              </div>
-            </Panel>
-
-            <Panel title="Governance" kicker="Rule changes onchain">
-              <div
-                className={`rounded-[24px] border p-4 transition ${
-                  activeProposal?.status === "Open"
-                    ? "border-[#ffb96a]/30 bg-[#ffb96a]/10"
-                    : "border-[#69f0d2]/30 bg-[#69f0d2]/10"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                      {activeProposal?.id}
-                    </div>
-                    <div className="mt-1 text-lg font-semibold text-white">
-                      {activeProposal?.title}
-                    </div>
-                  </div>
-                  <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-300">
-                    {activeProposal?.status}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  {activeProposal?.description}
-                </p>
-                <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-slate-300">
-                  {activeProposal?.effect}
-                </div>
-                <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                  <span>For: {activeProposal?.votesFor}%</span>
-                  <span>Against: {activeProposal?.votesAgainst}%</span>
-                  <span>{activeProposal?.quorum}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-3">
-                {proposals.map((proposal) => (
-                  <button
-                    type="button"
-                    key={proposal.id}
-                    className={`rounded-[20px] border px-4 py-3 text-left transition ${
-                      activeProposal?.id === proposal.id
-                        ? "border-white/25 bg-white/[0.08]"
-                        : "border-white/10 bg-white/[0.04] hover:border-white/20"
-                    }`}
-                    onClick={() => setActiveProposalId(proposal.id)}
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm font-semibold text-white">{proposal.title}</span>
-                      <span className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                        {proposal.status}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </Panel>
+            </div>
           </div>
         </section>
 
-        <section id="transactions" className="grid gap-5 xl:grid-cols-12">
-          <Panel title="Economy loop" kicker="Earn to govern" className="xl:col-span-5">
-            <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/20 p-5">
-              <div className="absolute inset-x-8 top-1/2 hidden h-px bg-gradient-to-r from-transparent via-white/20 to-transparent sm:block" />
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
-                {economyLoop.map((step, index) => (
-                  <div key={step} className="flex flex-col items-center gap-3 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.12] bg-white/[0.06] text-sm font-semibold text-white">
-                      0{index + 1}
-                    </div>
-                    <span className="text-xs uppercase tracking-[0.22em] text-slate-400">{step}</span>
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_320px]">
+          <div className="glass-card panel-glow overflow-hidden rounded-[32px] border border-white/10 p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                  Bazaar World
+                </div>
+                <h2 className="display-face mt-2 text-2xl font-semibold text-white">
+                  The game board is the product
+                </h2>
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.22em] text-slate-300">
+                {liveRuntime?.status ?? "ready"}
+              </div>
+            </div>
+
+            <div className="game-stage relative aspect-[16/10] overflow-hidden rounded-[28px] border border-white/10 bg-[#090d18] p-2">
+              <div className="pointer-events-none absolute inset-x-4 top-4 z-10 flex items-start justify-between gap-3">
+                <div className="max-w-[260px] rounded-[20px] border border-white/10 bg-[#06101d]/80 px-4 py-3 backdrop-blur">
+                  <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                    Selected district
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="mt-2 text-base font-semibold text-white">{selectedActor.title}</div>
+                  <div className="mt-1 text-xs leading-5 text-slate-300">{selectedActor.status}</div>
+                </div>
 
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.05] p-4 text-sm leading-7 text-slate-300">
-                Agents create demand, settle work onchain, auto-route tax to treasury, and then
-                vote to update the policy that governs the next payment.
-              </div>
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.05] p-4 text-sm leading-7 text-slate-300">
-                The point of the demo is legibility: one loop, one treasury, one proposal, and a
-                visible before-and-after rule change on X Layer.
-              </div>
-            </div>
-          </Panel>
-
-          <Panel title="Execution timeline" kicker="Latest runtime steps" className="xl:col-span-7">
-            <div className="space-y-3">
-              {latestSteps.length ? (
-                latestSteps.map((step) => (
-                  <div
-                    key={`${step.key}-${step.startedAt}`}
-                    className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge status={step.status} compact />
-                          <div className="text-sm font-semibold text-white">{step.label}</div>
-                        </div>
-                        <div className="mt-2 text-xs leading-6 text-slate-400">
-                          {step.detail ?? "Waiting for more runtime detail."}
-                        </div>
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        {toRelativeTime(step.completedAt ?? step.startedAt)}
-                      </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-[20px] border border-white/10 bg-[#06101d]/80 px-4 py-3 text-right backdrop-blur">
+                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                      Live txs
                     </div>
-                    {step.txHash ? (
-                      <div className="mt-3">
-                        <AddressRow
-                          label="Tx hash"
-                          value={step.txHash}
-                          href={step.explorerUrl}
-                          copied={copiedValue === step.txHash}
-                          onCopy={() => copyText(step.txHash ?? "")}
-                          mono
-                        />
-                      </div>
+                    <div className="mt-2 text-lg font-semibold text-white">
+                      {liveRuntime?.txHashes.length ?? 0}
+                    </div>
+                  </div>
+                  <div className="rounded-[20px] border border-white/10 bg-[#06101d]/80 px-4 py-3 text-right backdrop-blur">
+                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                      Treasury
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-white">
+                      {formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pointer-events-none absolute bottom-4 left-4 z-10 flex flex-wrap gap-2">
+                <Tag subtle>Click a district</Tag>
+                <Tag subtle>Earn → tax → govern</Tag>
+              </div>
+
+              <svg
+                viewBox="0 0 960 620"
+                className="h-full w-full"
+                role="img"
+                aria-label="Low-poly Bazaar X economy board"
+              >
+                <defs>
+                  <linearGradient id="board-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#102340" />
+                    <stop offset="100%" stopColor="#05070e" />
+                  </linearGradient>
+                </defs>
+
+                <rect width="960" height="620" fill="url(#board-glow)" />
+                <polygon points="480,58 930,282 480,540 30,282" fill="#0a1425" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
+                <polygon points="480,112 824,284 480,460 136,284" fill="#0f1f36" opacity="0.78" />
+                <polygon points="480,156 742,286 480,418 218,286" fill="#132846" opacity="0.88" />
+                <polygon points="480,196 662,286 480,378 298,286" fill="#193258" />
+
+                {connections.map((connection) => {
+                  const from = actorRecords.find((actor) => actor.id === connection.from);
+                  const to = actorRecords.find((actor) => actor.id === connection.to);
+
+                  if (!from || !to) {
+                    return null;
+                  }
+
+                  const midX = (from.x + to.x) / 2;
+                  const midY = (from.y + to.y) / 2;
+                  const isSelectedConnection =
+                    connection.to === selectedActor.id || connection.from === selectedActor.id;
+
+                  return (
+                    <g key={`${connection.from}-${connection.to}`}>
+                      <polyline
+                        points={`${from.x},${from.y} ${to.x},${to.y}`}
+                        fill="none"
+                        stroke={from.palette.glow}
+                        strokeWidth={isSelectedConnection ? 6 : 3}
+                        opacity={isSelectedConnection ? 0.35 : 0.12}
+                      />
+                      <circle
+                        cx={midX}
+                        cy={midY}
+                        r="7"
+                        fill={from.palette.top}
+                        opacity={isSelectedConnection ? 1 : liveRuntime?.txHashes.length ? 0.55 : 0.25}
+                        className="scene-token"
+                      />
+                      <text
+                        x={midX}
+                        y={midY - 16}
+                        fill={isSelectedConnection ? "rgba(244, 247, 255, 0.82)" : "rgba(230, 236, 255, 0.35)"}
+                        fontSize="11"
+                        textAnchor="middle"
+                        letterSpacing="0.22em"
+                      >
+                        {connection.label.toUpperCase()}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {actorRecords.map((actor) => {
+                  const selected = actor.id === selectedActor.id;
+                  const topY = actor.y - actor.height;
+                  const halfWidth = actor.id === "core" ? 82 : 64;
+                  const topDepth = actor.id === "core" ? 36 : 28;
+                  const baseDepth = actor.id === "core" ? 28 : 22;
+
+                  return (
+                    <g
+                      key={actor.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedId(actor.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedId(actor.id);
+                        }
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <ellipse
+                        cx={actor.x}
+                        cy={actor.y + 22}
+                        rx={halfWidth * 0.9}
+                        ry="22"
+                        fill={actor.palette.glow}
+                        opacity={selected ? 1 : 0.65}
+                      />
+                      <polygon
+                        points={`${actor.x},${topY} ${actor.x + halfWidth},${topY + topDepth} ${actor.x},${topY + topDepth * 2} ${actor.x - halfWidth},${topY + topDepth}`}
+                        fill={actor.palette.top}
+                        stroke={selected ? "#ffffff" : actor.palette.outline}
+                        strokeWidth={selected ? 3 : 1.5}
+                      />
+                      <polygon
+                        points={`${actor.x - halfWidth},${topY + topDepth} ${actor.x},${topY + topDepth * 2} ${actor.x},${actor.y} ${actor.x - halfWidth},${actor.y - baseDepth}`}
+                        fill={actor.palette.left}
+                        stroke={selected ? "#ffffff" : "rgba(255,255,255,0.18)"}
+                        strokeWidth={selected ? 2.5 : 1}
+                      />
+                      <polygon
+                        points={`${actor.x + halfWidth},${topY + topDepth} ${actor.x},${topY + topDepth * 2} ${actor.x},${actor.y} ${actor.x + halfWidth},${actor.y - baseDepth}`}
+                        fill={actor.palette.right}
+                        stroke={selected ? "#ffffff" : "rgba(255,255,255,0.18)"}
+                        strokeWidth={selected ? 2.5 : 1}
+                      />
+                      <polygon
+                        points={`${actor.x},${actor.y - baseDepth * 2} ${actor.x + halfWidth},${actor.y - baseDepth} ${actor.x},${actor.y} ${actor.x - halfWidth},${actor.y - baseDepth}`}
+                        fill="rgba(255,255,255,0.05)"
+                        opacity="0.45"
+                      />
+                      <text
+                        x={actor.x}
+                        y={actor.y + 62}
+                        fill="#f4f7ff"
+                        fontSize={selected ? "20" : "18"}
+                        textAnchor="middle"
+                        fontWeight="700"
+                      >
+                        {actor.title}
+                      </text>
+                      <text
+                        x={actor.x}
+                        y={actor.y + 84}
+                        fill="rgba(222,229,255,0.75)"
+                        fontSize="12"
+                        letterSpacing="0.18em"
+                        textAnchor="middle"
+                      >
+                        {actor.kicker.toUpperCase()}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          </div>
+
+          <div className="grid gap-5">
+            <aside className="glass-card panel-glow rounded-[32px] border border-white/10 p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                    Selected actor
+                  </div>
+                  <h3 className="display-face mt-2 text-2xl font-semibold text-white">
+                    {selectedActor.title}
+                  </h3>
+                </div>
+                <div
+                  className="h-4 w-4 rounded-full"
+                  style={{ backgroundColor: selectedActor.palette.top }}
+                />
+              </div>
+
+              <p className="mt-4 text-sm leading-7 text-slate-300">{selectedActor.note}</p>
+
+              <div className="mt-5 grid gap-3">
+                <MetricPill label="Role" value={selectedActor.kicker} />
+                <MetricPill label="Value" value={selectedActor.value} />
+                <MetricPill label="Now" value={selectedActor.status} />
+              </div>
+
+              {selectedActor.address ? (
+                <div className="mt-5 rounded-[20px] border border-white/10 bg-black/20 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                      Address
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => copyText(selectedActor.address ?? "")}
+                        className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        {copiedValue === selectedActor.address ? "Copied" : "Copy"}
+                      </button>
+                      <a
+                        href={selectedActor.explorerUrl ?? `${explorerBaseUrl}/address/${selectedActor.address}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
+                      >
+                        Open
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                  <div className="mono mt-2 truncate text-sm text-white">{selectedActor.address}</div>
+                </div>
+              ) : null}
+
+              {selectedActor.txHash ? (
+                <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                      Latest proof hash
+                    </div>
+                    {selectedActorTxHref ? (
+                      <a
+                        href={selectedActorTxHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
+                      >
+                        Open
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </a>
                     ) : null}
                   </div>
-                ))
-              ) : (
-                <div className="rounded-[24px] border border-dashed border-white/15 bg-black/20 p-5 text-sm leading-7 text-slate-300">
-                  Run the live flow to populate a timestamped execution timeline with contracts,
-                  service hires, proposal votes, and treasury actions.
+                  <div className="mono mt-2 text-sm text-white">{shortHash(selectedActor.txHash)}</div>
                 </div>
-              )}
-            </div>
-          </Panel>
+              ) : null}
+            </aside>
+
+            <aside className="glass-card panel-glow rounded-[32px] border border-white/10 p-5">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                Covenant snapshot
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <MetricPill label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+                <MetricPill label="Floor" value={formatOkbFromWei(minimumBalanceWei)} />
+                <MetricPill label="Quorum" value={`${(quorumBps / 100).toFixed(2)}%`} />
+                <MetricPill label="Support" value={`${(supportBps / 100).toFixed(2)}%`} />
+              </div>
+              <div className="mt-3 rounded-[18px] border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-slate-300">
+                Voting window: {votingPeriodSeconds}s. The next settlement proves the rule update.
+              </div>
+            </aside>
+          </div>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-12">
-          <Panel title="Transaction feed" kicker="Explorer-linked proof" className="xl:col-span-8">
-            <div className="space-y-3">
-              {transactions.slice(0, 8).map((tx) => (
-                <article
-                  key={`${tx.hash}-${tx.label}`}
-                  className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 transition hover:border-white/20"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-[#69f0d2]/[0.12] px-2.5 py-1 text-[11px] uppercase tracking-[0.22em] text-[#9ffff0]">
-                          {tx.label}
-                        </span>
-                        <span className="text-xs text-slate-400">{tx.time}</span>
-                      </div>
-                      <div className="mt-2 truncate text-sm text-slate-200">
-                        {tx.from} → {tx.to}
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-3">
-                        {tx.explorerUrl ? (
-                          <a
-                            href={tx.explorerUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 mono text-xs text-slate-400 transition hover:text-[#9ffff0]"
-                          >
-                            {shortHash(tx.hash)}
-                            <ArrowUpRight className="h-3.5 w-3.5" />
-                          </a>
-                        ) : (
-                          <div className="mono text-xs text-slate-500">{tx.hash}</div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => copyText(tx.hash)}
-                          className="inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-white"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                          {copiedValue === tx.hash ? "Copied" : "Copy hash"}
-                        </button>
-                      </div>
-                      {tx.detail ? (
-                        <div className="mt-2 text-xs leading-6 text-slate-400">{tx.detail}</div>
-                      ) : null}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:min-w-[420px]">
-                      <FeedStat label="Amount" value={tx.amount} />
-                      <FeedStat label="Fee" value={tx.fee} />
-                      <FeedStat label="Block" value={tx.block} />
-                      <FeedStat label="Status" value={tx.status} />
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </Panel>
-
-          <div className="grid gap-5 xl:col-span-4">
-            <Panel title="Live rules" kicker="What the next tx obeys">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                <RuleCard label="Tax rate" value={`${(taxBps / 100).toFixed(2)}%`} />
-                <RuleCard label="Minimum balance" value={minimumBalance} />
-                <RuleCard label="Quorum" value={`${(quorumBps / 100).toFixed(2)}%`} />
-                <RuleCard label="Support" value={`${(supportBps / 100).toFixed(2)}%`} />
-                <RuleCard label="Voting window" value={`${votingPeriodSeconds}s`} />
+        <section className="grid gap-4 lg:grid-cols-4">
+          {proofCards.map((card) => (
+            <article
+              key={card.id}
+              className="glass-card panel-glow rounded-[26px] border border-white/10 p-5"
+            >
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                {card.title}
               </div>
-            </Panel>
-
-            <Panel title="Operator flow" kicker="Fastest replay path">
-              <ol className="space-y-3 text-sm leading-7 text-slate-300">
-                <li>Run `pnpm live:wallets` to materialize the agentic wallets and addresses.</li>
-                <li>Use `pnpm live:faucet` once, then fund agents through real onchain transfers.</li>
-                <li>Deploy with `pnpm live:deploy` and replay the full loop with `pnpm live:run`.</li>
-                <li>Use this dashboard or `pnpm live:status` to surface the latest proof.</li>
-              </ol>
-            </Panel>
-          </div>
+              <p className="mt-3 text-sm leading-7 text-slate-300">{card.caption}</p>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="mono text-sm text-white">
+                  {card.hash ? shortHash(card.hash) : "Pending"}
+                </div>
+                {card.explorerUrl ? (
+                  <a
+                    href={card.explorerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
+                  >
+                    Open
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
+                ) : null}
+              </div>
+            </article>
+          ))}
         </section>
       </div>
     </main>
   );
 }
 
-function Panel({
-  title,
-  kicker,
-  className = "",
+function Tag({
   children,
+  subtle = false,
 }: {
-  title: string;
-  kicker: string;
-  className?: string;
-  children: ReactNode;
+  children: string;
+  subtle?: boolean;
 }) {
   return (
-    <section className={`glass-card panel-glow fade-in rounded-[28px] border border-white/10 p-5 ${className}`}>
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-[0.28em] text-slate-400">{kicker}</div>
-          <h2 className="mt-2 text-xl font-semibold text-white">{title}</h2>
-        </div>
-      </div>
+    <span
+      className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em] ${
+        subtle
+          ? "border border-white/10 bg-white/[0.05] text-slate-300"
+          : "border border-[#69f0d2]/30 bg-[#69f0d2]/10 font-semibold text-[#a6fff1]"
+      }`}
+    >
       {children}
-    </section>
-  );
-}
-
-function StatTile({
-  label,
-  value,
-  note,
-  index,
-}: {
-  label: string;
-  value: string;
-  note: string;
-  index: number;
-}) {
-  return (
-    <article
-      className="glass-card fade-in rounded-[24px] border border-white/10 p-5"
-      style={{ animationDelay: `${index * 90}ms` }}
-    >
-      <div className="text-xs uppercase tracking-[0.26em] text-slate-400">{label}</div>
-      <div className="mt-2 text-3xl font-semibold tracking-tight text-white">{value}</div>
-      <p className="mt-3 text-sm leading-6 text-slate-300">{note}</p>
-    </article>
-  );
-}
-
-function ProofCard({
-  title,
-  value,
-  note,
-  link,
-  copyValue,
-  copied,
-  onCopy,
-  index,
-}: {
-  title: string;
-  value: string;
-  note: string;
-  link?: string;
-  copyValue?: string;
-  copied?: boolean;
-  onCopy?: () => void;
-  index: number;
-}) {
-  return (
-    <article
-      className="glass-card fade-in rounded-[24px] border border-white/10 p-5"
-      style={{ animationDelay: `${index * 80}ms` }}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="text-xs uppercase tracking-[0.26em] text-slate-400">{title}</div>
-        <div className="flex items-center gap-2">
-          {link ? (
-            <a
-              href={link}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
-            >
-              Open
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </a>
-          ) : null}
-          {copyValue && onCopy ? (
-            <button
-              type="button"
-              onClick={onCopy}
-              className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              {copied ? "Copied" : "Copy"}
-            </button>
-          ) : null}
-        </div>
-      </div>
-      <div className="mt-3 text-2xl font-semibold tracking-tight text-white">{value}</div>
-      <p className="mt-3 text-sm leading-6 text-slate-300">{note}</p>
-    </article>
+    </span>
   );
 }
 
@@ -1412,7 +1108,7 @@ function Callout({
 }: {
   tone: "warn" | "neutral";
   title: string;
-  children: ReactNode;
+  children: string;
 }) {
   return (
     <div
@@ -1421,10 +1117,9 @@ function Callout({
           ? "border-[#ffb96a]/30 bg-[#ffb96a]/10 text-[#ffe5c0]"
           : "border-white/10 bg-white/[0.05] text-slate-200"
       }`}
-      aria-live="polite"
     >
       <div className="mb-1 flex items-center gap-2 font-medium">
-        <CircleAlert className="h-4 w-4" />
+        <ShieldAlert className="h-4 w-4" />
         {title}
       </div>
       {children}
@@ -1432,157 +1127,31 @@ function Callout({
   );
 }
 
-function StatusBadge({
-  status,
-  compact = false,
-}: {
-  status: "idle" | "ready" | "running" | "completed" | "failed" | "success" | "pending";
-  compact?: boolean;
-}) {
-  const palette =
-    status === "completed" || status === "success"
-      ? "border-[#69f0d2]/35 bg-[#69f0d2]/10 text-[#a6fff1]"
-      : status === "running" || status === "pending"
-        ? "border-[#7a8bff]/35 bg-[#7a8bff]/10 text-[#d7dcff]"
-        : status === "failed"
-          ? "border-[#ff8f8f]/35 bg-[#ff8f8f]/10 text-[#ffd3d3]"
-          : "border-white/10 bg-white/[0.06] text-slate-300";
-
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-[0.22em] ${palette}`}
-    >
-      {!compact ? <span className="signal-dot" /> : null}
-      {status}
-    </span>
-  );
-}
-
-function AddressRow({
-  label,
-  value,
-  href,
-  copied,
-  onCopy,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  href?: string;
-  copied?: boolean;
-  onCopy?: () => void;
-  mono?: boolean;
-}) {
-  return (
-    <div className="rounded-[18px] border border-white/10 bg-black/20 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{label}</div>
-        <div className="flex items-center gap-2">
-          {href ? (
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
-            >
-              Open
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </a>
-          ) : null}
-          {onCopy ? (
-            <button
-              type="button"
-              onClick={onCopy}
-              className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              {copied ? "Copied" : "Copy"}
-            </button>
-          ) : null}
-        </div>
-      </div>
-      <div className={`mt-2 truncate text-sm text-white ${mono ? "mono" : ""}`}>{value}</div>
-    </div>
-  );
-}
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
+function MetricPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[18px] border border-white/10 bg-black/20 p-3">
       <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{label}</div>
-      <div className="mt-2 text-sm leading-6 text-white">{value}</div>
+      <div className="mt-2 text-sm font-medium text-white">{value}</div>
     </div>
   );
 }
 
-function TinyStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[18px] border border-white/10 bg-black/20 p-3">
-      <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{label}</div>
-      <div className="mt-2 text-base font-semibold text-white">{value}</div>
-    </div>
-  );
-}
-
-function RuleCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[18px] border border-white/10 bg-black/20 p-3">
-      <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{label}</div>
-      <div className="mt-2 text-base font-semibold text-white">{value}</div>
-    </div>
-  );
-}
-
-function BarRow({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent: string;
-}) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-        <span>{label}</span>
-        <span>{Math.max(0, Math.min(100, value))}%</span>
-      </div>
-      <div className="h-2 rounded-full bg-white/[0.08]">
-        <div
-          className={`h-full rounded-full ${accent}`}
-          style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function FeedStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[16px] border border-white/10 bg-black/20 p-3">
-      <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{label}</div>
-      <div className="mt-2 truncate text-sm text-white">{value}</div>
-    </div>
-  );
-}
-
-function ActionButton({
+function ControlButton({
   icon: Icon,
   label,
   hint,
   tone = "primary",
   loading = false,
-  onClick,
   disabled = false,
+  onClick,
 }: {
-  icon: typeof Wallet;
+  icon: LucideIcon;
   label: string;
   hint: string;
   tone?: "primary" | "accent" | "ghost";
   loading?: boolean;
-  onClick?: () => void;
   disabled?: boolean;
+  onClick?: () => void;
 }) {
   const palette =
     tone === "accent"
@@ -1596,7 +1165,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group rounded-[22px] border px-4 py-4 text-left transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55 ${palette}`}
+      className={`rounded-[22px] border px-4 py-4 text-left transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55 ${palette}`}
     >
       <div className="flex items-center gap-2 text-white">
         {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
