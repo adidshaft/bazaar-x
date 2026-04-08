@@ -1,27 +1,28 @@
-# Bazaar X Demo Video Script
+# Bazaar X Demo Script
 
-Recommended runtime: 2:15 to 3:00
+Recommended runtime: 2:00 to 2:45
 
-This script is optimized for a clean judge-facing recording of the current dashboard state. It uses the existing completed X Layer run so you do not have to risk a failed take by waiting on fresh transactions.
+This version matches the current fullscreen pixel-village build: boot screen, wallet onboarding, explorable town, floating agent whispers, and the collapsible right-hand drawer for deep proof.
 
 ## Recording Goal
 
-Show three things clearly:
+Show four things clearly:
 
-1. Bazaar X is a live autonomous agent economy on X Layer.
-2. Real transactions happened onchain across hiring, tax, governance, and treasury reinvestment.
-3. Governance changed the rules, and the next payment obeyed the updated covenant.
+1. Bazaar X feels like a game, not a dashboard.
+2. The world represents a real autonomous agent economy on X Layer.
+3. The drawer reveals live onchain proof only when needed.
+4. Governance changes the rules and the economy obeys them.
 
 ## Pre-Recording Checklist
 
 1. Run `pnpm dev`.
-2. Open the app full-screen on desktop.
-3. Make sure the header shows `testnet` and `chain 1952`.
-4. Make sure the dashboard is loaded and `Runtime status` is `completed`.
-5. Make sure `Tracked txs` shows `35`.
-6. Optional: connect a wallet on X Layer testnet if you want the viewer wallet box to look active.
+2. Open the app fullscreen on desktop.
+3. Keep browser zoom at `100%`.
+4. Connect a wallet on X Layer testnet if you want the best take.
+5. Make sure the village finishes loading and the drawer can open cleanly.
+6. If the town feels too busy, wait 3 to 5 seconds before starting so the agents settle into readable motion.
 
-## Proof Points To Call Out
+## Core Proof To Mention
 
 - Contract: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
 - Treasury: `0xA90447Cb62B91467e45CC37e8B6020Dfd744f648`
@@ -31,188 +32,175 @@ Show three things clearly:
 - Treasury reinvestment: `0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793`
 - Current live rules: `8.00%` tax, `0.0015 OKB` minimum balance, `75%` quorum, `60%` support, `10s` voting window
 
-## Click-By-Click Script
+## Shot List
 
-### Shot 1: Hero and positioning
+### Shot 1: Boot and world reveal
 
-Time: `0:00 - 0:15`
+Time: `0:00 - 0:12`
 
-Clicks:
+Actions:
 
-1. Start on the top of the homepage.
-2. Keep the hero, proof chips, and top stat cards in frame.
-3. Do not scroll yet.
+1. Start recording on the loading screen.
+2. Let the progress bar finish.
+3. Hold for a beat as the village appears.
 
-Transcript:
+Voiceover:
 
-"This is Bazaar X, a self-governing autonomous agent economy built on X Layer. The core loop is simple: agents earn, pay, tax, reinvest, and then govern the policy that affects the next transaction."
+"Bazaar X turns a live X Layer economy into a playable village. Instead of opening on a dashboard, it opens like a game world."
 
-### Shot 2: Refresh and establish live proof
+### Shot 2: Wallet onboarding
 
-Time: `0:15 - 0:30`
+Time: `0:12 - 0:28`
 
-Clicks:
+Actions:
 
-1. Click `Refresh status`.
-2. Move the cursor across `Live contract`, `Treasury reserve`, `Tracked txs`, and `Runtime status`.
+1. Show the onboarding overlay.
+2. Click `Connect Wallet` if you want a live connected take.
+3. Click `Enter Village`.
 
-Transcript:
+Voiceover:
 
-"What matters here is that this is not a mock dashboard. The app is loading a real recorded X Layer run, with a live contract, a treasury balance, 35 tracked transactions, and a completed runtime."
+"Wallet connection is the only login. Once connected, you enter the world directly and watch the economy run through agents, not menu forms."
 
-### Shot 3: Contract, treasury, and covenant proof cards
+### Shot 3: The living village
 
-Time: `0:30 - 0:45`
+Time: `0:28 - 0:52`
 
-Clicks:
+Actions:
 
-1. Move the cursor over the `Contract` proof card.
-2. Move to the `Treasury` proof card.
-3. Move to the `Covenant` proof card.
-4. Move to the `Run status` proof card.
+1. Keep the full map visible.
+2. Let the player and NPCs move for a few seconds.
+3. Move slightly with click-to-move or WASD.
+4. Pause near one district.
 
-Transcript:
+Voiceover:
 
-"The contract is live on X Layer testnet, the treasury is funded from real tax flow, and the covenant rules are visible in the same interface. Judges can verify all of this from the dashboard and the linked explorer receipts."
+"Every character in the town has a role. The merchant creates demand, the supplier routes work, the worker executes paid contracts, and the governor changes the rules. Their status whispers stay in-world so you can follow the loop without opening panels."
 
-### Shot 4: Agent economy
+### Shot 4: Minimal HUD and game controls
 
-Time: `0:45 - 1:10`
+Time: `0:52 - 1:08`
 
-Clicks:
+Actions:
 
-1. Scroll to `Agent economy`.
-2. Click `Bazaar Forge`.
-3. Click `Supply Coil`.
-4. Click `Node Pilot`.
-5. Click `Covenant Council`.
-6. Pause on the selected agent panel.
+1. Point to `Village Brief` in the top-left.
+2. Point to the wallet chip in the top-right.
+3. Point to the icon rail.
+4. Click the world once to show how the drawer closes.
 
-Transcript:
+Voiceover:
 
-"These are the four economic actors. Bazaar Forge opens demand, Supply Coil fulfills and routes work, Node Pilot performs paid labor, and Covenant Council steers governance. Each agent has a wallet, a role, and a latest onchain action tied back to the economy loop."
+"The interface stays light. The world stays visible, and deeper information only slides in when needed. Tapping back into the town collapses the drawer and returns focus to play."
 
-### Shot 5: Covenant Skill
+### Shot 5: Inspect a district
 
-Time: `1:10 - 1:22`
+Time: `1:08 - 1:26`
 
-Clicks:
+Actions:
 
-1. Keep the `Selected agent` panel visible.
-2. Move the cursor to the `Covenant Skill` module.
-3. Slowly pass over the listed functions.
+1. Walk near a district.
+2. Click the floating `[ i ]` marker or the district itself.
+3. Let the `Inspect` drawer open.
+4. Highlight the district summary and proof card.
 
-Transcript:
+Voiceover:
 
-"The reusable piece is Covenant Skill. It enforces policy, checks balance rules, applies tax, creates proposals, records votes, and executes rule changes. That makes the policy engine portable beyond this single demo."
+"Each district represents a piece of the economy. Inspection reveals the local role, the latest economic state, and the attached proof, whether that is an address or a real transaction."
 
-### Shot 6: Governance panel
+### Shot 6: Quest Rail
 
-Time: `1:22 - 1:40`
+Time: `1:26 - 1:46`
 
-Clicks:
+Actions:
 
-1. Move to the `Governance` panel.
-2. Click the active proposal card.
-3. Hold the cursor over the proposal title and status.
+1. Open `Quests` from the icon rail.
+2. Hover or pause on `Spawn economy`, `Deploy to X Layer`, and `Play live round`.
+3. Scroll slightly to the quest cards.
 
-Transcript:
+Voiceover:
 
-"Governance is not decorative here. Proposal two raises the covenant tax to 8 percent, and the voting flow is completed onchain. This is how the economy changes its own rules instead of relying on hardcoded admin updates."
+"The whole market loop is organized as a playable quest rail: spawn the economy, deploy the system, run the live round, and then prove governance changed the rules."
 
-### Shot 7: Execution timeline
+### Shot 7: Legend and stats
 
-Time: `1:40 - 2:05`
+Time: `1:46 - 2:03`
 
-Clicks:
+Actions:
 
-1. Scroll to `Execution timeline`.
-2. Pause on `Propose tax update`.
-3. Pause on `Execute governance update`.
-4. Pause on `Post-governance payment`.
-5. Pause on `Treasury reinvests`.
-6. Click the tx hash for `Execute governance update` to open the explorer in a new tab.
-7. Show the explorer briefly, then return to the dashboard.
+1. Open `Legend`.
+2. Show the role cards and minimap.
+3. Open `Stats`.
+4. Pause on campaign progress, treasury TVL, and tax rate.
 
-Transcript:
+Voiceover:
 
-"The timeline makes the proof legible. You can see the proposal, the votes, the execution, the next payment after governance, and then treasury reinvestment. The governance execution transaction is onchain, and the explorer link makes that immediately verifiable."
+"The legend teaches the world quickly, while the systems panel explains what is happening under the hood: progress, treasury growth, tax level, and installed skills."
 
-### Shot 8: Transaction feed and live rules
+### Shot 8: Live tracker and proof
 
-Time: `2:05 - 2:30`
+Time: `2:03 - 2:28`
 
-Clicks:
+Actions:
 
-1. In `Transaction feed`, point to the items for governance execution, post-governance payment, and treasury reinvestment if visible.
-2. Move to `Live rules`.
-3. Hold on `Tax rate`, `Minimum balance`, and `Voting window`.
+1. Open `Tracker`.
+2. Pause on status, treasury, and tax.
+3. Show `Node Activity Streams`.
+4. If useful, click an explorer link from a proof card in `Inspect` or mention the known tx hashes on screen.
 
-Transcript:
+Voiceover:
 
-"The current live rules now show an 8 percent tax, a 0.0015 OKB minimum balance, 75 percent quorum, 60 percent support, and a 10 second voting window. The important part is that the market loop and the governance layer are connected, and the next transaction obeys the updated rules."
+"This is the live proof layer. The tracker reads the X Layer state directly, shows runtime status, treasury value, tax configuration, and recent agent activity. The important point is that the village is backed by real onchain execution, not mocked events."
 
-### Shot 9: Close
+### Shot 9: Close on the loop
 
-Time: `2:30 - 2:45`
+Time: `2:28 - 2:42`
 
-Clicks:
+Actions:
 
-1. Scroll just enough to keep `Transaction feed` and `Live rules` visible together, or return to the upper proof cards if that looks cleaner in your recording.
-2. End on a stable frame.
+1. Close the drawer by clicking the world.
+2. Let the village run for two or three seconds.
+3. End on a stable fullscreen frame with agents moving.
 
-Transcript:
+Voiceover:
 
-"Bazaar X is a live agent economy on X Layer, not just a static dApp. Agents transact, treasury grows through tax, governance executes onchain, and covenant rules shape the next payment. That is the full loop."
+"Bazaar X is a self-governing agent economy on X Layer. Agents transact, taxes route into treasury, governance updates policy, and the next payment obeys the new covenant. It is an explorable onchain economy, not just a static dApp."
 
-## Full Voiceover Transcript
+## Full Voiceover
 
-Use this if you want one continuous read instead of per-shot lines:
+"Bazaar X turns a live X Layer economy into a playable village. Instead of opening on a dashboard, it opens like a game world.
 
-"This is Bazaar X, a self-governing autonomous agent economy built on X Layer. The core loop is simple: agents earn, pay, tax, reinvest, and then govern the policy that affects the next transaction.
+Wallet connection is the only login. Once connected, you enter the world directly and watch the economy run through agents, not menu forms.
 
-What matters here is that this is not a mock dashboard. The app is loading a real recorded X Layer run, with a live contract, a treasury balance, 35 tracked transactions, and a completed runtime.
+Every character in the town has a role. The merchant creates demand, the supplier routes work, the worker executes paid contracts, and the governor changes the rules. Their status whispers stay in-world so you can follow the loop without opening panels.
 
-The contract is live on X Layer testnet, the treasury is funded from real tax flow, and the covenant rules are visible in the same interface. Judges can verify all of this from the dashboard and the linked explorer receipts.
+The interface stays light. The world stays visible, and deeper information only slides in when needed. Tapping back into the town collapses the drawer and returns focus to play.
 
-These are the four economic actors. Bazaar Forge opens demand, Supply Coil fulfills and routes work, Node Pilot performs paid labor, and Covenant Council steers governance. Each agent has a wallet, a role, and a latest onchain action tied back to the economy loop.
+Each district represents a piece of the economy. Inspection reveals the local role, the latest economic state, and the attached proof, whether that is an address or a real transaction.
 
-The reusable piece is Covenant Skill. It enforces policy, checks balance rules, applies tax, creates proposals, records votes, and executes rule changes. That makes the policy engine portable beyond this single demo.
+The whole market loop is organized as a playable quest rail: spawn the economy, deploy the system, run the live round, and then prove governance changed the rules.
 
-Governance is not decorative here. Proposal two raises the covenant tax to 8 percent, and the voting flow is completed onchain. This is how the economy changes its own rules instead of relying on hardcoded admin updates.
+The legend teaches the world quickly, while the systems panel explains what is happening under the hood: progress, treasury growth, tax level, and installed skills.
 
-The timeline makes the proof legible. You can see the proposal, the votes, the execution, the next payment after governance, and then treasury reinvestment. The governance execution transaction is onchain, and the explorer link makes that immediately verifiable.
+This is the live proof layer. The tracker reads the X Layer state directly, shows runtime status, treasury value, tax configuration, and recent agent activity. The important point is that the village is backed by real onchain execution, not mocked events.
 
-The current live rules now show an 8 percent tax, a 0.0015 OKB minimum balance, 75 percent quorum, 60 percent support, and a 10 second voting window. The important part is that the market loop and the governance layer are connected, and the next transaction obeys the updated rules.
+Bazaar X is a self-governing agent economy on X Layer. Agents transact, taxes route into treasury, governance updates policy, and the next payment obeys the new covenant. It is an explorable onchain economy, not just a static dApp."
 
-Bazaar X is a live agent economy on X Layer, not just a static dApp. Agents transact, treasury grows through tax, governance executes onchain, and covenant rules shape the next payment. That is the full loop." 
+## Optional Alternate Take
 
-## Optional Live Replay Take
+If you want a shorter social cut, keep:
 
-Use this only if you want a second, more dynamic recording and the environment is funded and stable.
+1. Boot and onboarding
+2. Living village shot
+3. Inspect drawer
+4. Tracker drawer
+5. Closing world shot
 
-### Live replay clicks
-
-1. Click `Initialize agents`.
-2. Click `Load live contract` if it is available. If the contract is not already loaded, click `Deploy live contract`.
-3. Click `Run live X Layer flow`.
-4. Keep the camera on `Execution timeline` as steps appear.
-5. Call out these steps as they land:
-   - `Supplier hires worker`
-   - `Shop hires supplier`
-   - `Propose tax update`
-   - `Execute governance update`
-   - `Post-governance payment`
-   - `Treasury reinvests`
-
-### Live replay short transcript
-
-"Now I am replaying the full market and governance loop live. The app is registering agents, listing services, settling hires onchain, proposing a covenant update, executing it, and then showing the post-governance payment and treasury reinvestment in one flow."
+That version should land around `60 to 75 seconds`.
 
 ## Delivery Notes
 
-- Speak a little slower than feels natural.
-- Keep the cursor steady. Do not wave it around.
-- Pause for one second after each major click.
-- If the explorer tab loads slowly, stay calm and let the proof page sit for two to three seconds.
-- If you only have time for a 90-second cut, keep Shots 1, 2, 4, 7, 8, and 9.
+- Keep the cursor calm and intentional.
+- Let the movement breathe. Do not rush between drawer sections.
+- Pause for one second after each drawer opens.
+- If you open an explorer link, hold it for two to three seconds before returning.
+- Keep the final shot on the world itself, not a panel.

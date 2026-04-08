@@ -539,7 +539,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   useEffect(() => {
     const interval = window.setInterval(() => {
       setWorldTick((current) => current + 1);
-    }, 160);
+    }, 220);
 
     return () => window.clearInterval(interval);
   }, []);
@@ -924,7 +924,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               ? `Exploring near ${nearbyDistrict.title}`
               : "Roaming the village",
         route: courierRoute,
-        speed: 0.09,
+        speed: 0.042,
         offset: 0,
         color: "#5cf1d1",
         accent: "#d5fff7",
@@ -935,7 +935,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         role: "Merchant",
         status: shopStep?.detail ?? "Stocking the market square",
         route: ["shop", "square", "core", "shop"],
-        speed: 0.06,
+        speed: 0.028,
         offset: 0.5,
         color: "#72f0d3",
         accent: "#e1fffa",
@@ -946,7 +946,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         role: "Supplier",
         status: supplierStep?.detail ?? "Running goods through the east lane",
         route: ["supplier", "core", "worker", "supplier"],
-        speed: 0.055,
+        speed: 0.024,
         offset: 1.4,
         color: "#86a7ff",
         accent: "#eff3ff",
@@ -957,7 +957,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         role: "Worker",
         status: paymentStep?.detail ?? workerStep?.detail ?? "Executing tasks on the south road",
         route: ["worker", "supplier", "square", "worker"],
-        speed: 0.07,
+        speed: 0.03,
         offset: 2.2,
         color: "#ff9a8b",
         accent: "#ffe6e0",
@@ -968,7 +968,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         role: "Governor",
         status: governorStep?.detail ?? "Reviewing rules in the council tower",
         route: ["governor", "core", "treasury", "governor"],
-        speed: 0.045,
+        speed: 0.02,
         offset: 3.1,
         color: "#d4b5ff",
         accent: "#f7ecff",
@@ -1154,16 +1154,16 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           const desiredVelocity = { x: 0, y: 0 };
 
           if (direction === "up") {
-            desiredVelocity.y = -0.54;
+            desiredVelocity.y = -0.32;
           }
           if (direction === "down") {
-            desiredVelocity.y = 0.54;
+            desiredVelocity.y = 0.32;
           }
           if (direction === "left") {
-            desiredVelocity.x = -0.54;
+            desiredVelocity.x = -0.32;
           }
           if (direction === "right") {
-            desiredVelocity.x = 0.54;
+            desiredVelocity.x = 0.32;
           }
 
           if (direction) {
@@ -1178,7 +1178,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               setManualTarget(null);
               Matter.Body.setVelocity(playerBody, { x: 0, y: 0 });
             } else {
-              const speed = 0.5;
+              const speed = 0.32;
               Matter.Body.setVelocity(playerBody, {
                 x: (dx / dist) * speed,
                 y: (dy / dist) * speed,
@@ -1206,7 +1206,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               }
               setAutoRouteIndex((index) => (index + 1) % courierRoute.length);
             } else {
-              const speed = 0.46;
+              const speed = 0.3;
               Matter.Body.setVelocity(playerBody, {
                 x: (dx / dist) * speed,
                 y: (dy / dist) * speed,
