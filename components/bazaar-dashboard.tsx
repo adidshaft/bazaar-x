@@ -1407,13 +1407,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                 path: "/api/live/run",
               }),
           };
-  const travelPrompt = nearbyDistrict
-    ? `You are near ${nearbyDistrict.title}. Press space or tap inspect.`
-    : manualTarget
-      ? `Manual route locked. The courier is walking to your marker.`
-    : controlMode === "auto"
-      ? `Auto courier is walking toward ${courierTargetTitle}.`
-      : `Click a road tile or head toward ${objectiveDistrict.title} to continue the economy loop.`;
+
   const legendItems = [
     { label: "You", copy: "Wallet-controlled courier.", color: "#f3c44f", accent: "courier" as const },
     { label: "Merchant", copy: "Opens shops and starts demand.", color: "#72f0d3", accent: "shop" as const },
@@ -1596,7 +1590,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           }}
         >
           <AvatarSprite role="courier" color="#f3c44f" size="lg" state={controlMode === "auto" ? "auto" : "idle"} />
-          <div className="arcade-face absolute left-1/2 top-[-22px] -translate-x-1/2 whitespace-nowrap text-[0.52rem] text-[#1b1713]">
+          <div className="arcade-face absolute left-1/2 top-[-26px] -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-[rgba(241,111,81,0.9)] px-[4px] py-[2px] text-[0.46rem] text-white shadow-lg border border-[#1a1510]">
             {controlMode === "auto" ? "AUTO" : "YOU"}
           </div>
           <div className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#fff7c2] bg-[radial-gradient(circle,rgba(255,241,162,0.28),transparent_72%)]" />
@@ -1610,7 +1604,11 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               top: `${manualTarget.y}%`,
             }}
           >
-            <div className="h-7 w-7 border-4 border-dashed border-[#f16f51] bg-[radial-gradient(circle,rgba(241,111,81,0.18),transparent_72%)]" />
+            <div className="quest-beacon relative flex flex-col items-center">
+              <div className="h-2 w-2 border-2 border-[#1a1510] bg-[#f16f51] rotate-45 transform mt-1" />
+              <div className="h-3 w-0.5 bg-[#1a1510]" />
+              <div className="h-3 w-6 border-2 border-[#1a1510] bg-[#f16f51] rounded-[50%] opacity-40 blur-[2px] absolute -bottom-1" />
+            </div>
           </div>
         ) : null}
 
@@ -1626,12 +1624,10 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                 zIndex: Math.round(80 + agent.position.y),
               }}
             >
-              <AvatarSprite role={agent.id} color={agent.color} size="md" />
-              {activePanel === "live" ? (
-                <div className="arcade-face absolute left-1/2 top-[-16px] -translate-x-1/2 whitespace-nowrap text-[0.48rem]" style={{ color: "#171411" }}>
-                  {agent.role}
-                </div>
-              ) : null}
+              <AvatarSprite role={agent.id} color={agent.color} size="lg" />
+              <div className="arcade-face absolute left-1/2 top-[-20px] -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-[rgba(26,21,16,0.85)] px-[4px] py-[2px] text-[0.42rem] tracking-wider text-white backdrop-blur-[2px] border border-[rgba(255,255,255,0.15)] shadow-lg transition-transform hover:scale-110">
+                {agent.role}
+              </div>
             </div>
           ))}
 
@@ -1692,42 +1688,29 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         </div>
       </div>
 
-      <div className="absolute left-3 top-3 z-30 flex w-[min(320px,calc(100vw-1rem))] flex-col gap-3 sm:left-4 sm:top-4">
-        <div className="pixel-window px-4 py-4 text-[#1a1714]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="arcade-face text-[0.42rem] text-[#6b6256]">OKX Build X Hackathon</div>
-              <div className="arcade-face mt-3 text-[clamp(0.8rem,1.4vw,1.05rem)] leading-[1.8]">
-                Bazaar X Village
-              </div>
-            </div>
-            <div className="arcade-face border-4 border-[#171411] bg-[#171411] px-2 py-1 text-[0.34rem] text-white">
-              {controlMode === "auto" ? "auto courier" : "manual"}
+      <div className="absolute left-4 top-4 z-30 flex w-[min(280px,calc(100vw-2rem))] flex-col gap-3">
+        <div className="pixel-window px-4 py-3 text-[#1a1714]">
+          <div className="flex items-start justify-between gap-2">
+            <div className="arcade-face text-[0.85rem] leading-[1.2]">Bazaar X</div>
+            <div className="arcade-face border-2 border-[#2f251c] bg-[#2f251c] px-1.5 py-0.5 text-[0.32rem] text-white">
+              {controlMode === "auto" ? "auto" : "manual"}
             </div>
           </div>
-          <div className="mt-3 text-sm leading-6 text-[#4d4338]">
+          <div className="mt-2 text-xs leading-5 text-[#4d4338]">
             {questFocus?.caption ?? "Walk the village and trigger the onchain loop."}
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <BriefChip label="Status" value={liveRuntime?.status ?? "ready"} />
-            <BriefChip label="Tx" value={String(liveRuntime?.txHashes.length ?? 0)} />
-            <BriefChip label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
-          </div>
-          <div className="mt-3 border-4 border-[#171411] bg-[#fff8ee] px-3 py-3 text-sm leading-6 text-[#4d4338]">
-            {travelPrompt}
           </div>
           <div className="mt-3 flex gap-2">
             <button
               type="button"
               onClick={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("quests"))}
-              className="pixel-button bg-[#f16f51] px-3 py-2 text-white"
+              className="pixel-button flex-1 bg-[#f16f51] px-2 py-1.5 text-white"
             >
               <span className="arcade-face text-[0.42rem]">{nearbyDistrict ? "Inspect" : "Quest"}</span>
             </button>
             <button
               type="button"
               onClick={() => (controlMode === "auto" ? engageManualControl() : engageAutoControl())}
-              className="pixel-button bg-[#f8f2e9] px-3 py-2 text-[#171411]"
+              className="pixel-button flex-1 bg-[#eae0d2] px-2 py-1.5 text-[#1a1510]"
             >
               <span className="arcade-face text-[0.42rem]">{controlMode === "auto" ? "Manual" : "Auto"}</span>
             </button>
@@ -2173,64 +2156,38 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
       </div>
 
       {onboardingVisible ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[rgba(14,12,10,0.38)] backdrop-blur-[2px]">
-          <div className="pixel-window w-[min(920px,calc(100vw-1rem))] px-5 py-5 text-[#171411] sm:px-6 sm:py-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="arcade-face text-[0.52rem] text-[#6b6256]">OKX Build X Hackathon</div>
-                <div className="arcade-face mt-4 text-[clamp(1rem,3vw,1.7rem)] leading-[1.8]">Connect Wallet. Then Enter The Village.</div>
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[rgba(14,12,10,0.5)] backdrop-blur-md">
+          <div className="flex flex-col items-center justify-center fade-in">
+            <div className="arcade-face text-[0.8rem] text-[#f4d594] tracking-widest mb-3 drop-shadow-md">OKX Build X Hackathon</div>
+            <h1 className="arcade-face text-[clamp(2.5rem,7vw,5rem)] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] mb-10 tracking-wider">Bazaar<span className="text-[#f16f51]">X</span></h1>
+            
+            <div className="pixel-window-dark w-[min(480px,calc(100vw-2rem))] p-8 text-center shadow-[0_24px_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(244,213,148,0.05),transparent_60%)] pointer-events-none" />
+              <p className="text-[0.95rem] text-[#d4cabd] mb-8 leading-relaxed relative z-10">
+                Connect your wallet to enter the living village. Once inside, you can watch the agent economy run on X Layer or trigger live actions manually.
+              </p>
+              
+              <div className="flex flex-col items-center gap-4 relative z-10">
+                <ConnectWalletButton variant="pixel" fullWidth />
+                <button
+                  type="button"
+                  disabled={!canPlayGame}
+                  onClick={() => setHasEnteredGame(true)}
+                  className="pixel-button arcade-face flex w-full items-center justify-center gap-2 bg-[#f4d594] px-4 py-4 text-[0.65rem] text-[#2f251c] disabled:cursor-not-allowed disabled:bg-[#4f4339] disabled:text-[#8d8272] transition-colors hover:bg-white"
+                >
+                  <Sparkles className="h-5 w-5" />
+                  Enter Village
+                </button>
               </div>
-              <div className="arcade-face rounded-none border-4 border-[#171411] bg-[#171411] px-3 py-2 text-[0.4rem] text-white">
-                phase 20 ux pass
-              </div>
-            </div>
-            <div className="mt-4 max-w-3xl text-sm leading-7 text-[#4d4338]">
-              Bazaar X starts with one login only: your wallet. Once connected, you enter a living town where the merchant, supplier,
-              worker, and governor agents keep working around you on X Layer. Walk the map, read the legend, inspect districts, and trigger the live economy loop when you are ready.
-            </div>
-            <div className="mt-5 grid gap-3 lg:grid-cols-[1.05fr,0.95fr]">
-              <div className="grid gap-3">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <EntryCard title="1. Connect wallet" copy="Wallet is the only identity layer. No account form, no email, no extra login." />
-                  <EntryCard title="2. Read the board" copy="Use the legend board to learn what each character, quest marker, and inspect pad means." />
-                  <EntryCard title="3. Enter village" copy="Walk manually or leave the courier on auto while agents keep doing their jobs." />
-                </div>
-                <div className="border-4 border-[#171411] bg-white/70 px-4 py-4">
-                  <div className="arcade-face text-[0.42rem] text-[#6b6256]">Who is in the town?</div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {legendItems.map((item) => (
-                      <LegendListRow key={item.label} label={item.label} copy={item.copy} role={item.accent} color={item.color} />
-                    ))}
+
+              {canPlayGame ? (
+                <div className="mt-8 border-t-2 border-[rgba(255,255,255,0.05)] pt-5 relative z-10">
+                  <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#a3d07e] uppercase tracking-widest">
+                     <div className="h-2 w-2 rounded-full bg-[#a3d07e] animate-pulse" />
+                     Ready to enter
                   </div>
                 </div>
-              </div>
-              <div className="grid gap-3">
-                <div className="border-4 border-[#171411] bg-white/70 px-4 py-4">
-                  <div className="arcade-face text-[0.42rem] text-[#6b6256]">Start panel</div>
-                  <div className="mt-3 grid gap-2">
-                    <QuickSummaryRow label="Current objective" value={objectiveDistrict.title} caption={questFocus?.caption ?? "Follow the guided economy loop."} />
-                    <QuickSummaryRow label="Onchain proof" value={`${liveRuntime?.txHashes.length ?? 0} tx hashes`} caption="Real payments, treasury movements, and governance actions are already captured on X Layer." />
-                    <QuickSummaryRow label="Wallet state" value={isConnected && address ? shortHash(address) : "Not connected"} caption={isConnected ? "Connected. The Enter Village button is unlocked." : "Connect a wallet to unlock live play."} />
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-[1fr,1fr]">
-                  <ConnectWalletButton variant="pixel" fullWidth />
-                  <button
-                    type="button"
-                    disabled={!canPlayGame}
-                    onClick={() => setHasEnteredGame(true)}
-                    className="pixel-button arcade-face flex w-full items-center justify-center gap-2 bg-[#171411] px-4 py-4 text-[0.58rem] text-white disabled:cursor-not-allowed disabled:bg-[#8f8b84] disabled:text-[#f1ede3]"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Enter Village
-                  </button>
-                </div>
-                <div className="border-4 border-[#171411] bg-white/70 px-3 py-3 text-sm leading-6 text-[#4d4338]">
-                  {canPlayGame
-                    ? "Wallet connected. Enter the village to start with the legend board open and the courier ready."
-                    : "Connect wallet first. Once the wallet is connected, Enter Village unlocks immediately."}
-                </div>
-              </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -2940,14 +2897,6 @@ function QuickSummaryRow({
   );
 }
 
-function EntryCard({ title, copy }: { title: string; copy: string }) {
-  return (
-    <div className="border-4 border-[#171411] bg-[#f8f2e9] px-4 py-4">
-      <div className="arcade-face text-[0.42rem] text-[#171411]">{title}</div>
-      <div className="mt-3 text-sm leading-6 text-[#4d4338]">{copy}</div>
-    </div>
-  );
-}
 
 function ActionTile({
   icon: Icon,
@@ -3122,14 +3071,6 @@ function InfoRow({ children }: { children: string }) {
   );
 }
 
-function BriefChip({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-4 border-[#171411] bg-white/70 px-3 py-2 text-[#171411]">
-      <div className="arcade-face text-[0.38rem] text-[#6b6256]">{label}</div>
-      <div className="mt-1 text-sm font-medium break-words">{value}</div>
-    </div>
-  );
-}
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (

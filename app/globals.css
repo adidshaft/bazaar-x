@@ -80,26 +80,29 @@ body::before {
 }
 
 .pixel-window {
-  background: rgba(250, 248, 241, 0.92);
-  border: 4px solid #171411;
+  background: rgba(246, 241, 230, 0.96);
+  border: 4px solid #2f251c;
   box-shadow:
-    0 0 0 4px rgba(255, 255, 255, 0.32),
-    0 10px 0 rgba(23, 20, 17, 0.9),
-    0 16px 32px rgba(0, 0, 0, 0.25);
+    inset 0 0 0 2px rgba(255, 255, 255, 0.5),
+    0 10px 0 rgba(47, 37, 28, 0.9),
+    0 24px 48px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
 }
 
 .pixel-window-dark {
-  background: rgba(15, 20, 29, 0.9);
-  border: 4px solid #171411;
+  background: rgba(18, 22, 34, 0.88);
+  border: 4px solid #1a1510;
   box-shadow:
-    0 0 0 4px rgba(255, 255, 255, 0.08),
-    0 10px 0 rgba(23, 20, 17, 0.9),
-    0 18px 40px rgba(0, 0, 0, 0.35);
+    inset 0 0 0 2px rgba(255, 255, 255, 0.08),
+    0 10px 0 rgba(26, 21, 16, 0.9),
+    0 24px 48px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
 }
 
 .pixel-button {
-  border: 4px solid #171411;
-  box-shadow: 0 6px 0 rgba(23, 20, 17, 0.95);
+  border: 4px solid #2f251c;
+  box-shadow: 0 6px 0 rgba(47, 37, 28, 0.95);
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .pixel-button:active {
@@ -109,39 +112,41 @@ body::before {
 
 .pixel-water {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 22%),
     repeating-linear-gradient(
       180deg,
-      rgba(103, 232, 249, 0.22) 0,
-      rgba(103, 232, 249, 0.22) 6px,
+      rgba(103, 232, 249, 0.2) 0,
+      rgba(103, 232, 249, 0.2) 6px,
       rgba(12, 74, 110, 0.05) 6px,
       rgba(12, 74, 110, 0.05) 18px
     ),
-    linear-gradient(180deg, #2296c2 0%, #1f7ca5 45%, #155b7e 100%);
+    linear-gradient(180deg, #2a9ecf 0%, #2080a8 45%, #165e82 100%);
+  background-size: 100% 100%, 100% 36px, 100% 100%;
+  animation: water-ripple 4s linear infinite;
 }
 
 .pixel-plaza {
-  background-color: #d3cdc4;
+  background-color: #d1ccbf;
   background-image:
-    repeating-linear-gradient(45deg, rgba(77, 71, 64, 0.22) 0, rgba(77, 71, 64, 0.22) 4px, transparent 4px, transparent 18px),
-    repeating-linear-gradient(-45deg, rgba(77, 71, 64, 0.18) 0, rgba(77, 71, 64, 0.18) 4px, transparent 4px, transparent 18px);
+    repeating-linear-gradient(45deg, rgba(77, 71, 64, 0.18) 0, rgba(77, 71, 64, 0.18) 4px, transparent 4px, transparent 18px),
+    repeating-linear-gradient(-45deg, rgba(77, 71, 64, 0.14) 0, rgba(77, 71, 64, 0.14) 4px, transparent 4px, transparent 18px);
   background-size: 34px 34px;
 }
 
 .pixel-cloud {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(240, 243, 247, 0.95)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(240, 243, 247, 0.85)),
     repeating-linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.08) 0,
-      rgba(255, 255, 255, 0.08) 6px,
+      rgba(255, 255, 255, 0.1) 0,
+      rgba(255, 255, 255, 0.1) 6px,
       transparent 6px,
       transparent 12px
     );
-  border: 4px solid #171411;
-  box-shadow: 0 6px 0 rgba(23, 20, 17, 0.85);
+  border: 4px solid #3d3b37;
+  box-shadow: 0 6px 0 rgba(61, 59, 55, 0.6);
   clip-path: polygon(10% 30%, 20% 10%, 40% 10%, 48% 0, 66% 0, 78% 18%, 92% 18%, 100% 40%, 100% 72%, 0 72%, 0 40%);
-  animation: drift-cloud 24s linear infinite;
+  animation: drift-cloud 32s linear infinite;
 }
 
 .pixel-cloud-delayed {
@@ -404,6 +409,15 @@ body::before {
   }
   50% {
     margin-top: -4px;
+  }
+}
+
+@keyframes water-ripple {
+  0% {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  100% {
+    background-position: 0 0, 0 36px, 0 0;
   }
 }
 

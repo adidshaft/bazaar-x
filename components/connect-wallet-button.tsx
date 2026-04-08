@@ -24,7 +24,7 @@ export function ConnectWalletButton({
   const isPixel = variant === "pixel";
   const widthClass = fullWidth ? "w-full justify-center" : "";
   const baseClass = isPixel
-    ? `arcade-face inline-flex items-center gap-2 border-4 border-[#171411] bg-[#f16f51] px-4 py-3 text-[0.66rem] text-white shadow-[0_6px_0_rgba(23,20,17,0.95)] transition hover:translate-y-[1px] hover:shadow-[0_5px_0_rgba(23,20,17,0.95)] ${widthClass}`
+    ? `arcade-face inline-flex items-center gap-2 border-4 border-[#2f251c] bg-[#f16f51] px-4 py-3 text-[0.66rem] text-white shadow-[0_6px_0_rgba(47,37,28,0.95)] transition hover:translate-y-[1px] hover:shadow-[0_5px_0_rgba(47,37,28,0.95)] ${widthClass}`
     : `inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${widthClass}`;
 
   useEffect(() => {
