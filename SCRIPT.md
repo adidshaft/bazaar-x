@@ -4,6 +4,26 @@ Recommended runtime: 2:00 to 2:45
 
 This version matches the current fullscreen pixel-village build: boot screen, wallet onboarding, explorable town, floating agent whispers, and the collapsible right-hand drawer for deep proof.
 
+## Hackathon Fit
+
+- Official Build X season: `April 1, 2026 23:59 UTC` to `April 15, 2026 23:59 UTC`
+- `X Layer Arena` is for a `full-stack agentic app`
+- `Skills Arena` is for a `reusable agent skill`
+- Demo videos are `optional but beneficial`, with an official recommended runtime of `1 to 3 minutes`
+- AI judges review `code and onchain data`
+- Human judges review `creativity and practicality`
+
+Because Covenant Skill is being submitted separately, this video should stay focused on `Bazaar X as the X Layer Arena product`. Mention the skill only as the policy engine behind the app, not as the center of the pitch.
+
+## Winning Emphasis
+
+Prioritize the story in this order:
+
+1. This is a complete onchain app on X Layer.
+2. The world is creative, but still practical and easy to understand.
+3. Real tx proof exists for payment, governance, and treasury movement.
+4. The separate skill exists, but it is supporting infrastructure here.
+
 ## Recording Goal
 
 Show four things clearly:
@@ -46,7 +66,7 @@ Actions:
 
 Voiceover:
 
-"Bazaar X turns a live X Layer economy into a playable village. Instead of opening on a dashboard, it opens like a game world."
+"Bazaar X is our X Layer Arena submission. It turns a live X Layer economy into a playable village, so the product feels creative immediately without hiding the real onchain system underneath."
 
 ### Shot 2: Wallet onboarding
 
@@ -134,7 +154,7 @@ Actions:
 
 Voiceover:
 
-"The legend teaches the world quickly, while the systems panel explains what is happening under the hood: progress, treasury growth, tax level, and installed skills."
+"The legend teaches the world quickly, while the systems panel explains what is happening under the hood: progress, treasury growth, tax level, and the current rule state that governs the next payment."
 
 ### Shot 8: Live tracker and proof
 
@@ -167,7 +187,7 @@ Voiceover:
 
 ## Full Voiceover
 
-"Bazaar X turns a live X Layer economy into a playable village. Instead of opening on a dashboard, it opens like a game world.
+"Bazaar X is our X Layer Arena submission. It turns a live X Layer economy into a playable village, so the product feels creative immediately without hiding the real onchain system underneath.
 
 Wallet connection is the only login. Once connected, you enter the world directly and watch the economy run through agents, not menu forms.
 
@@ -179,7 +199,7 @@ Each district represents a piece of the economy. Inspection reveals the local ro
 
 The whole market loop is organized as a playable quest rail: spawn the economy, deploy the system, run the live round, and then prove governance changed the rules.
 
-The legend teaches the world quickly, while the systems panel explains what is happening under the hood: progress, treasury growth, tax level, and installed skills.
+The legend teaches the world quickly, while the systems panel explains what is happening under the hood: progress, treasury growth, tax level, and the current rule state that governs the next payment.
 
 This is the live proof layer. The tracker reads the X Layer state directly, shows runtime status, treasury value, tax configuration, and recent agent activity. The important point is that the village is backed by real onchain execution, not mocked events.
 
@@ -204,3 +224,5 @@ That version should land around `60 to 75 seconds`.
 - Pause for one second after each drawer opens.
 - If you open an explorer link, hold it for two to three seconds before returning.
 - Keep the final shot on the world itself, not a panel.
+- Keep the separate skill mention short. This video should feel unmistakably like an `X Layer Arena` app demo.
+- Do not explicitly claim `Most active agent` unless you can truthfully back it with `Onchain OS API` transaction execution in the submission materials, because the official special-prize wording is specific.
