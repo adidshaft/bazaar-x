@@ -1,6 +1,7 @@
 import type { Address, Hex } from "viem";
 
 export type AgentRole = "shop" | "supplier" | "worker" | "governor";
+export type ExecutionMode = "viem" | "onchainos-gateway";
 
 export interface AgentWallet {
   id: string;
@@ -44,6 +45,8 @@ export interface DeploymentArtifact {
   explorerBaseUrl: string;
   contractAddress: Address;
   deployTxHash: Hex;
+  executionMode?: ExecutionMode;
+  gatewayOrderId?: string;
   treasury: Address;
   deployedAt: string;
   initialRules: InitialRules;
@@ -84,7 +87,26 @@ export interface OnchainOsSnapshot {
   collectedAt: string;
   gatewayGas?: unknown;
   gatewayChains?: unknown;
+  walletStatus?: unknown;
+  execution?: {
+    requestedMode: string;
+    resolvedMode: ExecutionMode;
+    chainAlias: string | null;
+    supportsGatewayBroadcast: boolean;
+    supportsAgenticWallet: boolean;
+    note?: string;
+  };
   error?: string;
+}
+
+export interface ExecutionSnapshot {
+  requestedMode: string;
+  resolvedMode: ExecutionMode;
+  chainAlias: string | null;
+  simulateBeforeBroadcast: boolean;
+  usesOnchainOsGateway: boolean;
+  usesAgenticWallet: boolean;
+  note?: string;
 }
 
 export interface LiveRuntimeArtifact {
@@ -92,6 +114,7 @@ export interface LiveRuntimeArtifact {
   deployment?: DeploymentArtifact;
   funding?: FundingSnapshot;
   onchainOs?: OnchainOsSnapshot;
+  execution?: ExecutionSnapshot;
   status: "idle" | "ready" | "running" | "completed" | "failed";
   lastUpdatedAt: string;
   proposalId?: number;

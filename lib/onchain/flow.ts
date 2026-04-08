@@ -7,8 +7,9 @@ import {
   parseFirstEvent,
   readBazaarSnapshot,
 } from "./contract";
+import { executeContractWrite, executeNativeTransfer } from "./executor";
 import { ensureAddressFunding } from "./faucet";
-import { collectOnchainOsSnapshot } from "./onchainos";
+import { collectOnchainOsSnapshot, resolveOnchainOsExecution } from "./onchainos";
 import {
   ensureWalletManifest,
   getFundingSnapshot,
@@ -16,7 +17,7 @@ import {
   saveLiveRuntime,
 } from "./runtime";
 import type { AgentWallet, DeploymentArtifact, LiveRuntimeArtifact, StepRecord, WalletManifest } from "./types";
-import { createXLayerPublicClient, createXLayerWallet, explorerTxUrl } from "../xlayer";
+import { explorerTxUrl } from "../xlayer";
 
 const WORKER_SERVICE_PRICE = parseEther("0.02");
 const SUPPLIER_SERVICE_PRICE = parseEther("0.03");
@@ -26,10 +27,49 @@ type StepResult = {
   txHash?: Hex;
   detail?: string;
   meta?: Record<string, string | number | boolean | null>;
+  executionMode?: "viem" | "onchainos-gateway";
+  gatewayOrderId?: string;
+  simulated?: boolean;
+  simulationGasUsed?: string;
 };
 
 function now() {
   return new Date().toISOString();
+}
+
+function withExecutionMeta(result: StepResult) {
+  const meta = {
+    ...(result.meta ?? {}),
+  } as Record<string, string | number | boolean | null>;
+
+  if (result.executionMode) {
+    meta.executionMode = result.executionMode;
+  }
+
+  if (result.gatewayOrderId) {
+    meta.gatewayOrderId = result.gatewayOrderId;
+  }
+
+  if (typeof result.simulated === "boolean") {
+    meta.simulated = result.simulated;
+  }
+
+  if (result.simulationGasUsed) {
+    meta.simulationGasUsed = result.simulationGasUsed;
+  }
+
+  return Object.keys(meta).length ? meta : undefined;
+}
+
+function buildExecutionSnapshot(chainId: number) {
+  const resolved = resolveOnchainOsExecution(chainId);
+
+  return {
+    ...resolved,
+    simulateBeforeBroadcast: resolved.resolvedMode === "onchainos-gateway",
+    usesOnchainOsGateway: resolved.resolvedMode === "onchainos-gateway",
+    usesAgenticWallet: false,
+  };
 }
 
 function createRuntimeBase(existing?: LiveRuntimeArtifact | null): LiveRuntimeArtifact {
@@ -41,6 +81,7 @@ function createRuntimeBase(existing?: LiveRuntimeArtifact | null): LiveRuntimeAr
     deployment: existing?.deployment,
     funding: existing?.funding,
     onchainOs: existing?.onchainOs,
+    execution: existing?.execution,
     runId: existing?.runId,
     proposalId: existing?.proposalId,
     shopIds: existing?.shopIds,
@@ -78,7 +119,7 @@ async function runStep(
     step.status = "success";
     step.completedAt = now();
     step.detail = result.detail;
-    step.meta = result.meta;
+    step.meta = withExecutionMeta(result);
 
     if (result.txHash) {
       step.txHash = result.txHash;
@@ -105,20 +146,12 @@ async function sendNative(
   to: AgentWallet["address"],
   value: bigint,
 ) {
-  const publicClient = createXLayerPublicClient(
-    manifest.chainId,
-    manifest.rpcUrl,
-    manifest.explorerBaseUrl,
-  );
-  const { account, client } = createXLayerWallet(privateKey, manifest.chainId, manifest.rpcUrl);
-
-  const txHash = await client.sendTransaction({
-    account,
+  return executeNativeTransfer({
+    manifest,
+    privateKey,
     to,
     value,
   });
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-  return { txHash, receipt };
 }
 
 async function writeBazaarContract(
@@ -129,24 +162,15 @@ async function writeBazaarContract(
   args: unknown[],
   value?: bigint,
 ) {
-  const publicClient = createXLayerPublicClient(
-    manifest.chainId,
-    manifest.rpcUrl,
-    manifest.explorerBaseUrl,
-  );
-  const { account, client } = createXLayerWallet(privateKey, manifest.chainId, manifest.rpcUrl);
-
-  const txHash = await client.writeContract({
-    account,
-    address: deployment.contractAddress,
+  return executeContractWrite({
+    manifest,
+    deployment,
+    privateKey,
     abi: getBazaarAbi(),
     functionName,
     args,
     value,
-  } as never);
-
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-  return { txHash, receipt };
+  });
 }
 
 function agentByRole(manifest: WalletManifest, role: AgentWallet["role"]) {
@@ -195,7 +219,7 @@ async function ensureBootstrapTransfers(
       `fund-${agent.role}`,
       `Fund ${agent.name}`,
       async () => {
-        const { txHash } = await sendNative(
+        const fundingTx = await sendNative(
           manifest,
           manifest.deployer.privateKey,
           agent.address,
@@ -203,8 +227,12 @@ async function ensureBootstrapTransfers(
         );
 
         return {
-          txHash,
+          txHash: fundingTx.txHash,
           detail: `Transferred ${formatEther(delta)} OKB from deployer to ${agent.name}.`,
+          executionMode: fundingTx.executionMode,
+          gatewayOrderId: fundingTx.gatewayOrderId,
+          simulated: fundingTx.simulated,
+          simulationGasUsed: fundingTx.simulationGasUsed,
         };
       },
     );
@@ -216,12 +244,13 @@ export async function initializeBazaarLiveState() {
   const [funding, existingRuntime, onchainOs] = await Promise.all([
     getFundingSnapshot(manifest),
     loadLiveRuntime(),
-    collectOnchainOsSnapshot(),
+    collectOnchainOsSnapshot(manifest.chainId),
   ]);
 
   const runtime = createRuntimeBase(existingRuntime);
   runtime.funding = funding;
   runtime.onchainOs = onchainOs;
+  runtime.execution = buildExecutionSnapshot(manifest.chainId);
 
   if (funding.readyForDeploy) {
     runtime.status = "ready";
@@ -247,7 +276,8 @@ export async function deployLiveBazaar() {
     const runtime = createRuntimeBase(await loadLiveRuntime());
     runtime.deployment = existingDeployment;
     runtime.funding = await getFundingSnapshot(manifest);
-    runtime.onchainOs = await collectOnchainOsSnapshot();
+    runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
+    runtime.execution = buildExecutionSnapshot(manifest.chainId);
     runtime.status = "ready";
     runtime.runId = runtime.runId ?? `run_${Date.now()}`;
     await persist(runtime);
@@ -266,7 +296,8 @@ export async function deployLiveBazaar() {
   const runtime = createRuntimeBase(await loadLiveRuntime());
   runtime.deployment = deployment;
   runtime.funding = funding;
-  runtime.onchainOs = await collectOnchainOsSnapshot();
+  runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
+  runtime.execution = buildExecutionSnapshot(manifest.chainId);
   runtime.status = "ready";
   runtime.runId = runtime.runId ?? `run_${Date.now()}`;
 
@@ -281,6 +312,11 @@ export async function deployLiveBazaar() {
       txHash: deployment.deployTxHash,
       explorerUrl: explorerTxUrl(deployment.deployTxHash, deployment.explorerBaseUrl),
       detail: `Deployed Bazaar X to ${deployment.contractAddress}.`,
+      meta: withExecutionMeta({
+        executionMode: deployment.executionMode,
+        gatewayOrderId: deployment.gatewayOrderId,
+        simulated: false,
+      }),
     });
     runtime.txHashes.push(deployment.deployTxHash);
   }
@@ -297,11 +333,12 @@ export async function runBazaarLiveFlow() {
   runtime.status = "running";
   runtime.runId = runtime.runId ?? `run_${Date.now()}`;
   runtime.error = undefined;
+  runtime.execution = buildExecutionSnapshot(manifest.chainId);
   await persist(runtime);
 
   const funding = await getFundingSnapshot(manifest);
   runtime.funding = funding;
-  runtime.onchainOs = await collectOnchainOsSnapshot();
+  runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
 
   if (!funding.readyForDeploy && !existingDeployment) {
     runtime.status = "failed";
@@ -327,7 +364,7 @@ export async function runBazaarLiveFlow() {
       `register-${agent.role}`,
       `Register ${agent.name}`,
       async () => {
-        const { txHash } = await writeBazaarContract(
+        const registrationTx = await writeBazaarContract(
           manifest,
           deployment,
           agent.privateKey,
@@ -336,22 +373,26 @@ export async function runBazaarLiveFlow() {
         );
 
         return {
-          txHash,
+          txHash: registrationTx.txHash,
           detail: `Registered ${agent.handle} on Bazaar X.`,
+          executionMode: registrationTx.executionMode,
+          gatewayOrderId: registrationTx.gatewayOrderId,
+          simulated: registrationTx.simulated,
+          simulationGasUsed: registrationTx.simulationGasUsed,
         };
       },
     );
   }
 
   await runStep(runtime, deployment, "shop-create", "Create shop", async () => {
-    const { txHash, receipt } = await writeBazaarContract(
+    const shopCreateTx = await writeBazaarContract(
       manifest,
       deployment,
       shop.privateKey,
       "createShop",
       ["Bazaar X Market", "ipfs://bazaar-x/shop"],
     );
-    const event = parseFirstEvent(receipt, "ShopCreated");
+    const event = parseFirstEvent(shopCreateTx.receipt, "ShopCreated");
     const shopId = Number(event?.args?.shopId ?? 0n);
     runtime.shopIds = {
       ...(runtime.shopIds ?? {}),
@@ -359,51 +400,63 @@ export async function runBazaarLiveFlow() {
     };
 
     return {
-      txHash,
+      txHash: shopCreateTx.txHash,
       detail: `Created primary shop #${shopId}.`,
       meta: { shopId },
+      executionMode: shopCreateTx.executionMode,
+      gatewayOrderId: shopCreateTx.gatewayOrderId,
+      simulated: shopCreateTx.simulated,
+      simulationGasUsed: shopCreateTx.simulationGasUsed,
     };
   });
 
   await runStep(runtime, deployment, "supplier-shop", "Create supplier shop", async () => {
-    const { txHash, receipt } = await writeBazaarContract(
+    const supplierShopTx = await writeBazaarContract(
       manifest,
       deployment,
       supplier.privateKey,
       "createShop",
       ["Supply Coil Depot", "ipfs://bazaar-x/supplier-shop"],
     );
-    const event = parseFirstEvent(receipt, "ShopCreated");
+    const event = parseFirstEvent(supplierShopTx.receipt, "ShopCreated");
     const shopId = Number(event?.args?.shopId ?? 0n);
     runtime.shopIds = {
       ...(runtime.shopIds ?? {}),
       supplier: shopId,
     };
     return {
-      txHash,
+      txHash: supplierShopTx.txHash,
       detail: `Created supplier shop #${shopId}.`,
       meta: { shopId },
+      executionMode: supplierShopTx.executionMode,
+      gatewayOrderId: supplierShopTx.gatewayOrderId,
+      simulated: supplierShopTx.simulated,
+      simulationGasUsed: supplierShopTx.simulationGasUsed,
     };
   });
 
   await runStep(runtime, deployment, "worker-shop", "Create worker shop", async () => {
-    const { txHash, receipt } = await writeBazaarContract(
+    const workerShopTx = await writeBazaarContract(
       manifest,
       deployment,
       worker.privateKey,
       "createShop",
       ["Node Pilot Labor", "ipfs://bazaar-x/worker-shop"],
     );
-    const event = parseFirstEvent(receipt, "ShopCreated");
+    const event = parseFirstEvent(workerShopTx.receipt, "ShopCreated");
     const shopId = Number(event?.args?.shopId ?? 0n);
     runtime.shopIds = {
       ...(runtime.shopIds ?? {}),
       worker: shopId,
     };
     return {
-      txHash,
+      txHash: workerShopTx.txHash,
       detail: `Created worker shop #${shopId}.`,
       meta: { shopId },
+      executionMode: workerShopTx.executionMode,
+      gatewayOrderId: workerShopTx.gatewayOrderId,
+      simulated: workerShopTx.simulated,
+      simulationGasUsed: workerShopTx.simulationGasUsed,
     };
   });
 
@@ -413,7 +466,7 @@ export async function runBazaarLiveFlow() {
       throw new Error("Supplier shop not initialized.");
     }
 
-    const { txHash, receipt } = await writeBazaarContract(
+    const supplierServiceTx = await writeBazaarContract(
       manifest,
       deployment,
       supplier.privateKey,
@@ -429,7 +482,7 @@ export async function runBazaarLiveFlow() {
       ],
     );
 
-    const event = parseFirstEvent(receipt, "ServiceListed");
+    const event = parseFirstEvent(supplierServiceTx.receipt, "ServiceListed");
     const serviceId = Number(event?.args?.serviceId ?? 0n);
     runtime.serviceIds = {
       ...(runtime.serviceIds ?? {}),
@@ -437,9 +490,13 @@ export async function runBazaarLiveFlow() {
     };
 
     return {
-      txHash,
+      txHash: supplierServiceTx.txHash,
       detail: `Listed supplier service #${serviceId}.`,
       meta: { serviceId, priceOkb: formatEther(SUPPLIER_SERVICE_PRICE) },
+      executionMode: supplierServiceTx.executionMode,
+      gatewayOrderId: supplierServiceTx.gatewayOrderId,
+      simulated: supplierServiceTx.simulated,
+      simulationGasUsed: supplierServiceTx.simulationGasUsed,
     };
   });
 
@@ -449,7 +506,7 @@ export async function runBazaarLiveFlow() {
       throw new Error("Worker shop not initialized.");
     }
 
-    const { txHash, receipt } = await writeBazaarContract(
+    const workerServiceTx = await writeBazaarContract(
       manifest,
       deployment,
       worker.privateKey,
@@ -465,7 +522,7 @@ export async function runBazaarLiveFlow() {
       ],
     );
 
-    const event = parseFirstEvent(receipt, "ServiceListed");
+    const event = parseFirstEvent(workerServiceTx.receipt, "ServiceListed");
     const serviceId = Number(event?.args?.serviceId ?? 0n);
     runtime.serviceIds = {
       ...(runtime.serviceIds ?? {}),
@@ -473,9 +530,13 @@ export async function runBazaarLiveFlow() {
     };
 
     return {
-      txHash,
+      txHash: workerServiceTx.txHash,
       detail: `Listed worker service #${serviceId}.`,
       meta: { serviceId, priceOkb: formatEther(WORKER_SERVICE_PRICE) },
+      executionMode: workerServiceTx.executionMode,
+      gatewayOrderId: workerServiceTx.gatewayOrderId,
+      simulated: workerServiceTx.simulated,
+      simulationGasUsed: workerServiceTx.simulationGasUsed,
     };
   });
 
@@ -490,7 +551,7 @@ export async function runBazaarLiveFlow() {
         throw new Error("Worker service not initialized.");
       }
 
-      const { txHash, receipt } = await writeBazaarContract(
+      const supplierHireTx = await writeBazaarContract(
         manifest,
         deployment,
         supplier.privateKey,
@@ -499,16 +560,20 @@ export async function runBazaarLiveFlow() {
         WORKER_SERVICE_PRICE,
       );
 
-      const event = parseFirstEvent(receipt, "ServiceHired");
+      const event = parseFirstEvent(supplierHireTx.receipt, "ServiceHired");
       runtime.firstTaxWei = (event?.args?.taxAmount ?? 0n).toString();
 
       return {
-        txHash,
+        txHash: supplierHireTx.txHash,
         detail: `Supplier paid ${formatEther(WORKER_SERVICE_PRICE)} OKB to hire the worker.`,
         meta: {
           taxOkb: formatEther((event?.args?.taxAmount ?? 0n) as bigint),
           jobId: Number(event?.args?.jobId ?? 0n),
         },
+        executionMode: supplierHireTx.executionMode,
+        gatewayOrderId: supplierHireTx.gatewayOrderId,
+        simulated: supplierHireTx.simulated,
+        simulationGasUsed: supplierHireTx.simulationGasUsed,
       };
     },
   );
@@ -519,7 +584,7 @@ export async function runBazaarLiveFlow() {
       throw new Error("Supplier service not initialized.");
     }
 
-    const { txHash, receipt } = await writeBazaarContract(
+    const shopHireTx = await writeBazaarContract(
       manifest,
       deployment,
       shop.privateKey,
@@ -528,20 +593,24 @@ export async function runBazaarLiveFlow() {
       SUPPLIER_SERVICE_PRICE,
     );
 
-    const event = parseFirstEvent(receipt, "ServiceHired");
+    const event = parseFirstEvent(shopHireTx.receipt, "ServiceHired");
 
     return {
-      txHash,
+      txHash: shopHireTx.txHash,
       detail: `Shop paid ${formatEther(SUPPLIER_SERVICE_PRICE)} OKB to the supplier.`,
       meta: {
         taxOkb: formatEther((event?.args?.taxAmount ?? 0n) as bigint),
         jobId: Number(event?.args?.jobId ?? 0n),
       },
+      executionMode: shopHireTx.executionMode,
+      gatewayOrderId: shopHireTx.gatewayOrderId,
+      simulated: shopHireTx.simulated,
+      simulationGasUsed: shopHireTx.simulationGasUsed,
     };
   });
 
   await runStep(runtime, deployment, "proposal", "Propose tax update", async () => {
-    const { txHash, receipt } = await writeBazaarContract(
+    const proposalTx = await writeBazaarContract(
       manifest,
       deployment,
       governor.privateKey,
@@ -565,14 +634,18 @@ export async function runBazaarLiveFlow() {
       ],
     );
 
-    const event = parseFirstEvent(receipt, "ProposalCreated");
+    const event = parseFirstEvent(proposalTx.receipt, "ProposalCreated");
     const proposalId = Number(event?.args?.proposalId ?? 0n);
     runtime.proposalId = proposalId;
 
     return {
-      txHash,
+      txHash: proposalTx.txHash,
       detail: `Created proposal #${proposalId} to raise tax from 5% to 8%.`,
       meta: { proposalId },
+      executionMode: proposalTx.executionMode,
+      gatewayOrderId: proposalTx.gatewayOrderId,
+      simulated: proposalTx.simulated,
+      simulationGasUsed: proposalTx.simulationGasUsed,
     };
   });
 
@@ -582,7 +655,7 @@ export async function runBazaarLiveFlow() {
         throw new Error("Proposal not initialized.");
       }
 
-      const { txHash } = await writeBazaarContract(
+      const voteTx = await writeBazaarContract(
         manifest,
         deployment,
         agent.privateKey,
@@ -591,9 +664,13 @@ export async function runBazaarLiveFlow() {
       );
 
       return {
-        txHash,
+        txHash: voteTx.txHash,
         detail: `${agent.name} voted in favor of the covenant update.`,
         meta: { proposalId: runtime.proposalId },
+        executionMode: voteTx.executionMode,
+        gatewayOrderId: voteTx.gatewayOrderId,
+        simulated: voteTx.simulated,
+        simulationGasUsed: voteTx.simulationGasUsed,
       };
     });
   }
@@ -613,7 +690,7 @@ export async function runBazaarLiveFlow() {
       throw new Error("Proposal not initialized.");
     }
 
-    const { txHash } = await writeBazaarContract(
+    const executeTx = await writeBazaarContract(
       manifest,
       deployment,
       governor.privateKey,
@@ -622,9 +699,13 @@ export async function runBazaarLiveFlow() {
     );
 
     return {
-      txHash,
+      txHash: executeTx.txHash,
       detail: `Executed proposal #${runtime.proposalId}. New tax is now 8%.`,
       meta: { proposalId: runtime.proposalId, nextTaxBps: 800 },
+      executionMode: executeTx.executionMode,
+      gatewayOrderId: executeTx.gatewayOrderId,
+      simulated: executeTx.simulated,
+      simulationGasUsed: executeTx.simulationGasUsed,
     };
   });
 
@@ -639,7 +720,7 @@ export async function runBazaarLiveFlow() {
         throw new Error("Worker service not initialized.");
       }
 
-      const { txHash, receipt } = await writeBazaarContract(
+      const postGovernanceTx = await writeBazaarContract(
         manifest,
         deployment,
         supplier.privateKey,
@@ -648,22 +729,26 @@ export async function runBazaarLiveFlow() {
         WORKER_SERVICE_PRICE,
       );
 
-      const event = parseFirstEvent(receipt, "ServiceHired");
+      const event = parseFirstEvent(postGovernanceTx.receipt, "ServiceHired");
       runtime.secondTaxWei = (event?.args?.taxAmount ?? 0n).toString();
 
       return {
-        txHash,
+        txHash: postGovernanceTx.txHash,
         detail: `Repeated the worker payment after the governance update.`,
         meta: {
           taxOkb: formatEther((event?.args?.taxAmount ?? 0n) as bigint),
           jobId: Number(event?.args?.jobId ?? 0n),
         },
+        executionMode: postGovernanceTx.executionMode,
+        gatewayOrderId: postGovernanceTx.gatewayOrderId,
+        simulated: postGovernanceTx.simulated,
+        simulationGasUsed: postGovernanceTx.simulationGasUsed,
       };
     },
   );
 
   await runStep(runtime, deployment, "treasury-reinvests", "Treasury reinvests", async () => {
-    const { txHash } = await sendNative(
+    const treasuryTx = await sendNative(
       manifest,
       manifest.treasury.privateKey,
       shop.address,
@@ -671,13 +756,17 @@ export async function runBazaarLiveFlow() {
     );
 
     return {
-      txHash,
+      txHash: treasuryTx.txHash,
       detail: `Treasury reinvested ${formatEther(TREASURY_REINVEST_GRANT)} OKB back into the shop wallet.`,
+      executionMode: treasuryTx.executionMode,
+      gatewayOrderId: treasuryTx.gatewayOrderId,
+      simulated: treasuryTx.simulated,
+      simulationGasUsed: treasuryTx.simulationGasUsed,
     };
   });
 
   runtime.funding = await getFundingSnapshot(manifest);
-  runtime.onchainOs = await collectOnchainOsSnapshot();
+  runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
   runtime.status = "completed";
   runtime.error = undefined;
   runtime.deployment = deployment;
@@ -692,7 +781,7 @@ export async function getLiveDashboardStatus() {
   const [runtime, funding, onchainSnapshot, bazaarSnapshot] = await Promise.all([
     loadLiveRuntime(),
     getFundingSnapshot(manifest),
-    collectOnchainOsSnapshot(),
+    collectOnchainOsSnapshot(manifest.chainId),
     readBazaarSnapshot(),
   ]);
 

@@ -82,15 +82,21 @@ Chain facts to cite in the README and demo:
 ## Onchain OS Integration
 
 Use the OKX stack as the proof layer:
-- Agentic wallet for real account flows.
-- Gateway for simulation and broadcast.
+- Agentic wallet for real account flows when it is actually logged in and used.
+- Gateway for simulation, broadcast, and order tracking on supported chains.
 - Payment tooling for x402-compatible gated access if used.
 - Wallet-native transfers and contract calls for live execution.
 
+Important honesty rule for submission:
+
+- Bazaar X's recorded public proof is currently on X Layer testnet (`1952`).
+- The current `onchainos` CLI exposes `xlayer` as chain `196` by default.
+- So if the replay still runs on testnet, the safest claim is: Bazaar X has real X Layer settlement and now supports true Onchain OS gateway execution on supported chains, but the recorded testnet evidence should not be labeled as gateway-broadcasted unless runtime metadata shows it.
+
 The integration story should be explicit in the demo:
 - "We did not mock settlement."
-- "We simulated before broadcast."
 - "We can show the transaction hashes."
+- Only say "We simulated before broadcast through Onchain OS" when the runtime execution mode actually reports `onchainos-gateway`.
 
 ## Bazaar X Architecture
 

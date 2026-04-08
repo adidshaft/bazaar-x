@@ -12,7 +12,8 @@ import {
 } from "viem";
 import { readArtifact, writeArtifactSnapshot } from "../server/artifacts";
 import { DEPLOYMENT_ARTIFACT_PATH } from "../server/config";
-import { createXLayerPublicClient, createXLayerWallet, explorerTxUrl } from "../xlayer";
+import { createXLayerPublicClient, explorerTxUrl } from "../xlayer";
+import { executeContractDeployment } from "./executor";
 import type { DeploymentArtifact, InitialRules, WalletManifest } from "./types";
 
 const BAZAAR_ARTIFACT_PATH = resolve(
@@ -65,19 +66,9 @@ export async function deployBazaarContract(manifest: WalletManifest, rules = def
   }
 
   const artifact = ensureBazaarArtifact();
-  const publicClient = createXLayerPublicClient(
-    manifest.chainId,
-    manifest.rpcUrl,
-    manifest.explorerBaseUrl,
-  );
-  const { account, client } = createXLayerWallet(
-    manifest.deployer.privateKey,
-    manifest.chainId,
-    manifest.rpcUrl,
-  );
-
-  const deployTxHash = await client.deployContract({
-    account,
+  const deploymentTx = await executeContractDeployment({
+    manifest,
+    privateKey: manifest.deployer.privateKey,
     abi: artifact.abi,
     bytecode: artifact.bytecode.object,
     args: [
@@ -92,11 +83,7 @@ export async function deployBazaarContract(manifest: WalletManifest, rules = def
     ],
   });
 
-  const receipt = await publicClient.waitForTransactionReceipt({
-    hash: deployTxHash,
-  });
-
-  if (!receipt.contractAddress) {
+  if (!deploymentTx.receipt.contractAddress) {
     throw new Error("Contract deployment completed without a contract address.");
   }
 
@@ -104,8 +91,10 @@ export async function deployBazaarContract(manifest: WalletManifest, rules = def
     chainId: manifest.chainId,
     rpcUrl: manifest.rpcUrl,
     explorerBaseUrl: manifest.explorerBaseUrl,
-    contractAddress: receipt.contractAddress,
-    deployTxHash,
+    contractAddress: deploymentTx.receipt.contractAddress,
+    deployTxHash: deploymentTx.txHash,
+    executionMode: deploymentTx.executionMode,
+    gatewayOrderId: deploymentTx.gatewayOrderId,
     treasury: manifest.treasury.address,
     deployedAt: new Date().toISOString(),
     initialRules: rules,

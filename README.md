@@ -159,11 +159,38 @@ See [docs/skills.md](/Users/amanpandey/projects/bazaar-x/docs/skills.md) for the
 
 ## Onchain OS Integration
 
-This repo is built to use the OKX Onchain OS toolchain for real execution and proof:
-- Agentic wallet lifecycle and signer flows.
-- Transaction simulation before broadcast.
-- Transaction broadcast and tracking.
-- Payment-related flows through the x402 module when needed.
+This repo now supports two execution paths:
+
+- `viem` mode for the current X Layer testnet replay flow.
+- `onchainos-gateway` mode for true Onchain OS simulation, broadcast, and order tracking on supported chains.
+
+Current reality:
+
+- The recorded public proof in this repo is still the X Layer testnet (`1952`) run.
+- The current `onchainos` CLI exposes `xlayer` as chain `196` (mainnet) by default.
+- Because of that, testnet proof should not be described as gateway-broadcasted unless you add a supported testnet alias in your CLI build.
+
+What the repo can do with Onchain OS now:
+
+- Detect whether the requested run can use true Onchain OS gateway execution.
+- Simulate EVM calls before broadcast when the chain alias is supported.
+- Broadcast signed raw transactions through the OKX Onchain OS gateway.
+- Track gateway order IDs and persist them into runtime metadata.
+- Surface wallet login status and gateway readiness in the dashboard status snapshot.
+
+Agentic Wallet notes:
+
+- The CLI supports API-key login through `OKX_API_KEY`, `OKX_SECRET_KEY`, and `OKX_PASSPHRASE`.
+- You can log in with `onchainos wallet login`.
+- The dashboard now reports whether Agentic Wallet is logged in, but the current multi-agent testnet replay still uses the local manifest wallets by default.
+
+Relevant env vars:
+
+- `BAZAAR_X_EXECUTION_MODE=viem|onchainos-gateway`
+- `BAZAAR_X_ONCHAINOS_CHAIN_ALIAS`
+- `OKX_API_KEY`
+- `OKX_SECRET_KEY`
+- `OKX_PASSPHRASE`
 
 For X Layer, the chain settings are:
 - Mainnet chain ID: `196`
@@ -210,6 +237,22 @@ export X_LAYER_RPC_URL="https://testrpc.xlayer.tech/terigon"
 export X_LAYER_CHAIN_ID="1952"
 export BAZAAR_X_CONTRACT_ADDRESS="0x..."
 export BAZAAR_X_CONTRACT_ABI_JSON='[...]'
+```
+
+If you want to enable the true Onchain OS gateway path on a supported chain:
+
+```bash
+export BAZAAR_X_EXECUTION_MODE="onchainos-gateway"
+export X_LAYER_CHAIN_ID="196"
+export X_LAYER_RPC_URL="https://rpc.xlayer.tech"
+
+# Optional if your onchainos build exposes a non-default alias
+export BAZAAR_X_ONCHAINOS_CHAIN_ALIAS="xlayer"
+
+# Optional for Agentic Wallet login visibility / wallet tooling
+export OKX_API_KEY="..."
+export OKX_SECRET_KEY="..."
+export OKX_PASSPHRASE="..."
 ```
 
 ## Deployment

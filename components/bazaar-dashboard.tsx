@@ -123,6 +123,12 @@ type LiveDashboardStatus = {
     onchainSnapshot: {
       collectedAt?: string;
       gatewayGas?: { data?: Array<{ normal?: string; min?: string; max?: string }> };
+      walletStatus?: { data?: { loggedIn?: boolean } };
+      execution?: {
+        requestedMode?: string;
+        resolvedMode?: "viem" | "onchainos-gateway";
+        note?: string;
+      };
       error?: string;
     } | null;
     bazaarSnapshot: {
@@ -697,6 +703,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const deployment = liveRuntime?.deployment ?? null;
   const steps = liveRuntime?.steps ?? [];
   const gatewayGas = liveDashboard?.onchainSnapshot?.gatewayGas?.data?.[0] ?? null;
+  const onchainExecution = liveDashboard?.onchainSnapshot?.execution ?? null;
+  const walletReady = liveDashboard?.onchainSnapshot?.walletStatus?.data?.loggedIn ?? false;
 
   const explorerBaseUrl =
     manifest?.explorerBaseUrl ??
@@ -1508,6 +1516,8 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const canDeploy = Boolean(contractAddress || funding?.readyForDeploy);
   const canRunLive = Boolean(contractAddress || liveRuntime?.deployment?.contractAddress);
   const busyLabel = actionMutation.isPending ? actionMutation.variables?.label ?? null : null;
+  const executionModeLabel =
+    onchainExecution?.resolvedMode === "onchainos-gateway" ? "Onchain OS" : "viem";
   const deployHint = contractAddress
     ? "Reuse the recorded deployment and pull fresh proof."
     : funding
@@ -2515,7 +2525,14 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                     <MiniStatTerminal label="Updated" value={lastRefresh} />
                     <MiniStatTerminal label="Treasury" value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")} />
                     <MiniStatTerminal label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+                    <MiniStatTerminal label="Exec" value={executionModeLabel} />
+                    <MiniStatTerminal label="Wallet" value={walletReady ? "Ready" : "Not logged"} />
                   </div>
+                  {onchainExecution?.note ? (
+                    <div className="mt-4 border-4 border-[#133a21] bg-[rgba(19,58,33,0.3)] px-3 py-3 text-[0.7rem] leading-6 text-[#8cffb6]">
+                      {onchainExecution.note}
+                    </div>
+                  ) : null}
                   <details className="mt-4 border-4 border-[#133a21] bg-[rgba(19,58,33,0.3)] px-3 py-3" open>
                     <summary className="arcade-face cursor-pointer text-[0.48rem] terminal-header">Node Activity Streams</summary>
                     <div className="mt-3 grid gap-2">

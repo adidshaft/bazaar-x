@@ -19,10 +19,14 @@ Use this as the final gate before submitting the Google Form.
   - Confirm the repo is public.
 - [ ] `OnchainOS Usage`
   - Mention the exact modules used:
-  - `agentic-wallet` for wallet lifecycle and transfers
-  - `gateway` for gas/simulate/broadcast/tx tracking
+  - `agentic-wallet` only if you actually logged in and used it
+  - `gateway` only if the run actually used simulate/broadcast/order tracking through Onchain OS
   - `payment` only if x402 payment flows are included
   - `security` if tx preflight checks were used
+  - Be precise about network:
+  - Current public proof in this repo is X Layer testnet
+  - Current `onchainos` CLI exposes `xlayer` as mainnet chain `196` by default
+  - Do not claim gateway-broadcasted testnet txs unless your CLI build supports that alias and the runtime metadata proves it
 - [ ] `Demo Video Link`
   - Use a public Loom or YouTube link.
 - [ ] `X (Twitter) Post Link`

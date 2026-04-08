@@ -31,3 +31,7 @@ export const WALLETS_ARTIFACT_PATH =
   process.env.BAZAAR_X_WALLETS_ARTIFACT ?? "wallets/latest.json";
 export const DEPLOYMENT_ARTIFACT_PATH =
   process.env.BAZAAR_X_DEPLOYMENT_ARTIFACT ?? "deployments/latest.json";
+export const EXECUTION_MODE =
+  process.env.BAZAAR_X_EXECUTION_MODE ?? "viem";
+export const ONCHAIN_OS_CHAIN_ALIAS =
+  process.env.BAZAAR_X_ONCHAINOS_CHAIN_ALIAS ?? "";
