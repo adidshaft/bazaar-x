@@ -99,6 +99,27 @@ body::before {
   backdrop-filter: blur(12px);
 }
 
+.terminal-panel {
+  background: #020604;
+  border: 4px solid #133a21;
+  box-shadow: inset 0 0 0 2px rgba(40, 242, 106, 0.15), 0 10px 24px rgba(0, 0, 0, 0.5);
+  color: #28f26a;
+  background-image:
+    linear-gradient(rgba(40, 242, 106, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(40, 242, 106, 0.015) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+.terminal-header {
+  color: #8cffb6;
+  text-shadow: 0 0 8px rgba(140, 255, 182, 0.4);
+}
+
+.lamp-glow {
+  background: radial-gradient(circle closest-side, rgba(255, 222, 120, 0.4), rgba(255, 180, 80, 0.12) 40%, transparent 100%);
+  mix-blend-mode: screen;
+}
+
 .pixel-button {
   border: 4px solid #2f251c;
   box-shadow: 0 6px 0 rgba(47, 37, 28, 0.95);

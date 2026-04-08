@@ -1628,6 +1628,11 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               <div className="arcade-face absolute left-1/2 top-[-20px] -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-[rgba(26,21,16,0.85)] px-[4px] py-[2px] text-[0.42rem] tracking-wider text-white backdrop-blur-[2px] border border-[rgba(255,255,255,0.15)] shadow-lg transition-transform hover:scale-110">
                 {agent.role}
               </div>
+              <div className="absolute left-1/2 top-[120%] -translate-x-1/2 w-[160px] text-center pointer-events-none opacity-[0.85] pt-[1px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
+                <span className="arcade-face text-[0.32rem] text-[#ffecd1] leading-[1.4]">
+                  {agent.status}
+                </span>
+              </div>
             </div>
           ))}
 
@@ -2086,38 +2091,38 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         ) : null}
 
         {activePanel === "live" ? (
-          <div className="pointer-events-auto max-h-[min(44svh,420px)] overflow-y-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
+          <div className="pointer-events-auto max-h-[min(44svh,420px)] overflow-y-auto terminal-panel px-4 py-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="arcade-face text-[0.5rem] text-[#f4d594]">Live City</div>
-                <div className="mt-2 text-sm leading-6 text-[#d4cabd]">
-                  Brief live state only. Open districts when you want specifics.
+                <div className="arcade-face text-[0.5rem] terminal-header">Live City Tracker</div>
+                <div className="mt-2 text-[0.82rem] leading-6 opacity-80 font-mono tracking-tight">
+                  Direct connection to the X Layer node. Reading agent actions and transaction states in real time.
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setActivePanel(null)}
-                className="inline-flex h-8 w-8 items-center justify-center border-4 border-[#171411] bg-[#f8f2e9] text-[#171411]"
+                className="inline-flex h-8 w-8 items-center justify-center border-4 border-[#133a21] bg-[#020604] text-[#28f26a] hover:bg-[#133a21] transition"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <MiniStat label="Status" value={liveRuntime?.status ?? "ready"} />
-              <MiniStat label="Updated" value={lastRefresh} />
-              <MiniStat label="Treasury" value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")} />
-              <MiniStat label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+              <MiniStatTerminal label="Status" value={liveRuntime?.status ?? "ready"} />
+              <MiniStatTerminal label="Updated" value={lastRefresh} />
+              <MiniStatTerminal label="Treasury" value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")} />
+              <MiniStatTerminal label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
             </div>
-            <details className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
-              <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">city activity</summary>
+            <details className="mt-4 border-4 border-[#133a21] bg-[rgba(19,58,33,0.3)] px-3 py-3">
+              <summary className="arcade-face cursor-pointer text-[0.48rem] terminal-header">node activity streams</summary>
               <div className="mt-3 grid gap-2">
                 {visibleActivityAgents.map((agent) => (
-                  <div key={agent.id} className="border-4 border-[#171411] bg-[#0f141d] px-3 py-2">
+                  <div key={agent.id} className="border-4 border-[#133a21] bg-[#020604] px-3 py-2">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="arcade-face text-[0.44rem] text-[#f8f2e9]">{agent.title}</div>
-                      <div className="h-3 w-3 border-2 border-[#171411]" style={{ backgroundColor: agent.color }} />
+                      <div className="arcade-face text-[0.44rem] opacity-90 text-white/[0.85]">[{agent.title}]</div>
+                      <div className="h-2 w-2 rounded-full border border-[#28f26a] bg-[#28f26a] shadow-[0_0_8px_#28f26a]" />
                     </div>
-                    <div className="mt-2 text-sm leading-6 text-[#d4cabd]">{agent.status}</div>
+                    <div className="mt-2 text-[0.68rem] leading-5 font-mono tracking-tight text-[#8cffb6]">{agent.status}</div>
                   </div>
                 ))}
               </div>
@@ -2228,9 +2233,9 @@ function WorldProp({ prop }: { prop: VillageProp }) {
     >
       {prop.kind === "tree" ? (
         <div className="relative h-10 w-8">
-          <div className="absolute bottom-0 left-1/2 h-3 w-2 -translate-x-1/2 border-2 border-[#171411] bg-[#593c26]" />
-          <div className="absolute left-1/2 top-2 h-5 w-5 -translate-x-1/2 border-[3px] border-[#171411] bg-[#468d53]" />
-          <div className="absolute left-1/2 top-0 h-5 w-6 -translate-x-1/2 border-[3px] border-[#171411] bg-[#6abf68]" />
+          <div className="absolute bottom-0 left-1/2 h-3 w-2 -translate-x-1/2 border-2 border-[#171411] bg-[#593c26] shadow-[inset_-1px_-1px_0_rgba(0,0,0,0.4)]" />
+          <div className="absolute left-1/2 top-2 h-5 w-5 -translate-x-1/2 border-[3px] border-[#171411] bg-[#468d53] shadow-[inset_-2px_-2px_0_rgba(0,0,0,0.25),inset_2px_2px_0_rgba(255,255,255,0.15)]" />
+          <div className="absolute left-1/2 top-0 h-5 w-6 -translate-x-1/2 border-[3px] border-[#171411] bg-[#6abf68] shadow-[inset_-2px_-2px_0_rgba(0,0,0,0.25),inset_2px_2px_0_rgba(255,255,255,0.25)]" />
         </div>
       ) : null}
 
@@ -2259,8 +2264,9 @@ function WorldProp({ prop }: { prop: VillageProp }) {
 
       {prop.kind === "lamp" ? (
         <div className="relative h-8 w-5">
+          <div className="absolute inset-x-[-120px] bottom-[-100px] h-[200px] w-[240px] lamp-glow pointer-events-none z-[-1]" />
           <div className="absolute bottom-0 left-1/2 h-6 w-1 -translate-x-1/2 bg-[#463321]" />
-          <div className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 border-2 border-[#171411] bg-[#ffe29b] shadow-[0_0_20px_rgba(255,226,155,0.55)]" />
+          <div className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 border-2 border-[#171411] bg-[#ffe29b] shadow-[0_0_20px_rgba(255,226,155,0.65)]" />
         </div>
       ) : null}
     </div>
@@ -3076,6 +3082,15 @@ function MiniStat({ label, value }: { label: string; value: string }) {
     <div className="border-4 border-[#171411] bg-[#f8f2e9] p-3 text-[#171411]">
       <div className="arcade-face text-[0.42rem]">{label}</div>
       <div className="mt-2 text-sm font-medium break-words">{value}</div>
+    </div>
+  );
+}
+
+function MiniStatTerminal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-4 border-[#133a21] bg-[rgba(19,58,33,0.2)] p-3 text-[#28f26a]">
+      <div className="arcade-face text-[0.42rem] opacity-80">&gt; {label}</div>
+      <div className="mt-2 font-mono text-[0.7rem] break-words drop-shadow-md">{value}</div>
     </div>
   );
 }
