@@ -9,7 +9,7 @@ import {
 } from "./contract";
 import { executeContractWrite, executeNativeTransfer } from "./executor";
 import { ensureAddressFunding } from "./faucet";
-import { collectOnchainOsSnapshot, resolveOnchainOsExecution } from "./onchainos";
+import { collectOnchainOsSnapshot, resolveOnchainOsExecution } from "./onchain-os";
 import {
   ensureWalletManifest,
   getFundingSnapshot,

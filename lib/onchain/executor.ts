@@ -23,7 +23,7 @@ import {
   getGatewayOrder,
   resolveOnchainOsExecution,
   simulateGatewayTransaction,
-} from "./onchainos";
+} from "./onchain-os";
 
 type ExecutionRequest = {
   manifest: WalletManifest;
