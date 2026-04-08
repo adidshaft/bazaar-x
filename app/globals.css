@@ -22,6 +22,7 @@
 
 html {
   scroll-behavior: smooth;
+  scrollbar-color: #4a3e30 rgba(18, 22, 34, 0.6);
 }
 
 body {
@@ -53,6 +54,21 @@ body::before {
 ::selection {
   background: rgba(105, 240, 210, 0.28);
   color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(18, 22, 34, 0.6);
+  border-left: 3px solid #1a1510;
+}
+::-webkit-scrollbar-thumb {
+  background: #4a3e30;
+  border: 3px solid #1a1510;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5c4e3d;
 }
 
 .glass-card {
@@ -100,6 +116,7 @@ body::before {
 }
 
 .terminal-panel {
+  position: relative;
   background: #020604;
   border: 4px solid #133a21;
   box-shadow: inset 0 0 0 2px rgba(40, 242, 106, 0.15), 0 10px 24px rgba(0, 0, 0, 0.5);
@@ -118,6 +135,24 @@ body::before {
 .lamp-glow {
   background: radial-gradient(circle closest-side, rgba(255, 222, 120, 0.4), rgba(255, 180, 80, 0.12) 40%, transparent 100%);
   mix-blend-mode: screen;
+}
+
+.pixel-help-badge {
+  border: 3px solid #171411;
+  background: linear-gradient(180deg, #fff7d1 0%, #f4d594 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.35),
+    0 6px 0 rgba(23, 20, 17, 0.95),
+    0 12px 18px rgba(0, 0, 0, 0.18);
+  transition: filter 120ms ease, box-shadow 120ms ease;
+}
+
+.pixel-help-badge:hover {
+  filter: brightness(1.04);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.42),
+    0 6px 0 rgba(23, 20, 17, 0.95),
+    0 14px 20px rgba(0, 0, 0, 0.24);
 }
 
 .pixel-button {
@@ -363,6 +398,10 @@ body::before {
   animation: fade-in 700ms ease both;
 }
 
+.bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
 .float-slow {
   animation: float-slow 8s ease-in-out infinite;
 }
@@ -380,6 +419,17 @@ body::before {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 

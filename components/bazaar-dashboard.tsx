@@ -199,8 +199,7 @@ type QuestStep = {
 };
 
 type ControlMode = "auto" | "manual";
-type DockPanel = "focus" | "quests" | "wallet" | "live";
-type UtilityTab = "legend" | "map" | "controls";
+type DrawerSection = "focus" | "quests" | "wallet" | "live" | "legend" | "stats";
 type Direction = "up" | "down" | "left" | "right";
 
 type VillageAgent = {
@@ -491,11 +490,9 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const [hasMounted, setHasMounted] = useState(false);
   const [selectedId, setSelectedId] = useState<DistrictId>("square");
   const [controlMode, setControlMode] = useState<ControlMode>("auto");
-  const [activePanel, setActivePanel] = useState<DockPanel | null>(null);
+  const [activePanel, setActivePanel] = useState<DrawerSection | null>(null);
   const [bootReady, setBootReady] = useState(false);
   const [hasEnteredGame, setHasEnteredGame] = useState(false);
-  const [showSystemPanel, setShowSystemPanel] = useState(false);
-  const [utilityTab, setUtilityTab] = useState<UtilityTab>("legend");
   const [playerPosition, setPlayerPosition] = useState({ x: 49, y: 62 });
   const [autoRouteIndex, setAutoRouteIndex] = useState(0);
   const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
@@ -523,12 +520,6 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
 
   useEffect(() => {
     setHasMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setUtilityTab("controls");
-    }
   }, []);
 
   useEffect(() => {
@@ -1065,6 +1056,10 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
+      if (key === "escape") {
+        setActivePanel(null);
+        return;
+      }
       if (!["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " "].includes(key)) {
         return;
       }
@@ -1159,16 +1154,16 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
           const desiredVelocity = { x: 0, y: 0 };
 
           if (direction === "up") {
-            desiredVelocity.y = -1.05;
+            desiredVelocity.y = -0.54;
           }
           if (direction === "down") {
-            desiredVelocity.y = 1.05;
+            desiredVelocity.y = 0.54;
           }
           if (direction === "left") {
-            desiredVelocity.x = -1.05;
+            desiredVelocity.x = -0.54;
           }
           if (direction === "right") {
-            desiredVelocity.x = 1.05;
+            desiredVelocity.x = 0.54;
           }
 
           if (direction) {
@@ -1183,7 +1178,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               setManualTarget(null);
               Matter.Body.setVelocity(playerBody, { x: 0, y: 0 });
             } else {
-              const speed = 0.96;
+              const speed = 0.5;
               Matter.Body.setVelocity(playerBody, {
                 x: (dx / dist) * speed,
                 y: (dy / dist) * speed,
@@ -1211,7 +1206,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
               }
               setAutoRouteIndex((index) => (index + 1) % courierRoute.length);
             } else {
-              const speed = 0.92;
+              const speed = 0.46;
               Matter.Body.setVelocity(playerBody, {
                 x: (dx / dist) * speed,
                 y: (dy / dist) * speed,
@@ -1359,7 +1354,6 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
   const treasuryOkbValue = Number(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0");
   const treasuryMomentum = Math.max(8, Math.min(100, Math.round((treasuryOkbValue / 0.3) * 100)));
   const taxMomentum = Math.max(10, Math.min(100, Math.round((taxBps / 800) * 100)));
-  const statsModalOpen = forcedScene === "stats" || showSystemPanel;
   const skillsSummary = installedSkills.length
     ? installedSkills.map((skill) => skill.name).join(", ")
     : "No world skills loaded.";
@@ -1425,7 +1419,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
         ? "Spectator preview is active. Connect a wallet when you want to run live X Layer actions."
       : onboardingVisible
         ? "Connect your wallet and hit Play Game to enter the village."
-        : "Walk the town, inspect districts, and open the dock only when you need detail.";
+        : "Walk the town, inspect districts, and open the drawer only when you need depth.";
   const quickSummaries = [
     {
       label: "Objective",
@@ -1448,6 +1442,55 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
       caption: "NPC workers, suppliers, and governors moving through the live town.",
     },
   ];
+  const visiblePanel = activePanel ?? (forcedScene === "stats" ? "stats" : null);
+  const drawerOpen = visiblePanel !== null;
+  const compactHudStats = [
+    { label: "tx", value: String(liveRuntime?.txHashes.length ?? 0) },
+    { label: "treasury", value: formatOkb(treasuryOkbValue) },
+    { label: "tax", value: `${(taxBps / 100).toFixed(2)}%` },
+  ];
+  const drawerSections: Array<{ id: DrawerSection; label: string; icon: LucideIcon }> = [
+    { id: "focus", label: "Inspect", icon: MapIcon },
+    { id: "quests", label: "Quests", icon: Sparkles },
+    { id: "legend", label: "Legend", icon: Bot },
+    { id: "stats", label: "Stats", icon: Gamepad2 },
+    { id: "live", label: "Tracker", icon: Landmark },
+    { id: "wallet", label: "Wallet", icon: Wallet },
+  ];
+
+  function togglePanel(section: DrawerSection) {
+    setActivePanel((current) => (current === section ? null : section));
+  }
+
+  function openPanel(section: DrawerSection) {
+    setActivePanel(section);
+  }
+
+  const drawerTitle =
+    visiblePanel === "focus"
+      ? selectedDistrict.title
+      : visiblePanel === "quests"
+        ? "Quest Rail"
+        : visiblePanel === "legend"
+          ? "Legend Board"
+          : visiblePanel === "stats"
+            ? "Village Systems"
+            : visiblePanel === "live"
+              ? "Live City Tracker"
+              : "Wallet + Controls";
+  const drawerDescription =
+    visiblePanel === "focus"
+      ? selectedDistrict.summary
+      : visiblePanel === "quests"
+        ? "Run only the actions that matter: spawn agents, deploy Bazaar X, play the live round, and prove governance."
+        : visiblePanel === "legend"
+          ? "Read the town at a glance. Agent colors, quest pads, and movement cues all map directly to the world."
+          : visiblePanel === "stats"
+            ? "Quick summaries, progress bars, and installed economy skills live here instead of covering the game."
+            : visiblePanel === "live"
+              ? "Direct connection to the X Layer node. Reading agent actions and transaction states in real time."
+              : "Wallet connection is the only login. Switch between auto patrol and manual control anytime.";
+  const drawerIsTerminal = visiblePanel === "live";
 
   function handleWorldPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (onboardingVisible) {
@@ -1461,6 +1504,9 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
       y: clamp(((event.clientY - bounds.top) / bounds.height) * 100, 18, 90),
     };
 
+    if (drawerOpen) {
+      setActivePanel(null);
+    }
     engageManualControl();
     setManualTarget(nextPosition);
     manualTargetRef.current = nextPosition;
@@ -1645,6 +1691,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
             <button
               key={district.id}
               type="button"
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={() => focusDistrict(district)}
               className="absolute z-[8] -translate-x-1/2 -translate-y-1/2 text-left transition hover:scale-[1.02] focus:outline-none"
               style={{
@@ -1690,475 +1737,456 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
             </button>
           );
         })}
+
+        {districts.map((district) => {
+          const shouldShowInfo =
+            district.id !== "square" && (nearbyDistrict?.id === district.id || selectedDistrict.id === district.id);
+
+          if (!shouldShowInfo) {
+            return null;
+          }
+
+          return (
+            <button
+              key={`${district.id}-info`}
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => focusDistrict(district)}
+              className="pixel-help-badge bounce-in absolute z-[10] -translate-x-1/2 -translate-y-1/2 px-2 py-1 text-[#171411]"
+              style={{
+                left: `${district.x}%`,
+                top: `${district.y - 13}%`,
+                zIndex: Math.round(120 + district.y),
+              }}
+            >
+              <span className="arcade-face text-[0.34rem]">[ i ]</span>
+            </button>
+          );
+        })}
         </div>
       </div>
 
-      <div className="absolute left-4 top-4 z-30 flex w-[min(280px,calc(100vw-2rem))] flex-col gap-3">
-        <div className="pixel-window px-4 py-3 text-[#1a1714]">
-          <div className="flex items-start justify-between gap-2">
-            <div className="arcade-face text-[0.7rem] leading-[1.2] tracking-wide text-[#2f251c]">Objective</div>
-            <div className="arcade-face border-2 border-[#2f251c] bg-[#2f251c] px-1.5 py-0.5 text-[0.32rem] text-white">
+      <div className="absolute left-3 top-3 z-30 flex w-[min(290px,calc(100vw-6rem))] flex-col gap-2 sm:left-4 sm:top-4 sm:w-[320px]">
+        <div className="pixel-window px-3 py-3 text-[#1a1714]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="arcade-face text-[0.58rem] tracking-wide text-[#2f251c]">Village Brief</div>
+              <div className="mt-1 text-xs leading-5 text-[#4d4338]">{questFocus?.caption ?? "Walk the village and trigger the onchain loop."}</div>
+            </div>
+            <div className="arcade-face border-2 border-[#2f251c] bg-[#2f251c] px-1.5 py-1 text-[0.32rem] text-white">
               {controlMode === "auto" ? "auto" : "manual"}
             </div>
           </div>
-          <div className="mt-2 text-xs leading-5 text-[#4d4338]">
-            {questFocus?.caption ?? "Walk the village and trigger the onchain loop."}
+          <div className="mt-3 h-3 border-2 border-[#2f251c] bg-[#efe6d8] p-[2px]">
+            <div
+              className="h-full bg-[linear-gradient(90deg,#f16f51_0%,#ffb35b_42%,#72f0d3_100%)]"
+              style={{ width: `${questProgress}%` }}
+            />
           </div>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("quests"))}
-              className="pixel-button flex-1 bg-[#f16f51] px-2 py-1.5 text-white"
+              onClick={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : openPanel("quests"))}
+              className="pixel-button bg-[#f16f51] px-2 py-2 text-white"
             >
-              <span className="arcade-face text-[0.42rem]">{nearbyDistrict ? "Inspect" : "Quest"}</span>
+              <span className="arcade-face text-[0.38rem]">{nearbyDistrict ? "Inspect Nearby" : "Open Quests"}</span>
             </button>
             <button
               type="button"
               onClick={() => (controlMode === "auto" ? engageManualControl() : engageAutoControl())}
-              className="pixel-button flex-1 bg-[#eae0d2] px-2 py-1.5 text-[#1a1510]"
+              className="pixel-button bg-[#eae0d2] px-2 py-2 text-[#1a1510]"
             >
-              <span className="arcade-face text-[0.42rem]">{controlMode === "auto" ? "Manual" : "Auto"}</span>
+              <span className="arcade-face text-[0.38rem]">{controlMode === "auto" ? "Go Manual" : "Resume Auto"}</span>
             </button>
           </div>
         </div>
 
-        {!onboardingVisible ? (
-          <UtilityBoard
-            className="pixel-window-dark px-4 py-4 text-[#f8f2e9]"
-            activeTab={utilityTab}
-            onTabChange={setUtilityTab}
-            legend={
-              <LegendBoard
-                items={legendItems}
-                objectiveLabel={objectiveDistrict.title}
-                nearbyLabel={nearbyDistrict?.title ?? null}
-              />
-            }
-            map={
-              <MiniMap
-                className="w-full px-0 py-0 shadow-none"
-                districts={districts}
-                objectiveDistrictId={objectiveDistrict.id}
-                selectedDistrictId={selectedDistrict.id}
-                playerPosition={playerPosition}
-                npcPositions={npcPositions}
-                onSelectDistrict={(district) => focusDistrict(district)}
-              />
-            }
-            controls={
-              <ControlPad
-                className="w-full px-0 py-0 shadow-none"
-                controlMode={controlMode}
-                nearbyDistrictTitle={nearbyDistrict?.title ?? null}
-                onAuto={engageAutoControl}
-                onInteract={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : setActivePanel("focus"))}
-                onDirectionStart={beginDirectionalMove}
-                onDirectionStop={endDirectionalMove}
-              />
-            }
-          />
-        ) : null}
+        <div className={`pixel-window-dark px-3 py-2 text-xs leading-5 ${statusError || isUnsupportedViewerNetwork ? "text-[#ffd8d1]" : "text-[#d4cabd]"}`}>
+          {drawerOpen ? "Tap the town to close the drawer and keep exploring." : liveAlert}
+        </div>
       </div>
 
-      <div className="absolute right-3 top-3 z-30 flex items-start gap-2 sm:right-4 sm:top-4">
-        <div className="flex items-start gap-2">
-          {statsModalOpen ? (
-            <div className="pixel-window w-[min(320px,calc(100vw-1rem))] px-4 py-4 text-[#1a1714]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="arcade-face text-[0.5rem]">Town Stats</div>
+      <div className="absolute right-3 top-3 z-30 flex flex-col items-end gap-2 sm:right-4 sm:top-4">
+        <div className="pixel-window-dark hidden gap-2 px-3 py-2 text-[#f8f2e9] md:grid md:grid-cols-3">
+          {compactHudStats.map((item) => (
+            <div key={item.label} className="min-w-[82px] border-2 border-[#2f251c] bg-[#131923] px-2 py-2">
+              <div className="arcade-face text-[0.32rem] text-[#f4d594]">{item.label}</div>
+              <div className="mt-1 text-xs leading-5 text-white">{item.value}</div>
+            </div>
+          ))}
+        </div>
+        {hasMounted && isConnected && address ? (
+          <button
+            type="button"
+            onClick={() => togglePanel("wallet")}
+            className="pixel-button inline-flex items-center gap-2 bg-white px-3 py-2 text-[#171411]"
+          >
+            <span className="arcade-face text-[0.42rem]">Wallet</span>
+            <span className="text-xs font-medium">{shortHash(address)}</span>
+          </button>
+        ) : previewMode ? (
+          <button
+            type="button"
+            onClick={() => togglePanel("wallet")}
+            className="pixel-button inline-flex items-center gap-2 bg-[#fff5d8] px-3 py-2 text-[#171411]"
+          >
+            <span className="arcade-face text-[0.42rem]">Preview</span>
+            <span className="text-xs font-medium">Spectator</span>
+          </button>
+        ) : (
+          <ConnectWalletButton variant="pixel" />
+        )}
+      </div>
+
+      {!onboardingVisible ? (
+        <div className="absolute bottom-3 left-1/2 z-30 flex w-[calc(100vw-1rem)] max-w-[540px] -translate-x-1/2 gap-2 sm:bottom-auto sm:left-4 sm:top-1/2 sm:w-auto sm:max-w-none sm:-translate-x-0 sm:-translate-y-1/2 sm:flex-col">
+          {drawerSections.map((section) => (
+            <RailButton
+              key={section.id}
+              label={section.label}
+              icon={section.icon}
+              active={visiblePanel === section.id}
+              onClick={() => togglePanel(section.id)}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {drawerOpen ? (
+        <div className="absolute inset-y-0 right-0 z-40 flex max-w-full items-stretch">
+          <div
+            className={`pointer-events-auto flex h-full w-[min(100vw,400px)] flex-col overflow-hidden border-l-4 bounce-in ${
+              drawerIsTerminal ? "terminal-panel scanline-overlay border-[#133a21]" : "pixel-window-dark panel-glow border-[#1a1510] text-[#f8f2e9]"
+            }`}
+          >
+            <div className={`border-b-4 px-4 py-4 ${drawerIsTerminal ? "border-[#133a21]" : "border-[#1a1510]"}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className={`arcade-face text-[0.52rem] ${drawerIsTerminal ? "terminal-header" : "text-[#f4d594]"}`}>{drawerTitle}</div>
+                  <div className={`mt-2 text-sm leading-6 ${drawerIsTerminal ? "font-mono text-[#8cffb6]" : "text-[#d4cabd]"}`}>{drawerDescription}</div>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowSystemPanel(false)}
-                  className="inline-flex h-8 w-8 items-center justify-center border-4 border-[#171411] bg-white"
+                  onClick={() => setActivePanel(null)}
+                  className={`inline-flex h-9 w-9 items-center justify-center border-4 ${
+                    drawerIsTerminal
+                      ? "border-[#133a21] bg-[#020604] text-[#28f26a] hover:bg-[#133a21]"
+                      : "border-[#171411] bg-[#f8f2e9] text-[#171411]"
+                  }`}
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-3 space-y-3">
-                <SummaryBar label="Campaign progress" value={`${questProgress}%`} progress={questProgress} tone="amber" />
-                <SummaryBar label="Treasury TVL" value={formatOkb(treasuryOkbValue)} progress={treasuryMomentum} tone="mint" />
-                <SummaryBar label="Village tax rate" value={`${(taxBps / 100).toFixed(2)}%`} progress={taxMomentum} tone="blue" />
-              </div>
-              <div className={`mt-4 border-4 px-3 py-3 text-sm leading-6 ${statusError || isUnsupportedViewerNetwork ? "border-[#7d221b] bg-[#f6d9d1] text-[#5d1b16]" : "border-[#171411] bg-white/70 text-[#4d4338]"}`}>
-                {liveAlert}
-              </div>
-              <div className="mt-4 grid gap-2">
-                {quickSummaries.map((summary) => (
-                  <QuickSummaryRow key={summary.label} label={summary.label} value={summary.value} caption={summary.caption} />
+            </div>
+
+            <div className={`border-b-4 px-4 py-3 ${drawerIsTerminal ? "border-[#133a21]" : "border-[#1a1510]"}`}>
+              <div className="flex flex-wrap gap-2">
+                {drawerSections.map((section) => (
+                  <DrawerSectionButton
+                    key={section.id}
+                    label={section.label}
+                    active={visiblePanel === section.id}
+                    terminal={drawerIsTerminal}
+                    onClick={() => openPanel(section.id)}
+                  />
                 ))}
               </div>
-              <details className="mt-4 border-4 border-[#171411] bg-white/70 px-3 py-3">
-                <summary className="arcade-face cursor-pointer text-[0.46rem] text-[#171411]">
-                  installed systems
-                </summary>
-                <div className="mt-3 text-sm leading-6 text-[#4d4338]">{skillsSummary}</div>
-                <div className="mt-3 grid gap-2">
-                  {installedSkills.map((skill) => (
-                    <div key={skill.id} className="border-4 border-[#171411] bg-[#f8f2e9] px-3 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="arcade-face text-[0.44rem] text-[#171411]">{skill.name}</div>
-                        <div className="text-xs text-[#6b6256]">v{skill.version}</div>
-                      </div>
-                      <div className="mt-2 text-sm leading-6 text-[#4d4338]">{skill.description}</div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {skill.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="arcade-face border-2 border-[#171411] bg-white px-2 py-1 text-[0.38rem] text-[#171411]"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </details>
             </div>
-          ) : null}
-        </div>
 
-        <div className="flex items-start gap-2">
-          <div className="flex flex-col items-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowSystemPanel((current) => !current)}
-              className={`pixel-button inline-flex items-center gap-2 px-3 py-2 ${statusError || isUnsupportedViewerNetwork ? "bg-[#f06c50] text-white" : "bg-[#ffffff] text-[#171411]"}`}
-            >
-              <span className="arcade-face text-[0.48rem]">{statsModalOpen ? "Hide stats" : "Stats"}</span>
-              {statsModalOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-            {hasMounted && isConnected && address ? (
-              <button
-                type="button"
-                onClick={() => setActivePanel((current) => (current === "wallet" ? null : "wallet"))}
-                className="pixel-button inline-flex items-center gap-2 bg-[#ffffff] px-3 py-2 text-[#171411]"
-              >
-                <span className="arcade-face text-[0.48rem]">Wallet</span>
-                <span className="text-xs font-medium">{shortHash(address)}</span>
-              </button>
-            ) : previewMode ? (
-              <button
-                type="button"
-                onClick={() => setActivePanel((current) => (current === "wallet" ? null : "wallet"))}
-                className="pixel-button inline-flex items-center gap-2 bg-[#fff5d8] px-3 py-2 text-[#171411]"
-              >
-                <span className="arcade-face text-[0.48rem]">Preview</span>
-                <span className="text-xs font-medium">Spectator</span>
-              </button>
-            ) : (
-              <ConnectWalletButton variant="pixel" />
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="pointer-events-none absolute bottom-[98px] left-1/2 z-30 w-[min(780px,calc(100vw-1rem))] -translate-x-1/2 px-2">
-        {activePanel === "focus" ? (
-          <div className="pointer-events-auto max-h-[min(48svh,430px)] overflow-y-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="arcade-face text-[0.5rem] text-[#f4d594]">{selectedDistrict.title}</div>
-                <div className="mt-2 text-sm leading-6 text-[#d4cabd]">{selectedDistrict.summary}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActivePanel(null)}
-                className="inline-flex h-8 w-8 items-center justify-center border-4 border-[#171411] bg-[#f8f2e9] text-[#171411]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            {selectedDistrict.txHash ? (
-              <ProofDock
-                className="mt-4"
-                label="Latest tx"
-                value={selectedDistrict.txHash}
-                href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedDistrict.txHash}`}
-                copied={copiedValue === selectedDistrict.txHash}
-                onCopy={() => copyText(selectedDistrict.txHash ?? "")}
-              />
-            ) : selectedDistrict.address ? (
-              <ProofDock
-                className="mt-4"
-                label="Address"
-                value={selectedDistrict.address}
-                href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/address/${selectedDistrict.address}`}
-                copied={copiedValue === selectedDistrict.address}
-                onCopy={() => copyText(selectedDistrict.address ?? "")}
-              />
-            ) : null}
-            <details className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
-              <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">district notes</summary>
-              <div className="mt-3 grid gap-2">
-                {selectedDistrict.notes.map((note) => (
-                  <InfoRow key={note}>{note}</InfoRow>
-                ))}
-              </div>
-            </details>
-            {selectedDistrict.address || selectedDistrict.txHash ? (
-              <details className="mt-3 border-4 border-[#171411] bg-[#131923] px-3 py-3">
-                <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">onchain proof</summary>
-                {selectedDistrict.address ? (
-                  <ProofDock
-                    className="mt-3"
-                    label="Address"
-                    value={selectedDistrict.address}
-                    href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/address/${selectedDistrict.address}`}
-                    copied={copiedValue === selectedDistrict.address}
-                    onCopy={() => copyText(selectedDistrict.address ?? "")}
-                  />
-                ) : null}
-                {selectedDistrict.txHash ? (
-                  <ProofDock
-                    className="mt-3"
-                    label="Latest tx"
-                    value={selectedDistrict.txHash}
-                    href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedDistrict.txHash}`}
-                    copied={copiedValue === selectedDistrict.txHash}
-                    onCopy={() => copyText(selectedDistrict.txHash ?? "")}
-                  />
-                ) : null}
-              </details>
-            ) : null}
-          </div>
-        ) : null}
-
-        {activePanel === "quests" ? (
-          <div className="pointer-events-auto max-h-[min(52svh,460px)] overflow-y-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="arcade-face text-[0.5rem] text-[#f4d594]">Quest Rail</div>
-                <div className="mt-2 text-sm leading-6 text-[#d4cabd]">
-                  Run only what matters: spawn agents, deploy Bazaar X, play the live round, and prove governance.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActivePanel(null)}
-                className="inline-flex h-8 w-8 items-center justify-center border-4 border-[#171411] bg-[#f8f2e9] text-[#171411]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <ActionTile
-                icon={primaryQuestAction.icon}
-                label={primaryQuestAction.loading ? `${primaryQuestAction.label}...` : primaryQuestAction.label}
-                hint={primaryQuestAction.hint}
-                tone="accent"
-                loading={primaryQuestAction.loading}
-                disabled={primaryQuestAction.disabled}
-                onClick={primaryQuestAction.onClick}
-              />
-              <ActionTile
-                icon={RefreshCw}
-                label="Refresh"
-                hint="Pull the latest chain and runtime state."
-                tone="ghost"
-                loading={statusQuery.isFetching}
-                disabled={actionMutation.isPending || statusQuery.isFetching}
-                onClick={() => statusQuery.refetch()}
-              />
-            </div>
-            <details className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
-              <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">
-                manual controls
-              </summary>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <ActionTile
-                  icon={Bot}
-                  label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
-                  hint="Create the town roster and wallet state."
-                  loading={busyLabel === "Spawn economy"}
-                  disabled={actionMutation.isPending || onboardingVisible || !isConnected}
-                  onClick={() =>
-                    runAction({
-                      label: "Spawn economy",
-                      path: "/api/agents/init",
-                      body: {
-                        count: 5,
-                        seed: "bazaar-x-live",
-                        initialBudget: 1000,
-                      },
-                    })
-                  }
-                />
-                <ActionTile
-                  icon={Landmark}
-                  label={
-                    busyLabel === "Deploy to X Layer"
-                      ? "Deploying..."
-                      : contractAddress
-                        ? "Sync proof"
-                        : "Deploy to X Layer"
-                  }
-                  hint={deployHint}
-                  loading={busyLabel === "Deploy to X Layer"}
-                  disabled={actionMutation.isPending || !canDeploy || onboardingVisible || !isConnected}
-                  onClick={() =>
-                    runAction({
-                      label: "Deploy to X Layer",
-                      path: "/api/live/deploy",
-                    })
-                  }
-                />
-                <ActionTile
-                  icon={Sparkles}
-                  label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
-                  hint="Hire, pay, tax, reinvest, and govern onchain."
-                  tone="accent"
-                  loading={busyLabel === "Play live round"}
-                  disabled={actionMutation.isPending || !canRunLive || onboardingVisible || !isConnected}
-                  onClick={() =>
-                    runAction({
-                      label: "Play live round",
-                      path: "/api/live/run",
-                    })
-                  }
-                />
-                <ActionTile
-                  icon={RefreshCw}
-                  label="Refresh"
-                  hint="Pull the latest chain and runtime state."
-                  tone="ghost"
-                  loading={statusQuery.isFetching}
-                  disabled={actionMutation.isPending || statusQuery.isFetching}
-                  onClick={() => statusQuery.refetch()}
-                />
-              </div>
-            </details>
-            <div className="mt-4 grid gap-3">
-              {questSteps.map((step) => (
-                <QuestCard key={step.id} step={step} compact />
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {activePanel === "wallet" ? (
-          <div className="pointer-events-auto max-h-[min(44svh,420px)] overflow-y-auto pixel-window-dark px-4 py-4 text-[#f8f2e9]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="arcade-face text-[0.5rem] text-[#f4d594]">Wallet + Controls</div>
-                <div className="mt-2 text-sm leading-6 text-[#d4cabd]">
-                  Wallet connection is the only login. Use the minimap and control pad for touch play, or switch between auto patrol and manual anytime.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActivePanel(null)}
-                className="inline-flex h-8 w-8 items-center justify-center border-4 border-[#171411] bg-[#f8f2e9] text-[#171411]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={engageAutoControl}
-                className={`pixel-button px-3 py-2 ${controlMode === "auto" ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"}`}
-              >
-                <span className="arcade-face text-[0.48rem]">Auto patrol</span>
-              </button>
-              <button
-                type="button"
-                onClick={engageManualControl}
-                className={`pixel-button px-3 py-2 ${controlMode === "manual" ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"}`}
-              >
-                <span className="arcade-face text-[0.48rem]">Manual</span>
-              </button>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <MiniStat label="Viewer" value={viewerIdentity} />
-              <MiniStat label="Wallet" value={viewerBalance} />
-              <MiniStat label="Gas" value={gatewayGas?.normal ? `${gatewayGas.normal} wei` : "Live"} />
-              <MiniStat label="Nearby" value={nearbyDistrict?.title ?? "Open road"} />
-            </div>
-            <div className="mt-4">
-              {previewMode ? (
-                <div className="border-4 border-[#171411] bg-[#f8f2e9] px-3 py-3 text-sm leading-6 text-[#4d4338]">
-                  Spectator mode keeps the HUD clean for screenshots and judge walkthroughs. Connect a wallet anytime to turn this into a live session.
-                </div>
-              ) : (
-                <ConnectWalletButton variant="pixel" fullWidth />
-              )}
-            </div>
-            <div className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3 text-sm leading-6 text-[#d4cabd]">
-              Move with arrow keys or WASD. Press space when you are near a district to inspect it instantly.
-            </div>
-          </div>
-        ) : null}
-
-        {activePanel === "live" ? (
-          <div className="pointer-events-auto max-h-[min(44svh,420px)] overflow-y-auto terminal-panel px-4 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="arcade-face text-[0.5rem] terminal-header">Live City Tracker</div>
-                <div className="mt-2 text-[0.82rem] leading-6 opacity-80 font-mono tracking-tight">
-                  Direct connection to the X Layer node. Reading agent actions and transaction states in real time.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActivePanel(null)}
-                className="inline-flex h-8 w-8 items-center justify-center border-4 border-[#133a21] bg-[#020604] text-[#28f26a] hover:bg-[#133a21] transition"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <MiniStatTerminal label="Status" value={liveRuntime?.status ?? "ready"} />
-              <MiniStatTerminal label="Updated" value={lastRefresh} />
-              <MiniStatTerminal label="Treasury" value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")} />
-              <MiniStatTerminal label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
-            </div>
-            <details className="mt-4 border-4 border-[#133a21] bg-[rgba(19,58,33,0.3)] px-3 py-3">
-              <summary className="arcade-face cursor-pointer text-[0.48rem] terminal-header">node activity streams</summary>
-              <div className="mt-3 grid gap-2">
-                {visibleActivityAgents.map((agent) => (
-                  <div key={agent.id} className="border-4 border-[#133a21] bg-[#020604] px-3 py-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="arcade-face text-[0.44rem] opacity-90 text-white/[0.85]">[{agent.title}]</div>
-                      <div className="h-2 w-2 rounded-full border border-[#28f26a] bg-[#28f26a] shadow-[0_0_8px_#28f26a]" />
-                    </div>
-                    <div className="mt-2 text-[0.68rem] leading-5 font-mono tracking-tight text-[#8cffb6]">{agent.status}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              {visiblePanel === "focus" ? (
+                <>
+                  {selectedDistrict.txHash ? (
+                    <ProofDock
+                      className="mt-1"
+                      label="Latest tx"
+                      value={selectedDistrict.txHash}
+                      href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedDistrict.txHash}`}
+                      copied={copiedValue === selectedDistrict.txHash}
+                      onCopy={() => copyText(selectedDistrict.txHash ?? "")}
+                    />
+                  ) : selectedDistrict.address ? (
+                    <ProofDock
+                      className="mt-1"
+                      label="Address"
+                      value={selectedDistrict.address}
+                      href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/address/${selectedDistrict.address}`}
+                      copied={copiedValue === selectedDistrict.address}
+                      onCopy={() => copyText(selectedDistrict.address ?? "")}
+                    />
+                  ) : null}
+                  <div className="mt-4 grid gap-3">
+                    {selectedDistrict.notes.map((note) => (
+                      <InfoRow key={note}>{note}</InfoRow>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </details>
-          </div>
-        ) : null}
-      </div>
+                  {selectedDistrict.address || selectedDistrict.txHash ? (
+                    <details className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
+                      <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">Onchain Proof</summary>
+                      {selectedDistrict.address ? (
+                        <ProofDock
+                          className="mt-3"
+                          label="Address"
+                          value={selectedDistrict.address}
+                          href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/address/${selectedDistrict.address}`}
+                          copied={copiedValue === selectedDistrict.address}
+                          onCopy={() => copyText(selectedDistrict.address ?? "")}
+                        />
+                      ) : null}
+                      {selectedDistrict.txHash ? (
+                        <ProofDock
+                          className="mt-3"
+                          label="Latest tx"
+                          value={selectedDistrict.txHash}
+                          href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedDistrict.txHash}`}
+                          copied={copiedValue === selectedDistrict.txHash}
+                          onCopy={() => copyText(selectedDistrict.txHash ?? "")}
+                        />
+                      ) : null}
+                    </details>
+                  ) : null}
+                </>
+              ) : null}
 
-      <div className="absolute bottom-4 left-1/2 z-30 w-[min(720px,calc(100vw-1rem))] -translate-x-1/2 px-2">
-        <div className="pixel-window-dark grid grid-cols-2 gap-2 px-2 py-2 text-[#f8f2e9] sm:flex sm:items-center sm:justify-between">
-          <DockButton
-            label="Inspect"
-            icon={MapIcon}
-            active={activePanel === "focus"}
-            onClick={() => setActivePanel((current) => (current === "focus" ? null : "focus"))}
-          />
-          <DockButton
-            label="Quests"
-            icon={Sparkles}
-            active={activePanel === "quests"}
-            onClick={() => setActivePanel((current) => (current === "quests" ? null : "quests"))}
-          />
-          <DockButton
-            label="Wallet"
-            icon={Wallet}
-            active={activePanel === "wallet"}
-            onClick={() => setActivePanel((current) => (current === "wallet" ? null : "wallet"))}
-          />
-          <DockButton
-            label="Tracker"
-            icon={Landmark}
-            active={activePanel === "live"}
-            onClick={() => setActivePanel((current) => (current === "live" ? null : "live"))}
-          />
+              {visiblePanel === "quests" ? (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ActionTile
+                      icon={primaryQuestAction.icon}
+                      label={primaryQuestAction.loading ? `${primaryQuestAction.label}...` : primaryQuestAction.label}
+                      hint={primaryQuestAction.hint}
+                      tone="accent"
+                      loading={primaryQuestAction.loading}
+                      disabled={primaryQuestAction.disabled}
+                      onClick={primaryQuestAction.onClick}
+                    />
+                    <ActionTile
+                      icon={RefreshCw}
+                      label="Refresh"
+                      hint="Pull the latest chain and runtime state."
+                      tone="ghost"
+                      loading={statusQuery.isFetching}
+                      disabled={actionMutation.isPending || statusQuery.isFetching}
+                      onClick={() => statusQuery.refetch()}
+                    />
+                  </div>
+                  <details className="mt-4 border-4 border-[#171411] bg-[#131923] px-3 py-3">
+                    <summary className="arcade-face cursor-pointer text-[0.48rem] text-[#f8f2e9]">Manual Controls</summary>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <ActionTile
+                        icon={Bot}
+                        label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
+                        hint="Create the town roster and wallet state."
+                        loading={busyLabel === "Spawn economy"}
+                        disabled={actionMutation.isPending || onboardingVisible || !isConnected}
+                        onClick={() =>
+                          runAction({
+                            label: "Spawn economy",
+                            path: "/api/agents/init",
+                            body: {
+                              count: 5,
+                              seed: "bazaar-x-live",
+                              initialBudget: 1000,
+                            },
+                          })
+                        }
+                      />
+                      <ActionTile
+                        icon={Landmark}
+                        label={busyLabel === "Deploy to X Layer" ? "Deploying..." : contractAddress ? "Sync proof" : "Deploy to X Layer"}
+                        hint={deployHint}
+                        loading={busyLabel === "Deploy to X Layer"}
+                        disabled={actionMutation.isPending || !canDeploy || onboardingVisible || !isConnected}
+                        onClick={() =>
+                          runAction({
+                            label: "Deploy to X Layer",
+                            path: "/api/live/deploy",
+                          })
+                        }
+                      />
+                      <ActionTile
+                        icon={Sparkles}
+                        label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
+                        hint="Hire, pay, tax, reinvest, and govern onchain."
+                        tone="accent"
+                        loading={busyLabel === "Play live round"}
+                        disabled={actionMutation.isPending || !canRunLive || onboardingVisible || !isConnected}
+                        onClick={() =>
+                          runAction({
+                            label: "Play live round",
+                            path: "/api/live/run",
+                          })
+                        }
+                      />
+                      <ActionTile
+                        icon={MapIcon}
+                        label={nearbyDistrict ? `Inspect ${nearbyDistrict.title}` : "Inspect district"}
+                        hint={nearbyDistrict ? "Open the approached district instantly." : "Move close to a district, then inspect it."}
+                        tone="ghost"
+                        disabled={!nearbyDistrict}
+                        onClick={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : undefined)}
+                      />
+                    </div>
+                  </details>
+                  <div className="mt-4 grid gap-3">
+                    {questSteps.map((step) => (
+                      <QuestCard key={step.id} step={step} compact />
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              {visiblePanel === "legend" ? (
+                <div className="grid gap-4">
+                  <LegendBoard
+                    items={legendItems}
+                    objectiveLabel={objectiveDistrict.title}
+                    nearbyLabel={nearbyDistrict?.title ?? null}
+                  />
+                  <MiniMap
+                    className="w-full px-4 py-4 shadow-none"
+                    districts={districts}
+                    objectiveDistrictId={objectiveDistrict.id}
+                    selectedDistrictId={selectedDistrict.id}
+                    playerPosition={playerPosition}
+                    npcPositions={npcPositions}
+                    onSelectDistrict={(district) => focusDistrict(district)}
+                  />
+                </div>
+              ) : null}
+
+              {visiblePanel === "stats" ? (
+                <>
+                  <div className="space-y-3">
+                    <SummaryBar label="Campaign progress" value={`${questProgress}%`} progress={questProgress} tone="amber" />
+                    <SummaryBar label="Treasury TVL" value={formatOkb(treasuryOkbValue)} progress={treasuryMomentum} tone="mint" />
+                    <SummaryBar label="Village tax rate" value={`${(taxBps / 100).toFixed(2)}%`} progress={taxMomentum} tone="blue" />
+                  </div>
+                  <div className={`mt-4 border-4 px-3 py-3 text-sm leading-6 ${statusError || isUnsupportedViewerNetwork ? "border-[#7d221b] bg-[#f6d9d1] text-[#5d1b16]" : "border-[#171411] bg-white/70 text-[#4d4338]"}`}>
+                    {liveAlert}
+                  </div>
+                  <div className="mt-4 grid gap-2">
+                    {quickSummaries.map((summary) => (
+                      <QuickSummaryRow key={summary.label} label={summary.label} value={summary.value} caption={summary.caption} />
+                    ))}
+                  </div>
+                  <details className="mt-4 border-4 border-[#171411] bg-white/70 px-3 py-3">
+                    <summary className="arcade-face cursor-pointer text-[0.46rem] text-[#171411]">Installed Systems</summary>
+                    <div className="mt-3 text-sm leading-6 text-[#4d4338]">{skillsSummary}</div>
+                    <div className="mt-3 grid gap-2">
+                      {installedSkills.map((skill) => (
+                        <div key={skill.id} className="border-4 border-[#171411] bg-[#f8f2e9] px-3 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="arcade-face text-[0.44rem] text-[#171411]">{skill.name}</div>
+                            <div className="text-xs text-[#6b6256]">v{skill.version}</div>
+                          </div>
+                          <div className="mt-2 text-sm leading-6 text-[#4d4338]">{skill.description}</div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {skill.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="arcade-face border-2 border-[#171411] bg-white px-2 py-1 text-[0.38rem] text-[#171411]"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </>
+              ) : null}
+
+              {visiblePanel === "wallet" ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={engageAutoControl}
+                      className={`pixel-button px-3 py-2 ${controlMode === "auto" ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"}`}
+                    >
+                      <span className="arcade-face text-[0.48rem]">Auto Patrol</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={engageManualControl}
+                      className={`pixel-button px-3 py-2 ${controlMode === "manual" ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"}`}
+                    >
+                      <span className="arcade-face text-[0.48rem]">Manual</span>
+                    </button>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <MiniStat label="Viewer" value={viewerIdentity} />
+                    <MiniStat label="Wallet" value={viewerBalance} />
+                    <MiniStat label="Gas" value={gatewayGas?.normal ? `${gatewayGas.normal} wei` : "Live"} />
+                    <MiniStat label="Nearby" value={nearbyDistrict?.title ?? "Open road"} />
+                  </div>
+                  <div className="mt-4">
+                    {previewMode ? (
+                      <div className="border-4 border-[#171411] bg-[#f8f2e9] px-3 py-3 text-sm leading-6 text-[#4d4338]">
+                        Spectator mode keeps the game clean for screenshots and judge walkthroughs. Connect a wallet anytime to turn this into a live session.
+                      </div>
+                    ) : (
+                      <ConnectWalletButton variant="pixel" fullWidth />
+                    )}
+                  </div>
+                  <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+                    <MiniMap
+                      className="w-full px-4 py-4 shadow-none"
+                      districts={districts}
+                      objectiveDistrictId={objectiveDistrict.id}
+                      selectedDistrictId={selectedDistrict.id}
+                      playerPosition={playerPosition}
+                      npcPositions={npcPositions}
+                      onSelectDistrict={(district) => focusDistrict(district)}
+                    />
+                    <ControlPad
+                      className="w-full px-4 py-4 shadow-none"
+                      controlMode={controlMode}
+                      nearbyDistrictTitle={nearbyDistrict?.title ?? null}
+                      onAuto={engageAutoControl}
+                      onInteract={() => (nearbyDistrict ? focusDistrict(nearbyDistrict) : openPanel("focus"))}
+                      onDirectionStart={beginDirectionalMove}
+                      onDirectionStop={endDirectionalMove}
+                    />
+                  </div>
+                </>
+              ) : null}
+
+              {visiblePanel === "live" ? (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <MiniStatTerminal label="Status" value={liveRuntime?.status ?? "ready"} />
+                    <MiniStatTerminal label="Updated" value={lastRefresh} />
+                    <MiniStatTerminal label="Treasury" value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")} />
+                    <MiniStatTerminal label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+                  </div>
+                  <details className="mt-4 border-4 border-[#133a21] bg-[rgba(19,58,33,0.3)] px-3 py-3" open>
+                    <summary className="arcade-face cursor-pointer text-[0.48rem] terminal-header">Node Activity Streams</summary>
+                    <div className="mt-3 grid gap-2">
+                      {visibleActivityAgents.map((agent) => (
+                        <div key={agent.id} className="border-4 border-[#133a21] bg-[#020604] px-3 py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="arcade-face text-[0.44rem] opacity-90 text-white/[0.85]">[{agent.title}]</div>
+                            <div className="h-2 w-2 rounded-full border border-[#28f26a] bg-[#28f26a] shadow-[0_0_8px_#28f26a]" />
+                          </div>
+                          <div className="mt-2 text-[0.68rem] leading-5 font-mono tracking-tight text-[#8cffb6]">{agent.status}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                  <div className="mt-4 grid gap-3">
+                    {questSteps.map((step) => (
+                      <QuestCard key={step.id} step={step} compact />
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {onboardingVisible ? (
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[rgba(14,12,10,0.5)] backdrop-blur-md">
@@ -2437,57 +2465,6 @@ function LandmarkSprite({ spot }: { spot: ScenerySpot }) {
   );
 }
 
-function UtilityBoard({
-  activeTab,
-  onTabChange,
-  legend,
-  map,
-  controls,
-  className,
-}: {
-  activeTab: UtilityTab;
-  onTabChange: (tab: UtilityTab) => void;
-  legend: ReactNode;
-  map: ReactNode;
-  controls: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <div className="flex items-center gap-2">
-        <UtilityTabButton label="Legend" active={activeTab === "legend"} onClick={() => onTabChange("legend")} />
-        <UtilityTabButton label="Map" active={activeTab === "map"} onClick={() => onTabChange("map")} />
-        <UtilityTabButton label="Controls" active={activeTab === "controls"} onClick={() => onTabChange("controls")} />
-      </div>
-      <div className="mt-4 max-h-[46svh] overflow-y-auto pr-1">
-        {activeTab === "legend" ? legend : null}
-        {activeTab === "map" ? map : null}
-        {activeTab === "controls" ? controls : null}
-      </div>
-    </div>
-  );
-}
-
-function UtilityTabButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`pixel-button px-3 py-2 ${active ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"}`}
-    >
-      <span className="arcade-face text-[0.38rem]">{label}</span>
-    </button>
-  );
-}
-
 function LegendBoard({
   items,
   objectiveLabel,
@@ -2647,7 +2624,7 @@ function DistrictSprite({
   );
 }
 
-function DockButton({
+function RailButton({
   label,
   icon: Icon,
   active,
@@ -2662,12 +2639,42 @@ function DockButton({
     <button
       type="button"
       onClick={onClick}
-      className={`pixel-button flex w-full min-w-[92px] items-center justify-center gap-2 px-3 py-2 sm:w-auto ${
+      className={`pixel-button flex min-h-[58px] flex-1 items-center justify-center gap-2 px-3 py-2 sm:min-h-[70px] sm:w-[72px] sm:flex-none sm:flex-col ${
         active ? "bg-[#f16f51] text-white" : "bg-[#f8f2e9] text-[#171411]"
       }`}
     >
-      <Icon className="h-4 w-4" />
-      <span className="arcade-face text-[0.44rem]">{label}</span>
+      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+      <span className="arcade-face text-[0.34rem] sm:text-[0.32rem]">{label}</span>
+    </button>
+  );
+}
+
+function DrawerSectionButton({
+  label,
+  active,
+  terminal = false,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  terminal?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`pixel-button px-3 py-2 ${
+        terminal
+          ? active
+            ? "border-[#133a21] bg-[#133a21] text-[#8cffb6]"
+            : "border-[#133a21] bg-[#020604] text-[#28f26a]"
+          : active
+            ? "bg-[#f16f51] text-white"
+            : "bg-[#f8f2e9] text-[#171411]"
+      }`}
+    >
+      <span className="arcade-face text-[0.36rem]">{label}</span>
     </button>
   );
 }
