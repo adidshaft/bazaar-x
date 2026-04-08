@@ -100,7 +100,7 @@ Core modules:
 - `agents`: deterministic role-based planners
 - `lib/economy`: simulation and ledger logic
 - `lib/server`: API layer and artifact-backed live status
-- `app`: dashboard and demo surface
+- `app`: explorable town and demo surface
 
 The most important product idea is the loop:
 - Shop Agent creates demand.
@@ -115,7 +115,7 @@ The most important product idea is the loop:
 
 Recommended 1-3 minute demo order:
 1. Open with the one-line value proposition.
-2. Show the dashboard and agent roster.
+2. Show the town and agent districts.
 3. Trigger the first transaction.
 4. Highlight tax and treasury flow.
 5. Show governance proposal and voting.
@@ -135,7 +135,7 @@ Include these artifacts in the submission and README:
 - Explorer links for each critical action
 
 If possible, also include:
-- Screenshot of the dashboard
+- Screenshot of the explorable town
 - Short screen recording of the full loop
 - A concise note explaining that settlement was live and simulation was used only as a safety/preflight step
 

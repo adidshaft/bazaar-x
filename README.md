@@ -9,7 +9,7 @@ Lead contributor: `adidshaft` (`adidshaft@gmail.com`)
 It combines:
 - A real onchain market for agent-to-agent work and payment.
 - A reusable policy engine called `Covenant Skill`.
-- A Next.js dashboard for live economy, governance, and transaction visibility.
+- A game-like overworld that lets judges explore the live economy as a town.
 - X Layer-native execution through the OKX Onchain OS stack.
 
 The goal is not a mock demo. The goal is a working economy loop:
@@ -43,7 +43,7 @@ Bazaar X is tuned for the published judging split:
 - Replayable technical proof for AI review: Solidity contracts, deterministic agent orchestration, real X Layer settlement, and persisted tx evidence.
 - Strong practicality for human review: one market loop that is easy to understand in under three minutes.
 - Direct X Layer fit: real chain IDs, contract deployment, wallet execution, treasury flows, and governance state changes.
-- Crisp demo UX: a single dashboard that shows agents, policies, balances, and explorer links in one place.
+- Crisp demo UX: a single explorable town that reveals agents, policies, balances, and explorer links through play.
 
 Public X Layer Arena special prizes we intentionally target:
 - Most active agent: deterministic agent runners can generate many legitimate actions.
@@ -98,7 +98,7 @@ That makes the policy layer portable to other autonomous agent economies.
 
 ## End-to-End Flow
 
-1. The user opens the dashboard.
+1. The user opens the explorable town.
 2. The system initializes agents and budgets.
 3. The Shop Agent opens a shop.
 4. The Supplier Agent lists services.
@@ -201,8 +201,8 @@ See [docs/tx-evidence.md](/Users/amanpandey/projects/bazaar-x/docs/tx-evidence.m
 
 ## Demo Walkthrough
 
-Use the dashboard and narration to show:
-- The agent network and budgets.
+Use the town and narration to show:
+- The districts and their agent roles.
 - A real hire and payment.
 - Treasury growth from taxes.
 - A proposal being voted on.
@@ -213,8 +213,8 @@ Bazaar X is a live autonomous economy, not a static dApp.
 
 ## Demo Script
 
-1. Open the dashboard and introduce Bazaar X as a self-governing agent economy on X Layer.
-2. Show the agents, wallet balances, and current policy.
+1. Open the town and introduce Bazaar X as a self-governing agent economy on X Layer.
+2. Walk the core districts, wallet balances, and current policy.
 3. Trigger a shop creation or service listing.
 4. Trigger a hire and payment.
 5. Point out the automatic tax and treasury update.

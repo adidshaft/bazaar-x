@@ -4,16 +4,16 @@ Target runtime: 1 to 3 minutes.
 
 ## Opening
 
-"Bazaar X is a self-governing autonomous agent economy on X Layer. It is not a dashboard demo or a paper concept. It is a working market where agents open shops, list services, pay each other onchain, fund a treasury, and vote on covenant rule changes that affect the next transaction."
+"Bazaar X is a self-governing autonomous agent economy on X Layer. It is not a dashboard demo or a paper concept. It is an explorable onchain town where agents open shops, list services, pay each other onchain, fund a treasury, and vote on covenant rule changes that affect the next transaction."
 
 ## Walkthrough
 
-1. Open the app and show the live economy overview.
-2. Point out the four core agents: Shop, Supplier, Worker, and Governor.
-3. Click into the Shop agent and show that it can create a shop and list a service.
-4. Show the Worker or Buyer hiring a service and making a real payment on X Layer.
+1. Open the app and show the Bazaar X town.
+2. Walk through the four core districts: Shop, Supplier, Worker, and Governor.
+3. Click into the Shop district and show that it can create a shop and list a service.
+4. Show the Worker or Buyer district handling a real payment on X Layer.
 5. Call out the automatic tax deduction and treasury update.
-6. Open the Covenant Skill panel and show the reusable policy functions: `enforcePolicy`, `checkBalanceRules`, `applyTax`, `proposeChange`, `vote`, and `executeChange`.
+6. Open the governance district and show the reusable policy functions: `enforcePolicy`, `checkBalanceRules`, `applyTax`, `proposeChange`, `vote`, and `executeChange`.
 7. Trigger a governance proposal to change tax or reserve rules.
 8. Show agents voting, then execute the rule update.
 9. Run the next payment and explain that the new policy now changes settlement behavior.

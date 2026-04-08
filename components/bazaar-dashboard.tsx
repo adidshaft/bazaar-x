@@ -4,8 +4,10 @@ import {
   ArrowUpRight,
   Bot,
   Copy,
+  Footprints,
   Landmark,
   LoaderCircle,
+  Map as MapIcon,
   RefreshCw,
   ShieldAlert,
   Sparkles,
@@ -18,6 +20,7 @@ import { useAccount, useBalance } from "wagmi";
 import { ConnectWalletButton } from "./connect-wallet-button";
 
 type AgentRole = "shop" | "supplier" | "worker" | "governor";
+type DistrictId = "square" | "core" | "shop" | "supplier" | "worker" | "treasury" | "governor";
 
 type LiveDashboardStatus = {
   runtime: {
@@ -29,7 +32,15 @@ type LiveDashboardStatus = {
   onchain: {
     address: string;
     chainId: number;
-    calls: Record<string, unknown>;
+    explorerUrl?: string;
+    treasury?: string;
+    treasuryBalanceWei?: string;
+    treasuryBalanceOkb?: string;
+    rules?: readonly unknown[];
+    registeredAgentCount?: number;
+    nextShopId?: number;
+    nextServiceId?: number;
+    nextProposalId?: number;
   } | null;
   liveDashboard: {
     manifest: {
@@ -37,12 +48,15 @@ type LiveDashboardStatus = {
       chainId: number;
       rpcUrl: string;
       explorerBaseUrl: string;
-      deployer: { address: string };
-      treasury: { address: string };
+      createdAt?: string;
+      savedAt?: string;
+      deployer: { label?: string; address: string };
+      treasury: { label?: string; address: string };
       agents: Array<{
+        id?: string;
         role: AgentRole;
         name: string;
-        handle: string;
+        handle?: string;
         goal: string;
         bootstrapOkb: string;
         address: string;
@@ -50,6 +64,7 @@ type LiveDashboardStatus = {
     };
     runtime: {
       status: "idle" | "ready" | "running" | "completed" | "failed";
+      lastUpdatedAt?: string;
       txHashes: string[];
       steps: Array<{
         key: string;
@@ -121,119 +136,114 @@ type ActionRequest = {
   body?: Record<string, unknown>;
 };
 
-type SceneActor = {
-  id: "core" | "treasury" | AgentRole;
-  title: string;
-  kicker: string;
-  note: string;
-  address?: string;
-  value: string;
-  status: string;
+type RuntimeStep = {
+  key: string;
+  label: string;
+  status: "pending" | "success" | "failed";
+  startedAt: string;
+  completedAt?: string;
   txHash?: string;
   explorerUrl?: string;
+  detail?: string;
+  meta?: Record<string, string | number | boolean | null>;
+};
+
+type District = {
+  id: DistrictId;
+  title: string;
+  kicker: string;
+  flavor: string;
+  summary: string;
+  value: string;
+  notes: string[];
   x: number;
   y: number;
+  width: number;
   height: number;
+  approachX: number;
+  approachY: number;
+  address?: string;
+  txHash?: string;
+  explorerUrl?: string;
   palette: {
-    top: string;
-    left: string;
-    right: string;
-    outline: string;
+    roof: string;
+    wall: string;
+    trim: string;
     glow: string;
+    chip: string;
   };
 };
 
-type ProofCard = {
+type QuestStep = {
   id: string;
-  title: string;
+  label: string;
+  status: "locked" | "ready" | "done";
   caption: string;
   hash?: string;
   explorerUrl?: string;
 };
 
-const fallbackAgents = {
-  shop: {
-    name: "Bazaar Forge",
-    goal: "Creates demand and turns work into revenue.",
-    budget: "1.250 OKB",
-  },
-  supplier: {
-    name: "Supply Coil",
-    goal: "Routes inventory and hires downstream labor.",
-    budget: "0.620 OKB",
-  },
-  worker: {
-    name: "Node Pilot",
-    goal: "Executes tasks and compounds earned value.",
-    budget: "0.410 OKB",
-  },
-  governor: {
-    name: "Covenant Council",
-    goal: "Adjusts tax and reserve rules.",
-    budget: "Governance seat",
-  },
+const districtFrame = {
+  square: { x: 49, y: 56, width: 18, height: 12, approachX: 49, approachY: 62 },
+  core: { x: 50, y: 33, width: 14, height: 16, approachX: 50, approachY: 44 },
+  shop: { x: 21, y: 55, width: 16, height: 14, approachX: 28, approachY: 64 },
+  supplier: { x: 79, y: 45, width: 17, height: 13, approachX: 71, approachY: 54 },
+  worker: { x: 73, y: 73, width: 14, height: 12, approachX: 66, approachY: 74 },
+  treasury: { x: 56, y: 80, width: 16, height: 12, approachX: 55, approachY: 70 },
+  governor: { x: 24, y: 76, width: 14, height: 14, approachX: 32, approachY: 71 },
 } as const;
 
-const actorPalette = {
+const districtPalette = {
+  square: {
+    roof: "#f8df8c",
+    wall: "#735823",
+    trim: "#fff1bf",
+    glow: "rgba(248, 223, 140, 0.28)",
+    chip: "bg-[#f8df8c]/20 text-[#fff2c8] border-[#f8df8c]/35",
+  },
   core: {
-    top: "#ffcc70",
-    left: "#8e4c14",
-    right: "#c8741f",
-    outline: "#ffe7b7",
-    glow: "rgba(255, 196, 108, 0.35)",
+    roof: "#ffb35b",
+    wall: "#8c431d",
+    trim: "#ffe0b5",
+    glow: "rgba(255, 179, 91, 0.35)",
+    chip: "bg-[#ffb35b]/20 text-[#ffe1bf] border-[#ffb35b]/35",
+  },
+  shop: {
+    roof: "#72f0d3",
+    wall: "#1d685c",
+    trim: "#d9fffa",
+    glow: "rgba(114, 240, 211, 0.28)",
+    chip: "bg-[#72f0d3]/20 text-[#d7fffa] border-[#72f0d3]/35",
+  },
+  supplier: {
+    roof: "#86a7ff",
+    wall: "#2b458e",
+    trim: "#dfe6ff",
+    glow: "rgba(134, 167, 255, 0.28)",
+    chip: "bg-[#86a7ff]/20 text-[#dfe7ff] border-[#86a7ff]/35",
+  },
+  worker: {
+    roof: "#ff9a8b",
+    wall: "#863743",
+    trim: "#ffd9d3",
+    glow: "rgba(255, 154, 139, 0.28)",
+    chip: "bg-[#ff9a8b]/20 text-[#ffe0dc] border-[#ff9a8b]/35",
   },
   treasury: {
-    top: "#b5f784",
-    left: "#356b2a",
-    right: "#5b9a36",
-    outline: "#e4ffce",
-    glow: "rgba(181, 247, 132, 0.25)",
-  },
-  shop: {
-    top: "#6ce8d6",
-    left: "#155d57",
-    right: "#2ea89d",
-    outline: "#ccfffb",
-    glow: "rgba(108, 232, 214, 0.28)",
-  },
-  supplier: {
-    top: "#8ea8ff",
-    left: "#2b4188",
-    right: "#5b73c9",
-    outline: "#dde4ff",
-    glow: "rgba(142, 168, 255, 0.28)",
-  },
-  worker: {
-    top: "#ff8f8f",
-    left: "#7b2f3a",
-    right: "#c05666",
-    outline: "#ffd8dc",
-    glow: "rgba(255, 143, 143, 0.25)",
+    roof: "#b7f47e",
+    wall: "#3d6f2d",
+    trim: "#e9ffce",
+    glow: "rgba(183, 244, 126, 0.28)",
+    chip: "bg-[#b7f47e]/20 text-[#ecffd7] border-[#b7f47e]/35",
   },
   governor: {
-    top: "#d4b3ff",
-    left: "#5c398f",
-    right: "#8d63c9",
-    outline: "#f0e2ff",
-    glow: "rgba(212, 179, 255, 0.28)",
+    roof: "#d4b5ff",
+    wall: "#65408f",
+    trim: "#f3e5ff",
+    glow: "rgba(212, 181, 255, 0.28)",
+    chip: "bg-[#d4b5ff]/20 text-[#f3e6ff] border-[#d4b5ff]/35",
   },
 } as const;
-
-const actorLayout = {
-  core: { x: 470, y: 210, height: 112 },
-  treasury: { x: 548, y: 392, height: 74 },
-  shop: { x: 210, y: 216, height: 94 },
-  supplier: { x: 744, y: 194, height: 88 },
-  worker: { x: 774, y: 356, height: 72 },
-  governor: { x: 205, y: 372, height: 72 },
-} as const;
-
-const proofQueries = [
-  { id: "deploy", title: "Deploy", match: "deploy bazaar x contract" },
-  { id: "proposal", title: "Governance", match: "execute governance update" },
-  { id: "payment", title: "Settlement", match: "post-governance payment" },
-  { id: "treasury", title: "Treasury", match: "treasury reinvests" },
-] as const;
 
 function shortHash(value: string) {
   if (value.length <= 12) {
@@ -304,6 +314,23 @@ function ruleValue(rules: unknown, index: number) {
   return null;
 }
 
+function findLatestStep(steps: RuntimeStep[], matches: string[]) {
+  return [...steps].reverse().find((step) => {
+    const label = step.label.toLowerCase();
+    const detail = step.detail?.toLowerCase() ?? "";
+    const key = step.key.toLowerCase();
+    return matches.some((match) => label.includes(match) || detail.includes(match) || key.includes(match));
+  });
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
 async function postJson(path: string, body: Record<string, unknown> = {}) {
   const response = await fetch(path, {
     method: "POST",
@@ -347,6 +374,10 @@ async function fetchStatus() {
 
 export function BazaarDashboard() {
   const [hasMounted, setHasMounted] = useState(false);
+  const [selectedId, setSelectedId] = useState<DistrictId>("square");
+  const [playerPosition, setPlayerPosition] = useState({ x: 49, y: 62 });
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
+
   const { address, chain, isConnected } = useAccount();
   const { data: balance } = useBalance({
     address,
@@ -355,9 +386,6 @@ export function BazaarDashboard() {
     },
   });
   const queryClient = useQueryClient();
-
-  const [selectedId, setSelectedId] = useState<SceneActor["id"]>("core");
-  const [copiedValue, setCopiedValue] = useState<string | null>(null);
 
   useEffect(() => {
     setHasMounted(true);
@@ -400,6 +428,7 @@ export function BazaarDashboard() {
   const funding = liveDashboard?.funding ?? null;
   const bazaarSnapshot = liveDashboard?.bazaarSnapshot ?? null;
   const deployment = liveRuntime?.deployment ?? null;
+  const steps = liveRuntime?.steps ?? [];
   const gatewayGas = liveDashboard?.onchainSnapshot?.gatewayGas?.data?.[0] ?? null;
 
   const explorerBaseUrl =
@@ -408,7 +437,6 @@ export function BazaarDashboard() {
     "https://www.oklink.com/x-layer-testnet";
   const contractAddress = bazaarSnapshot?.address ?? deployment?.contractAddress ?? "";
   const treasuryAddress = bazaarSnapshot?.treasury ?? manifest?.treasury.address ?? "";
-  const deployTxHash = deployment?.deployTxHash;
 
   const taxBps = Number(ruleValue(bazaarSnapshot?.rules, 0) ?? deployment?.initialRules.taxBps ?? 500);
   const minimumBalanceWei =
@@ -423,187 +451,360 @@ export function BazaarDashboard() {
     ruleValue(bazaarSnapshot?.rules, 4) ?? deployment?.initialRules.votingPeriodSeconds ?? 10,
   );
 
-  const actorRecords = useMemo(() => {
-    const manifestAgents = new Map(
-      manifest?.agents.map((agent) => [agent.role, agent]) ?? [],
-    );
-    const fundingByAddress = new Map(
-      funding?.agents.map((record) => [record.address.toLowerCase(), record]) ?? [],
-    );
-    const steps = liveRuntime?.steps ?? [];
+  const manifestAgents = useMemo(
+    () => new Map(manifest?.agents.map((agent) => [agent.role, agent]) ?? []),
+    [manifest?.agents],
+  );
+  const fundingByAddress = useMemo(
+    () => new Map(funding?.agents.map((entry) => [entry.address.toLowerCase(), entry]) ?? []),
+    [funding?.agents],
+  );
 
-    const agentStep = (role: AgentRole) =>
-      [...steps].reverse().find(
-        (step) => step.key.includes(role) || step.label.toLowerCase().includes(role),
-      );
+  const shopStep = findLatestStep(steps, ["create shop", "bazaar forge", "register-shop"]);
+  const supplierStep = findLatestStep(steps, ["supplier service", "supplier", "subcontract"]);
+  const workerStep = findLatestStep(steps, ["worker", "payment"]);
+  const treasuryStep = findLatestStep(steps, ["treasury reinvests", "treasury"]);
+  const governorStep = findLatestStep(steps, ["execute governance update", "vote", "proposal"]);
+  const deployStep = findLatestStep(steps, ["deploy bazaar x contract"]);
+  const paymentStep = findLatestStep(steps, ["post-governance payment", "payment"]);
 
-    const buildAgent = (role: AgentRole): SceneActor => {
-      const manifestAgent = manifestAgents.get(role);
-      const fallback = fallbackAgents[role];
-      const balanceRecord = manifestAgent
-        ? fundingByAddress.get(manifestAgent.address.toLowerCase())
-        : null;
-      const latestStep = agentStep(role);
+  const districts = useMemo<District[]>(() => {
+    const shopAgent = manifestAgents.get("shop");
+    const supplierAgent = manifestAgents.get("supplier");
+    const workerAgent = manifestAgents.get("worker");
+    const governorAgent = manifestAgents.get("governor");
 
-      return {
-        id: role,
-        title: manifestAgent?.name ?? fallback.name,
-        kicker:
-          role === "shop"
-            ? "Demand engine"
-            : role === "supplier"
-              ? "Fulfillment relay"
-              : role === "worker"
-                ? "Execution labor"
-                : "Policy steward",
-        note: manifestAgent?.goal ?? fallback.goal,
-        address: manifestAgent?.address,
-        value: balanceRecord
-          ? formatOkb(balanceRecord.balanceOkb)
-          : fallback.budget.endsWith("OKB")
-            ? fallback.budget
-            : fallback.budget,
-        status: latestStep?.label ?? (balanceRecord?.funded ? "Wallet funded" : "Waiting"),
-        txHash: latestStep?.txHash,
-        explorerUrl: latestStep?.explorerUrl,
-        x: actorLayout[role].x,
-        y: actorLayout[role].y,
-        height: actorLayout[role].height,
-        palette: actorPalette[role],
-      };
-    };
-
-    const core: SceneActor = {
-      id: "core",
-      title: "Bazaar Core",
-      kicker: "Settlement contract",
-      note:
-        "Handles shops, hires, tax routing, treasury accounting, and governance execution on X Layer.",
-      address: contractAddress || undefined,
-      value: contractAddress ? shortHash(contractAddress) : "Deploy pending",
-      status: liveRuntime?.status ?? "ready",
-      txHash: deployTxHash,
-      explorerUrl: deployTxHash ? `${explorerBaseUrl}/tx/${deployTxHash}` : undefined,
-      x: actorLayout.core.x,
-      y: actorLayout.core.y,
-      height: actorLayout.core.height,
-      palette: actorPalette.core,
-    };
-
-    const treasury: SceneActor = {
-      id: "treasury",
-      title: "Treasury Vault",
-      kicker: "Reserve wallet",
-      note: "Collects tax, holds reserves, and reinvests value back into the market.",
-      address: treasuryAddress || undefined,
-      value: formatOkb(
-        bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0",
-      ),
-      status: funding?.treasury.funded ? "Treasury funded" : "Funding needed",
-      txHash:
-        [...steps].reverse().find((step) => step.label.toLowerCase().includes("treasury"))?.txHash ??
-        undefined,
-      explorerUrl:
-        [...steps].reverse().find((step) => step.label.toLowerCase().includes("treasury"))?.explorerUrl ??
-        (treasuryAddress ? `${explorerBaseUrl}/address/${treasuryAddress}` : undefined),
-      x: actorLayout.treasury.x,
-      y: actorLayout.treasury.y,
-      height: actorLayout.treasury.height,
-      palette: actorPalette.treasury,
-    };
-
-    return [core, treasury, buildAgent("shop"), buildAgent("supplier"), buildAgent("worker"), buildAgent("governor")];
+    const shopFunding = shopAgent
+      ? fundingByAddress.get(shopAgent.address.toLowerCase())
+      : null;
+    const supplierFunding = supplierAgent
+      ? fundingByAddress.get(supplierAgent.address.toLowerCase())
+      : null;
+    const workerFunding = workerAgent
+      ? fundingByAddress.get(workerAgent.address.toLowerCase())
+      : null;
+    return [
+      {
+        id: "square",
+        title: "Bazaar Square",
+        kicker: "Town hub",
+        flavor: "This is where the whole loop becomes obvious at a glance.",
+        summary: "Explore the districts, then use the live controls to replay the economy.",
+        value: `${liveRuntime?.txHashes.length ?? 0} live txs`,
+        notes: [
+          `${manifest?.agents.length ?? 0} agents loaded into the world.`,
+          `${bazaarSnapshot?.registeredAgentCount ?? 0} agents registered onchain.`,
+          `Status: ${liveRuntime?.status ?? "ready"}.`,
+        ],
+        ...districtFrame.square,
+        palette: districtPalette.square,
+      },
+      {
+        id: "core",
+        title: "Settlement Keep",
+        kicker: "Core contract",
+        flavor: "Every shop, payment, tax, and proposal eventually lands here.",
+        summary: contractAddress ? "Bazaar X is deployed and listening." : "Deploy the contract to wake the town.",
+        value: contractAddress ? shortHash(contractAddress) : "Deploy pending",
+        notes: [
+          `Chain: ${manifest?.chainId ?? 1952}.`,
+          deployStep?.detail ?? "Contract proof appears here after deployment.",
+          `Next proposal id: ${bazaarSnapshot?.nextProposalId ?? liveRuntime?.proposalId ?? 0}.`,
+        ],
+        address: contractAddress || undefined,
+        txHash: deployStep?.txHash ?? deployment?.deployTxHash,
+        explorerUrl:
+          deployStep?.explorerUrl ??
+          (deployment?.deployTxHash ? `${explorerBaseUrl}/tx/${deployment.deployTxHash}` : undefined),
+        ...districtFrame.core,
+        palette: districtPalette.core,
+      },
+      {
+        id: "shop",
+        title: shopAgent?.name ?? "Bazaar Forge",
+        kicker: "Demand district",
+        flavor: "The market opens here, turning attention into paid work.",
+        summary: shopAgent?.goal ?? "Creates the first paid demand in the loop.",
+        value: shopFunding ? formatOkb(shopFunding.balanceOkb) : formatOkb(shopAgent?.bootstrapOkb ?? "0.045"),
+        notes: [
+          shopStep?.detail ?? "Create the shop to start the quest line.",
+          shopAgent?.handle ? `Handle: ${shopAgent.handle}.` : "Lead merchant of the economy.",
+          shopFunding?.funded ? "Wallet funded and ready." : "Wallet waiting for fuel.",
+        ],
+        address: shopAgent?.address,
+        txHash: shopStep?.txHash,
+        explorerUrl: shopStep?.explorerUrl ?? (shopAgent?.address ? `${explorerBaseUrl}/address/${shopAgent.address}` : undefined),
+        ...districtFrame.shop,
+        palette: districtPalette.shop,
+      },
+      {
+        id: "supplier",
+        title: supplierAgent?.name ?? "Supply Coil",
+        kicker: "Fulfillment lane",
+        flavor: "Listings and subcontracting route through this block.",
+        summary: supplierAgent?.goal ?? "Supplies services and relays work to labor.",
+        value: supplierFunding
+          ? formatOkb(supplierFunding.balanceOkb)
+          : formatOkb(supplierAgent?.bootstrapOkb ?? "0.04"),
+        notes: [
+          supplierStep?.detail ?? "Supplier proof appears after service listing or hiring.",
+          supplierStep?.meta?.priceOkb ? `Recent priced action: ${supplierStep.meta.priceOkb} OKB.` : "Tracks listing and subcontract pricing.",
+          supplierFunding?.funded ? "Wallet funded and connected." : "Wallet waiting for fuel.",
+        ],
+        address: supplierAgent?.address,
+        txHash: supplierStep?.txHash,
+        explorerUrl:
+          supplierStep?.explorerUrl ??
+          (supplierAgent?.address ? `${explorerBaseUrl}/address/${supplierAgent.address}` : undefined),
+        ...districtFrame.supplier,
+        palette: districtPalette.supplier,
+      },
+      {
+        id: "worker",
+        title: workerAgent?.name ?? "Node Pilot",
+        kicker: "Labor quarter",
+        flavor: "This district is where paid execution turns into visible proof.",
+        summary: workerAgent?.goal ?? "Completes work and compounds earned value.",
+        value: workerFunding
+          ? formatOkb(workerFunding.balanceOkb)
+          : formatOkb(workerAgent?.bootstrapOkb ?? "0.015"),
+        notes: [
+          paymentStep?.detail ?? workerStep?.detail ?? "The next successful payment shows up here.",
+          liveRuntime?.secondTaxWei
+            ? `Post-rule tax observed: ${formatOkbFromWei(liveRuntime.secondTaxWei)}.`
+            : "Watch this district after governance executes.",
+          workerFunding?.funded ? "Worker is solvent." : "Worker needs more runway.",
+        ],
+        address: workerAgent?.address,
+        txHash: paymentStep?.txHash ?? workerStep?.txHash,
+        explorerUrl:
+          paymentStep?.explorerUrl ??
+          workerStep?.explorerUrl ??
+          (workerAgent?.address ? `${explorerBaseUrl}/address/${workerAgent.address}` : undefined),
+        ...districtFrame.worker,
+        palette: districtPalette.worker,
+      },
+      {
+        id: "treasury",
+        title: "Treasury Vault",
+        kicker: "Tax reserve",
+        flavor: "Taxes accumulate here before the loop reinvests capital.",
+        summary: "The treasury is the scoreboard for a healthy agent economy.",
+        value: formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0"),
+        notes: [
+          treasuryStep?.detail ?? "Treasury proof lands here after taxes route or reinvestment happens.",
+          `Current reserve floor: ${formatOkbFromWei(minimumBalanceWei)}.`,
+          funding?.treasury.funded ? "Vault wallet funded." : "Vault wallet needs fuel.",
+        ],
+        address: treasuryAddress || undefined,
+        txHash: treasuryStep?.txHash,
+        explorerUrl:
+          treasuryStep?.explorerUrl ??
+          (treasuryAddress ? `${explorerBaseUrl}/address/${treasuryAddress}` : undefined),
+        ...districtFrame.treasury,
+        palette: districtPalette.treasury,
+      },
+      {
+        id: "governor",
+        title: governorAgent?.name ?? "Covenant Council",
+        kicker: "Policy tower",
+        flavor: "Rules change here, and the next payment proves the town obeys them.",
+        summary: governorAgent?.goal ?? "Proposes and executes covenant updates.",
+        value: `${(taxBps / 100).toFixed(2)}% tax`,
+        notes: [
+          governorStep?.detail ?? "Governance proof appears after proposal, vote, and execution.",
+          `Quorum ${(quorumBps / 100).toFixed(0)}% · Support ${(supportBps / 100).toFixed(0)}%.`,
+          `Voting window ${votingPeriodSeconds}s.`,
+        ],
+        address: governorAgent?.address,
+        txHash: governorStep?.txHash,
+        explorerUrl:
+          governorStep?.explorerUrl ??
+          (governorAgent?.address ? `${explorerBaseUrl}/address/${governorAgent.address}` : undefined),
+        ...districtFrame.governor,
+        palette: districtPalette.governor,
+      },
+    ];
   }, [
+    bazaarSnapshot?.nextProposalId,
+    bazaarSnapshot?.registeredAgentCount,
     bazaarSnapshot?.treasuryBalanceOkb,
     contractAddress,
-    deployTxHash,
+    deployStep?.detail,
+    deployStep?.explorerUrl,
+    deployStep?.txHash,
+    deployment?.deployTxHash,
     explorerBaseUrl,
-    funding?.agents,
     funding?.treasury.balanceOkb,
     funding?.treasury.funded,
+    fundingByAddress,
+    governorStep?.detail,
+    governorStep?.explorerUrl,
+    governorStep?.txHash,
+    liveRuntime?.proposalId,
+    liveRuntime?.secondTaxWei,
     liveRuntime?.status,
-    liveRuntime?.steps,
-    manifest?.agents,
+    liveRuntime?.txHashes.length,
+    manifest?.agents.length,
+    manifest?.chainId,
+    manifestAgents,
+    minimumBalanceWei,
+    paymentStep?.detail,
+    paymentStep?.explorerUrl,
+    paymentStep?.txHash,
+    quorumBps,
+    shopStep?.detail,
+    shopStep?.explorerUrl,
+    shopStep?.txHash,
+    supplierStep?.detail,
+    supplierStep?.explorerUrl,
+    supplierStep?.meta,
+    supplierStep?.txHash,
+    supportBps,
+    taxBps,
     treasuryAddress,
+    treasuryStep?.detail,
+    treasuryStep?.explorerUrl,
+    treasuryStep?.txHash,
+    votingPeriodSeconds,
+    workerStep?.detail,
+    workerStep?.txHash,
   ]);
 
-  const selectedActor = actorRecords.find((actor) => actor.id === selectedId) ?? actorRecords[0];
-  const viewerBalance =
-    hasMounted && balance ? formatOkb(Number(balance.formatted)) : "Not connected";
-  const canDeploy = Boolean(funding?.readyForDeploy || contractAddress);
-  const canRunLive = Boolean(contractAddress || funding?.readyForDeploy);
+  const selectedDistrict = districts.find((district) => district.id === selectedId) ?? districts[0];
+  const nearbyDistrict =
+    districts
+      .filter((district) => district.id !== "square")
+      .find((district) => distance(playerPosition, { x: district.approachX, y: district.approachY }) < 8) ?? null;
+
+  useEffect(() => {
+    if (!hasMounted) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (!["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " "].includes(key)) {
+        return;
+      }
+
+      if (key === " ") {
+        event.preventDefault();
+        if (nearbyDistrict) {
+          setSelectedId(nearbyDistrict.id);
+          setPlayerPosition({ x: nearbyDistrict.approachX, y: nearbyDistrict.approachY });
+        }
+        return;
+      }
+
+      event.preventDefault();
+      setPlayerPosition((current) => {
+        const step = 2.8;
+        const next = { ...current };
+        if (key === "arrowup" || key === "w") {
+          next.y -= step;
+        }
+        if (key === "arrowdown" || key === "s") {
+          next.y += step;
+        }
+        if (key === "arrowleft" || key === "a") {
+          next.x -= step;
+        }
+        if (key === "arrowright" || key === "d") {
+          next.x += step;
+        }
+
+        return {
+          x: clamp(next.x, 8, 92),
+          y: clamp(next.y, 18, 90),
+        };
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [hasMounted, nearbyDistrict]);
+
+  useEffect(() => {
+    if (nearbyDistrict) {
+      setSelectedId(nearbyDistrict.id);
+    }
+  }, [nearbyDistrict]);
+
+  const questSteps = useMemo<QuestStep[]>(() => {
+    const proposalExecutionStep = findLatestStep(steps, ["execute governance update"]);
+
+    return [
+      {
+        id: "spawn",
+        label: "Spawn",
+        status: manifest?.agents.length ? "done" : "ready",
+        caption: manifest?.agents.length ? "Agent wallets materialized." : "Create the town roster.",
+        hash: manifest?.agents.length ? shopStep?.txHash : undefined,
+        explorerUrl: shopStep?.explorerUrl,
+      },
+      {
+        id: "deploy",
+        label: "Deploy",
+        status: contractAddress ? "done" : manifest?.agents.length ? "ready" : "locked",
+        caption: contractAddress ? "Settlement Keep is onchain." : "Deploy Bazaar X to wake the town.",
+        hash: deployStep?.txHash ?? deployment?.deployTxHash,
+        explorerUrl:
+          deployStep?.explorerUrl ??
+          (deployment?.deployTxHash ? `${explorerBaseUrl}/tx/${deployment.deployTxHash}` : undefined),
+      },
+      {
+        id: "play",
+        label: "Play",
+        status: paymentStep?.txHash ? "done" : contractAddress ? "ready" : "locked",
+        caption: paymentStep?.txHash ? "Hire and payment loop confirmed." : "Run the economy quest.",
+        hash: paymentStep?.txHash,
+        explorerUrl: paymentStep?.explorerUrl,
+      },
+      {
+        id: "govern",
+        label: "Govern",
+        status: proposalExecutionStep?.txHash ? "done" : paymentStep?.txHash ? "ready" : "locked",
+        caption: proposalExecutionStep?.txHash ? "Rule change executed." : "Prove the next rule update.",
+        hash: proposalExecutionStep?.txHash,
+        explorerUrl: proposalExecutionStep?.explorerUrl,
+      },
+    ];
+  }, [
+    contractAddress,
+    deployment?.deployTxHash,
+    explorerBaseUrl,
+    manifest?.agents.length,
+    paymentStep?.explorerUrl,
+    paymentStep?.txHash,
+    shopStep?.explorerUrl,
+    shopStep?.txHash,
+    steps,
+    deployStep?.explorerUrl,
+    deployStep?.txHash,
+  ]);
+
+  const viewerBalance = hasMounted && balance ? formatOkb(Number(balance.formatted)) : "Not connected";
+  const lastRefresh =
+    hasMounted && statusQuery.dataUpdatedAt
+      ? toRelativeTime(new Date(statusQuery.dataUpdatedAt).toISOString())
+      : "syncing";
+  const canDeploy = Boolean(contractAddress || funding?.readyForDeploy);
+  const canRunLive = Boolean(contractAddress || liveRuntime?.deployment?.contractAddress);
   const busyLabel = actionMutation.isPending ? actionMutation.variables?.label ?? null : null;
+  const deployHint = contractAddress
+    ? "Reuse the recorded deployment and pull fresh proof."
+    : funding
+      ? funding.readyForDeploy
+        ? "Deploy Bazaar X to X Layer testnet."
+        : `Need ${funding.requiredDeployerBalanceOkb} OKB in the deployer wallet.`
+      : "Checking deployer fuel...";
   const statusError =
     (statusQuery.error instanceof Error ? statusQuery.error.message : null) ??
     (actionMutation.error instanceof Error ? actionMutation.error.message : null);
   const isUnsupportedViewerNetwork = Boolean(
     hasMounted && isConnected && chain && chain.id !== 1952 && chain.id !== 196,
   );
-  const lastRefresh = hasMounted && statusQuery.dataUpdatedAt
-    ? toRelativeTime(new Date(statusQuery.dataUpdatedAt).toISOString())
-    : "waiting";
-
-  const proofCards = useMemo<ProofCard[]>(() => {
-    const steps = liveRuntime?.steps ?? [];
-
-    return proofQueries.map((query) => {
-      const match = steps.find((step) =>
-        step.label.toLowerCase().includes(query.match),
-      );
-
-      if (query.id === "deploy") {
-        return {
-          id: query.id,
-          title: query.title,
-          caption: contractAddress
-            ? `Contract ${shortHash(contractAddress)}`
-            : "Contract not deployed yet",
-          hash: match?.txHash ?? deployTxHash,
-          explorerUrl:
-            match?.explorerUrl ??
-            (deployTxHash ? `${explorerBaseUrl}/tx/${deployTxHash}` : undefined),
-        };
-      }
-
-      return {
-        id: query.id,
-        title: query.title,
-        caption: match?.detail ?? "Replay the live flow to materialize this proof.",
-        hash: match?.txHash,
-        explorerUrl: match?.explorerUrl,
-      };
-    });
-  }, [contractAddress, deployTxHash, explorerBaseUrl, liveRuntime?.steps]);
-
-  const proofSummary = [
-    {
-      label: "Live txs",
-      value: String(liveRuntime?.txHashes.length ?? 0),
-    },
-    {
-      label: "Tax",
-      value: `${(taxBps / 100).toFixed(2)}%`,
-    },
-    {
-      label: "Min balance",
-      value: formatOkbFromWei(minimumBalanceWei),
-    },
-    {
-      label: "Treasury",
-      value: formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0"),
-    },
-  ];
-
-  const connections = [
-    { from: "shop", to: "core", label: "Demand" },
-    { from: "supplier", to: "core", label: "Listing" },
-    { from: "worker", to: "supplier", label: "Subcontract" },
-    { from: "governor", to: "core", label: "Vote" },
-    { from: "core", to: "treasury", label: "Tax" },
-  ] as const;
-  const selectedActorTxHref = selectedActor?.txHash
-    ? selectedActor.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedActor.txHash}`
-    : undefined;
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -611,470 +812,409 @@ export function BazaarDashboard() {
       <div className="hero-orb hero-orb-left" />
       <div className="hero-orb hero-orb-right" />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8">
-        <section className="glass-card panel-glow relative overflow-hidden rounded-[32px] border border-white/10 px-5 py-5 sm:px-7">
-          <div className="absolute inset-0 soft-grid opacity-15" />
-          <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_380px]">
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center gap-2">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-5 px-4 py-4 sm:px-6 lg:px-8">
+        <section className="glass-card panel-glow relative overflow-hidden rounded-[30px] border border-white/10 px-5 py-5 sm:px-7">
+          <div className="absolute inset-0 soft-grid opacity-10" />
+          <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-3xl">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
                 <Tag>OKX Build X</Tag>
-                <Tag subtle>X Layer Arena</Tag>
+                <Tag subtle>Game Build</Tag>
                 <Tag subtle>{`${manifest?.network ?? "x-layer-testnet"} · chain ${manifest?.chainId ?? 1952}`}</Tag>
                 <Tag subtle>{statusQuery.isFetching ? "Refreshing" : `Updated ${lastRefresh}`}</Tag>
               </div>
-
-              <div className="max-w-4xl">
-                <h1 className="display-face balance-text text-4xl font-semibold text-white sm:text-5xl xl:text-6xl">
-                  Bazaar X makes a live agent economy feel like a strategy game.
-                </h1>
-                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
-                  One board. Four agents. Real X Layer transactions. Click any district to inspect
-                  who earned, who paid tax, and how governance changed the next move.
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <ControlButton
-                  icon={Bot}
-                  label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
-                  hint="Materialize the agent wallets and starting state."
-                  loading={busyLabel === "Spawn economy"}
-                  disabled={actionMutation.isPending}
-                  onClick={() =>
-                    runAction({
-                      label: "Spawn economy",
-                      path: "/api/agents/init",
-                      body: {
-                        count: 5,
-                        seed: "bazaar-x-live",
-                        initialBudget: 1000,
-                      },
-                    })
-                  }
-                />
-                <ControlButton
-                  icon={Landmark}
-                  label={
-                    busyLabel === "Deploy to X Layer"
-                      ? "Deploying..."
-                      : contractAddress
-                        ? "Sync proof"
-                        : "Deploy to X Layer"
-                  }
-                  hint={
-                    contractAddress
-                      ? "Reuse the recorded deployment and pull fresh proof."
-                      : canDeploy
-                        ? "Deploy Bazaar X to X Layer testnet."
-                        : `Need ${funding?.requiredDeployerBalanceOkb ?? "0"} OKB.`
-                  }
-                  loading={busyLabel === "Deploy to X Layer"}
-                  disabled={actionMutation.isPending || !canDeploy}
-                  onClick={() =>
-                    runAction({
-                      label: "Deploy to X Layer",
-                      path: "/api/live/deploy",
-                    })
-                  }
-                />
-                <ControlButton
-                  icon={Sparkles}
-                  label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
-                  hint="Run hire, payment, tax, treasury, and governance onchain."
-                  tone="accent"
-                  loading={busyLabel === "Play live round"}
-                  disabled={actionMutation.isPending || !canRunLive}
-                  onClick={() =>
-                    runAction({
-                      label: "Play live round",
-                      path: "/api/live/run",
-                    })
-                  }
-                />
-                <ControlButton
-                  icon={RefreshCw}
-                  label="Refresh"
-                  hint="Pull fresh chain and runtime state."
-                  tone="ghost"
-                  loading={statusQuery.isFetching}
-                  disabled={actionMutation.isPending || statusQuery.isFetching}
-                  onClick={() => statusQuery.refetch()}
-                />
-              </div>
-
-              {statusError ? (
-                <Callout tone="warn" title="Status issue">
-                  {statusError}
-                </Callout>
-              ) : null}
-
-              {isUnsupportedViewerNetwork ? (
-                <Callout tone="warn" title="Wrong viewer network">
-                  Switch the browser wallet to X Layer testnet (`1952`) or X Layer mainnet (`196`)
-                  for a clean demo.
-                </Callout>
-              ) : null}
+              <h1 className="display-face balance-text text-4xl font-semibold text-white sm:text-5xl xl:text-[4.2rem]">
+                Walk the city. Trigger the loop. Watch the economy govern itself.
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                Bazaar X is now an explorable onchain town. Move through the districts, inspect the
+                actors, and replay the full earn-to-tax-to-govern cycle directly on X Layer.
+              </p>
             </div>
 
-            <div>
-              <div className="rounded-[28px] border border-white/10 bg-black/25 p-5">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                      Viewer wallet
-                    </div>
-                    <div suppressHydrationWarning className="mt-2 text-lg font-semibold text-white">
-                      {hasMounted && isConnected && address
-                        ? shortHash(address)
-                        : "Optional spectator wallet"}
-                    </div>
-                    <div suppressHydrationWarning className="mt-2 text-sm leading-6 text-slate-300">
-                      {hasMounted && isConnected && address
-                        ? `Connected on ${chain?.name ?? "unknown network"}`
-                        : "Watch the board without connecting, or attach a wallet to verify network readiness."}
-                    </div>
-                  </div>
-                  <ConnectWalletButton />
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <MetricPill label="Balance" value={viewerBalance} />
-                  <MetricPill
-                    label="Gas snapshot"
-                    value={gatewayGas?.normal ? `${gatewayGas.normal} wei` : "live"}
-                  />
-                </div>
-
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                    Live proof
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {proofSummary.map((item) => (
-                      <MetricPill key={item.label} label={item.label} value={item.value} />
-                    ))}
-                  </div>
-                </div>
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:w-[720px] xl:grid-cols-4">
+              <ActionTile
+                icon={Bot}
+                label={busyLabel === "Spawn economy" ? "Spawning..." : "Spawn economy"}
+                hint="Create the town roster and wallet state."
+                loading={busyLabel === "Spawn economy"}
+                disabled={actionMutation.isPending}
+                onClick={() =>
+                  runAction({
+                    label: "Spawn economy",
+                    path: "/api/agents/init",
+                    body: {
+                      count: 5,
+                      seed: "bazaar-x-live",
+                      initialBudget: 1000,
+                    },
+                  })
+                }
+              />
+              <ActionTile
+                icon={Landmark}
+                label={
+                  busyLabel === "Deploy to X Layer"
+                    ? "Deploying..."
+                    : contractAddress
+                      ? "Sync proof"
+                      : "Deploy to X Layer"
+                }
+                hint={deployHint}
+                loading={busyLabel === "Deploy to X Layer"}
+                disabled={actionMutation.isPending || !canDeploy}
+                onClick={() =>
+                  runAction({
+                    label: "Deploy to X Layer",
+                    path: "/api/live/deploy",
+                  })
+                }
+              />
+              <ActionTile
+                icon={Sparkles}
+                label={busyLabel === "Play live round" ? "Playing..." : "Play live round"}
+                hint="Hire, pay, tax, reinvest, and govern onchain."
+                tone="accent"
+                loading={busyLabel === "Play live round"}
+                disabled={actionMutation.isPending || !canRunLive}
+                onClick={() =>
+                  runAction({
+                    label: "Play live round",
+                    path: "/api/live/run",
+                  })
+                }
+              />
+              <ActionTile
+                icon={RefreshCw}
+                label="Refresh"
+                hint="Pull the latest chain and runtime state."
+                tone="ghost"
+                loading={statusQuery.isFetching}
+                disabled={actionMutation.isPending || statusQuery.isFetching}
+                onClick={() => statusQuery.refetch()}
+              />
             </div>
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_320px]">
-          <div className="glass-card panel-glow overflow-hidden rounded-[32px] border border-white/10 p-4 sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div>
-                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                  Bazaar World
+        {statusError ? (
+          <Callout tone="warn" title="Status issue">
+            {statusError}
+          </Callout>
+        ) : null}
+
+        {isUnsupportedViewerNetwork ? (
+          <Callout tone="warn" title="Wrong viewer network">
+            Switch the browser wallet to X Layer testnet (`1952`) or X Layer mainnet (`196`) for a
+            clean demo.
+          </Callout>
+        ) : null}
+
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_360px]">
+          <div className="space-y-4">
+            <div className="glass-card panel-glow overflow-hidden rounded-[30px] border border-white/10 p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <div className="pixel-label text-[0.95rem] text-[#b9c7e8]">Overworld</div>
+                  <h2 className="display-face mt-2 text-2xl font-semibold text-white sm:text-3xl">
+                    The Bazaar X Town
+                  </h2>
                 </div>
-                <h2 className="display-face mt-2 text-2xl font-semibold text-white">
-                  The game board is the product
-                </h2>
+                <div className="flex flex-wrap gap-2">
+                  <InfoChip label="Tx" value={String(liveRuntime?.txHashes.length ?? 0)} />
+                  <InfoChip label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+                  <InfoChip
+                    label="Treasury"
+                    value={formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")}
+                  />
+                </div>
               </div>
-              <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.22em] text-slate-300">
-                {liveRuntime?.status ?? "ready"}
+
+              <div className="game-frame relative aspect-[16/10] overflow-hidden rounded-[26px] border border-white/10 bg-[#08101a]">
+                <div className="scanline-overlay pointer-events-none absolute inset-0 z-10" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,216,153,0.14),transparent_30%),linear-gradient(180deg,#17354b_0%,#11273a_23%,#0f3d3b_23%,#0d573f_47%,#1e6943_68%,#275736_100%)]" />
+                <div className="absolute left-[6%] top-[8%] h-[24%] w-[20%] rounded-[40px] border border-white/10 bg-[#0f2946]/75 blur-[2px]" />
+                <div className="absolute right-[4%] top-[5%] h-[22%] w-[17%] rounded-[999px] border border-white/10 bg-[#153b62]/70 blur-[1px]" />
+                <div className="absolute left-[8%] top-[54%] h-[28%] w-[24%] rounded-[34px] bg-[#2b5337]/75" />
+                <div className="absolute right-[7%] top-[58%] h-[24%] w-[18%] rounded-[34px] bg-[#2a5032]/75" />
+                <div className="absolute left-[14%] top-[42%] h-[9%] w-[72%] -rotate-[7deg] rounded-full bg-[#c6a65a]" />
+                <div className="absolute left-[42%] top-[28%] h-[52%] w-[10%] rounded-full bg-[#d7b66d]" />
+                <div className="absolute left-[27%] top-[56%] h-[7%] w-[22%] rounded-full bg-[#e6c57d]" />
+                <div className="absolute right-[23%] top-[56%] h-[7%] w-[18%] rounded-full bg-[#e6c57d]" />
+
+                <svg
+                  viewBox="0 0 1000 700"
+                  className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <linearGradient id="route-shop" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(114,240,211,0.18)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
+                    </linearGradient>
+                    <linearGradient id="route-supplier" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(134,167,255,0.18)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
+                    </linearGradient>
+                    <linearGradient id="route-worker" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(255,154,139,0.18)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
+                    </linearGradient>
+                    <linearGradient id="route-governor" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(212,181,255,0.18)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
+                    </linearGradient>
+                    <linearGradient id="route-treasury" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(183,244,126,0.18)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M220 400 C 330 360, 420 315, 500 280" fill="none" stroke="url(#route-shop)" strokeWidth="16" strokeLinecap="round" />
+                  <path d="M780 340 C 680 325, 595 300, 500 280" fill="none" stroke="url(#route-supplier)" strokeWidth="16" strokeLinecap="round" />
+                  <path d="M730 525 C 710 430, 730 390, 780 340" fill="none" stroke="url(#route-worker)" strokeWidth="16" strokeLinecap="round" />
+                  <path d="M260 545 C 360 470, 420 390, 500 280" fill="none" stroke="url(#route-governor)" strokeWidth="16" strokeLinecap="round" />
+                  <path d="M545 560 C 530 490, 517 420, 500 280" fill="none" stroke="url(#route-treasury)" strokeWidth="16" strokeLinecap="round" />
+                </svg>
+
+                <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-[18px] border border-white/10 bg-[#06101d]/85 px-4 py-3 backdrop-blur">
+                  <div className="pixel-label text-[#b9c7e8]">Objective</div>
+                  <div className="mt-2 max-w-[280px] text-sm leading-6 text-slate-200">
+                    Roam the districts, then run the live round to prove hire, payment, tax, treasury,
+                    and governance onchain.
+                  </div>
+                </div>
+
+                <div className="pointer-events-none absolute bottom-4 left-4 z-20 flex flex-wrap gap-2">
+                  <Tag subtle>Click any district</Tag>
+                  <Tag subtle>WASD / Arrows to roam</Tag>
+                  <Tag subtle>{nearbyDistrict ? `Press space near ${nearbyDistrict.title}` : "Follow the roads"}</Tag>
+                </div>
+
+                <div
+                  className="pointer-events-none absolute z-[5] -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
+                  style={{
+                    left: `${playerPosition.x}%`,
+                    top: `${playerPosition.y}%`,
+                  }}
+                >
+                  <div className="avatar-bob relative h-10 w-10">
+                    <div className="absolute left-1/2 top-full h-4 w-6 -translate-x-1/2 rounded-full bg-black/25 blur-[3px]" />
+                    <div className="absolute inset-x-2 top-1 h-3 rounded-t-[8px] bg-[#0f172a] border border-white/10" />
+                    <div className="absolute inset-x-1 top-3 h-5 rounded-[10px] border border-[#89ffe9]/30 bg-[#5cf1d1]" />
+                    <div className="absolute bottom-0 left-2 h-3 w-2 rounded-b bg-[#f2caa0]" />
+                    <div className="absolute bottom-0 right-2 h-3 w-2 rounded-b bg-[#f2caa0]" />
+                  </div>
+                </div>
+
+                {districts.map((district) => {
+                  const selected = selectedDistrict.id === district.id;
+                  const nearby = nearbyDistrict?.id === district.id;
+                  const isSquare = district.id === "square";
+
+                  if (isSquare) {
+                    return (
+                      <button
+                        key={district.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(district.id);
+                          setPlayerPosition({ x: district.approachX, y: district.approachY });
+                        }}
+                        className={`absolute z-[6] -translate-x-1/2 -translate-y-1/2 rounded-[22px] border px-5 py-4 text-left transition duration-200 ${
+                          selected
+                            ? "border-white/30 bg-black/30 shadow-[0_0_40px_rgba(248,223,140,0.18)]"
+                            : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-black/25"
+                        }`}
+                        style={{
+                          left: `${district.x}%`,
+                          top: `${district.y}%`,
+                          width: `${district.width}%`,
+                        }}
+                      >
+                        <div className="pixel-label text-[1rem] text-[#ffeeb6]">Bazaar Square</div>
+                        <div className="mt-2 text-xs uppercase tracking-[0.24em] text-slate-300">
+                          {district.value}
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={district.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(district.id);
+                        setPlayerPosition({ x: district.approachX, y: district.approachY });
+                      }}
+                      className="absolute z-[6] -translate-x-1/2 -translate-y-1/2 text-left transition duration-200 hover:scale-[1.02] focus:outline-none"
+                      style={{
+                        left: `${district.x}%`,
+                        top: `${district.y}%`,
+                        width: `${district.width}%`,
+                        height: `${district.height}%`,
+                      }}
+                    >
+                      <div
+                        className="absolute inset-x-[12%] bottom-[-10%] h-[26%] rounded-full blur-[10px]"
+                        style={{ backgroundColor: district.palette.glow }}
+                      />
+                      <div
+                        className={`absolute inset-x-[16%] top-[16%] h-[30%] rounded-[12px] border ${
+                          selected ? "ring-2 ring-white/35" : ""
+                        }`}
+                        style={{
+                          backgroundColor: district.palette.roof,
+                          borderColor: selected ? "rgba(255,255,255,0.8)" : district.palette.trim,
+                          boxShadow: selected ? `0 0 28px ${district.palette.glow}` : undefined,
+                        }}
+                      />
+                      <div
+                        className={`absolute inset-x-[10%] bottom-[12%] top-[34%] rounded-[18px] border ${
+                          selected ? "ring-2 ring-white/20" : ""
+                        }`}
+                        style={{
+                          backgroundColor: district.palette.wall,
+                          borderColor: "rgba(255,255,255,0.18)",
+                        }}
+                      />
+                      <div
+                        className="absolute left-1/2 top-[54%] h-[18%] w-[20%] -translate-x-1/2 rounded-t-[8px] border border-white/10 bg-black/20"
+                      />
+                      <div
+                        className="absolute left-1/2 top-[-24%] -translate-x-1/2 whitespace-nowrap rounded-full border px-3 py-1"
+                        style={{
+                          backgroundColor: "rgba(5, 11, 23, 0.82)",
+                          borderColor: selected ? district.palette.trim : "rgba(255,255,255,0.1)",
+                          boxShadow: nearby ? `0 0 16px ${district.palette.glow}` : undefined,
+                        }}
+                      >
+                        <span className="pixel-label text-[0.95rem]" style={{ color: district.palette.trim }}>
+                          {district.title}
+                        </span>
+                      </div>
+                      <div className="absolute inset-x-0 bottom-[-24%] flex justify-center">
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.24em] ${
+                            selected || nearby ? district.palette.chip : "border-white/10 bg-black/30 text-slate-300"
+                          }`}
+                        >
+                          {nearby ? "Inspect" : district.kicker}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="game-stage relative aspect-[16/10] overflow-hidden rounded-[28px] border border-white/10 bg-[#090d18] p-2">
-              <div className="pointer-events-none absolute inset-x-4 top-4 z-10 flex items-start justify-between gap-3">
-                <div className="max-w-[260px] rounded-[20px] border border-white/10 bg-[#06101d]/80 px-4 py-3 backdrop-blur">
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                    Selected district
-                  </div>
-                  <div className="mt-2 text-base font-semibold text-white">{selectedActor.title}</div>
-                  <div className="mt-1 text-xs leading-5 text-slate-300">{selectedActor.status}</div>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-[20px] border border-white/10 bg-[#06101d]/80 px-4 py-3 text-right backdrop-blur">
-                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                      Live txs
-                    </div>
-                    <div className="mt-2 text-lg font-semibold text-white">
-                      {liveRuntime?.txHashes.length ?? 0}
-                    </div>
-                  </div>
-                  <div className="rounded-[20px] border border-white/10 bg-[#06101d]/80 px-4 py-3 text-right backdrop-blur">
-                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                      Treasury
-                    </div>
-                    <div className="mt-2 text-lg font-semibold text-white">
-                      {formatOkb(bazaarSnapshot?.treasuryBalanceOkb ?? funding?.treasury.balanceOkb ?? "0")}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pointer-events-none absolute bottom-4 left-4 z-10 flex flex-wrap gap-2">
-                <Tag subtle>Click a district</Tag>
-                <Tag subtle>Earn → tax → govern</Tag>
-              </div>
-
-              <svg
-                viewBox="0 0 960 620"
-                className="h-full w-full"
-                role="img"
-                aria-label="Low-poly Bazaar X economy board"
-              >
-                <defs>
-                  <linearGradient id="board-glow" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#102340" />
-                    <stop offset="100%" stopColor="#05070e" />
-                  </linearGradient>
-                </defs>
-
-                <rect width="960" height="620" fill="url(#board-glow)" />
-                <polygon points="480,58 930,282 480,540 30,282" fill="#0a1425" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
-                <polygon points="480,112 824,284 480,460 136,284" fill="#0f1f36" opacity="0.78" />
-                <polygon points="480,156 742,286 480,418 218,286" fill="#132846" opacity="0.88" />
-                <polygon points="480,196 662,286 480,378 298,286" fill="#193258" />
-
-                {connections.map((connection) => {
-                  const from = actorRecords.find((actor) => actor.id === connection.from);
-                  const to = actorRecords.find((actor) => actor.id === connection.to);
-
-                  if (!from || !to) {
-                    return null;
-                  }
-
-                  const midX = (from.x + to.x) / 2;
-                  const midY = (from.y + to.y) / 2;
-                  const isSelectedConnection =
-                    connection.to === selectedActor.id || connection.from === selectedActor.id;
-
-                  return (
-                    <g key={`${connection.from}-${connection.to}`}>
-                      <polyline
-                        points={`${from.x},${from.y} ${to.x},${to.y}`}
-                        fill="none"
-                        stroke={from.palette.glow}
-                        strokeWidth={isSelectedConnection ? 6 : 3}
-                        opacity={isSelectedConnection ? 0.35 : 0.12}
-                      />
-                      <circle
-                        cx={midX}
-                        cy={midY}
-                        r="7"
-                        fill={from.palette.top}
-                        opacity={isSelectedConnection ? 1 : liveRuntime?.txHashes.length ? 0.55 : 0.25}
-                        className="scene-token"
-                      />
-                      <text
-                        x={midX}
-                        y={midY - 16}
-                        fill={isSelectedConnection ? "rgba(244, 247, 255, 0.82)" : "rgba(230, 236, 255, 0.35)"}
-                        fontSize="11"
-                        textAnchor="middle"
-                        letterSpacing="0.22em"
-                      >
-                        {connection.label.toUpperCase()}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {actorRecords.map((actor) => {
-                  const selected = actor.id === selectedActor.id;
-                  const topY = actor.y - actor.height;
-                  const halfWidth = actor.id === "core" ? 82 : 64;
-                  const topDepth = actor.id === "core" ? 36 : 28;
-                  const baseDepth = actor.id === "core" ? 28 : 22;
-
-                  return (
-                    <g
-                      key={actor.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedId(actor.id)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setSelectedId(actor.id);
-                        }
-                      }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <ellipse
-                        cx={actor.x}
-                        cy={actor.y + 22}
-                        rx={halfWidth * 0.9}
-                        ry="22"
-                        fill={actor.palette.glow}
-                        opacity={selected ? 1 : 0.65}
-                      />
-                      <polygon
-                        points={`${actor.x},${topY} ${actor.x + halfWidth},${topY + topDepth} ${actor.x},${topY + topDepth * 2} ${actor.x - halfWidth},${topY + topDepth}`}
-                        fill={actor.palette.top}
-                        stroke={selected ? "#ffffff" : actor.palette.outline}
-                        strokeWidth={selected ? 3 : 1.5}
-                      />
-                      <polygon
-                        points={`${actor.x - halfWidth},${topY + topDepth} ${actor.x},${topY + topDepth * 2} ${actor.x},${actor.y} ${actor.x - halfWidth},${actor.y - baseDepth}`}
-                        fill={actor.palette.left}
-                        stroke={selected ? "#ffffff" : "rgba(255,255,255,0.18)"}
-                        strokeWidth={selected ? 2.5 : 1}
-                      />
-                      <polygon
-                        points={`${actor.x + halfWidth},${topY + topDepth} ${actor.x},${topY + topDepth * 2} ${actor.x},${actor.y} ${actor.x + halfWidth},${actor.y - baseDepth}`}
-                        fill={actor.palette.right}
-                        stroke={selected ? "#ffffff" : "rgba(255,255,255,0.18)"}
-                        strokeWidth={selected ? 2.5 : 1}
-                      />
-                      <polygon
-                        points={`${actor.x},${actor.y - baseDepth * 2} ${actor.x + halfWidth},${actor.y - baseDepth} ${actor.x},${actor.y} ${actor.x - halfWidth},${actor.y - baseDepth}`}
-                        fill="rgba(255,255,255,0.05)"
-                        opacity="0.45"
-                      />
-                      <text
-                        x={actor.x}
-                        y={actor.y + 62}
-                        fill="#f4f7ff"
-                        fontSize={selected ? "20" : "18"}
-                        textAnchor="middle"
-                        fontWeight="700"
-                      >
-                        {actor.title}
-                      </text>
-                      <text
-                        x={actor.x}
-                        y={actor.y + 84}
-                        fill="rgba(222,229,255,0.75)"
-                        fontSize="12"
-                        letterSpacing="0.18em"
-                        textAnchor="middle"
-                      >
-                        {actor.kicker.toUpperCase()}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
+            <div className="grid gap-3 md:grid-cols-4">
+              {questSteps.map((step) => (
+                <QuestCard key={step.id} step={step} />
+              ))}
             </div>
           </div>
 
-          <div className="grid gap-5">
-            <aside className="glass-card panel-glow rounded-[32px] border border-white/10 p-5">
-              <div className="flex items-center justify-between gap-4">
+          <aside className="grid gap-4">
+            <section className="glass-card panel-glow rounded-[30px] border border-white/10 p-5">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                    Selected actor
-                  </div>
+                  <div className="pixel-label text-[#b9c7e8]">Field Notes</div>
                   <h3 className="display-face mt-2 text-2xl font-semibold text-white">
-                    {selectedActor.title}
+                    {selectedDistrict.title}
                   </h3>
+                  <div className="mt-2 text-sm uppercase tracking-[0.24em] text-slate-400">
+                    {selectedDistrict.kicker}
+                  </div>
                 </div>
                 <div
                   className="h-4 w-4 rounded-full"
-                  style={{ backgroundColor: selectedActor.palette.top }}
+                  style={{ backgroundColor: selectedDistrict.palette.roof }}
                 />
               </div>
 
-              <p className="mt-4 text-sm leading-7 text-slate-300">{selectedActor.note}</p>
+              <p className="mt-4 text-sm leading-7 text-slate-300">{selectedDistrict.flavor}</p>
 
-              <div className="mt-5 grid gap-3">
-                <MetricPill label="Role" value={selectedActor.kicker} />
-                <MetricPill label="Value" value={selectedActor.value} />
-                <MetricPill label="Now" value={selectedActor.status} />
+              <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div className="pixel-label text-[#b9c7e8]">Live readout</div>
+                <div className="mt-3 text-xl font-semibold text-white">{selectedDistrict.value}</div>
+                <div className="mt-2 text-sm leading-6 text-slate-300">{selectedDistrict.summary}</div>
               </div>
 
-              {selectedActor.address ? (
-                <div className="mt-5 rounded-[20px] border border-white/10 bg-black/20 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                      Address
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => copyText(selectedActor.address ?? "")}
-                        className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                        {copiedValue === selectedActor.address ? "Copied" : "Copy"}
-                      </button>
-                      <a
-                        href={selectedActor.explorerUrl ?? `${explorerBaseUrl}/address/${selectedActor.address}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
-                      >
-                        Open
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
-                  </div>
-                  <div className="mono mt-2 truncate text-sm text-white">{selectedActor.address}</div>
-                </div>
-              ) : null}
-
-              {selectedActor.txHash ? (
-                <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                      Latest proof hash
-                    </div>
-                    {selectedActorTxHref ? (
-                      <a
-                        href={selectedActorTxHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
-                      >
-                        Open
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </a>
-                    ) : null}
-                  </div>
-                  <div className="mono mt-2 text-sm text-white">{shortHash(selectedActor.txHash)}</div>
-                </div>
-              ) : null}
-            </aside>
-
-            <aside className="glass-card panel-glow rounded-[32px] border border-white/10 p-5">
-              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                Covenant snapshot
+              <div className="mt-4 grid gap-3">
+                {selectedDistrict.notes.map((note) => (
+                  <InfoRow key={note}>{note}</InfoRow>
+                ))}
               </div>
+
+              {selectedDistrict.address ? (
+                <ProofDock
+                  className="mt-4"
+                  label="Address"
+                  value={selectedDistrict.address}
+                  href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/address/${selectedDistrict.address}`}
+                  copied={copiedValue === selectedDistrict.address}
+                  onCopy={() => copyText(selectedDistrict.address ?? "")}
+                />
+              ) : null}
+
+              {selectedDistrict.txHash ? (
+                <ProofDock
+                  className="mt-4"
+                  label="Latest proof"
+                  value={selectedDistrict.txHash}
+                  href={selectedDistrict.explorerUrl ?? `${explorerBaseUrl}/tx/${selectedDistrict.txHash}`}
+                  copied={copiedValue === selectedDistrict.txHash}
+                  onCopy={() => copyText(selectedDistrict.txHash ?? "")}
+                />
+              ) : null}
+
+              {selectedDistrict.id === "governor" ? (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <MiniStat label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
+                  <MiniStat label="Floor" value={formatOkbFromWei(minimumBalanceWei)} />
+                  <MiniStat label="Quorum" value={`${(quorumBps / 100).toFixed(0)}%`} />
+                  <MiniStat label="Support" value={`${(supportBps / 100).toFixed(0)}%`} />
+                </div>
+              ) : null}
+            </section>
+
+            <section className="glass-card panel-glow rounded-[30px] border border-white/10 p-5">
+              <div className="flex items-center gap-2">
+                <MapIcon className="h-4 w-4 text-[#89ffe9]" />
+                <div className="pixel-label text-[#b9c7e8]">Player HUD</div>
+              </div>
+
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <MetricPill label="Tax" value={`${(taxBps / 100).toFixed(2)}%`} />
-                <MetricPill label="Floor" value={formatOkbFromWei(minimumBalanceWei)} />
-                <MetricPill label="Quorum" value={`${(quorumBps / 100).toFixed(2)}%`} />
-                <MetricPill label="Support" value={`${(supportBps / 100).toFixed(2)}%`} />
+                <MiniStat label="Viewer" value={hasMounted && isConnected && address ? shortHash(address) : "Spectator"} />
+                <MiniStat label="Wallet" value={viewerBalance} />
+                <MiniStat label="Gas" value={gatewayGas?.normal ? `${gatewayGas.normal} wei` : "Live"} />
+                <MiniStat label="Nearby" value={nearbyDistrict?.title ?? "Open road"} />
               </div>
-              <div className="mt-3 rounded-[18px] border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-slate-300">
-                Voting window: {votingPeriodSeconds}s. The next settlement proves the rule update.
-              </div>
-            </aside>
-          </div>
-        </section>
 
-        <section className="grid gap-4 lg:grid-cols-4">
-          {proofCards.map((card) => (
-            <article
-              key={card.id}
-              className="glass-card panel-glow rounded-[26px] border border-white/10 p-5"
-            >
-              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                {card.title}
-              </div>
-              <p className="mt-3 text-sm leading-7 text-slate-300">{card.caption}</p>
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <div className="mono text-sm text-white">
-                  {card.hash ? shortHash(card.hash) : "Pending"}
+              <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div suppressHydrationWarning className="text-sm leading-6 text-slate-300">
+                  {hasMounted && isConnected && address
+                    ? `Connected on ${chain?.name ?? "unknown network"}.`
+                    : "No wallet is required to explore the town. Connect only if you want to verify viewer network state."}
                 </div>
-                {card.explorerUrl ? (
-                  <a
-                    href={card.explorerUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
-                  >
-                    Open
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </a>
-                ) : null}
+                <div className="mt-4">
+                  <ConnectWalletButton />
+                </div>
               </div>
-            </article>
-          ))}
+
+              <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center gap-2 text-slate-200">
+                  <Footprints className="h-4 w-4 text-[#89ffe9]" />
+                  <div className="pixel-label text-[#b9c7e8]">Controls</div>
+                </div>
+                <div className="mt-3 text-sm leading-6 text-slate-300">
+                  Click any district to jump there. On desktop, move with arrow keys or WASD and hit
+                  space near a building to inspect it.
+                </div>
+              </div>
+            </section>
+          </aside>
         </section>
       </div>
     </main>
@@ -1112,9 +1252,9 @@ function Callout({
 }) {
   return (
     <div
-      className={`rounded-[18px] border px-4 py-3 text-sm leading-6 ${
+      className={`rounded-[22px] border px-4 py-3 text-sm leading-6 ${
         tone === "warn"
-          ? "border-[#ffb96a]/30 bg-[#ffb96a]/10 text-[#ffe5c0]"
+          ? "border-[#ffb96a]/35 bg-[#ffb96a]/10 text-[#ffe5c0]"
           : "border-white/10 bg-white/[0.05] text-slate-200"
       }`}
     >
@@ -1127,16 +1267,7 @@ function Callout({
   );
 }
 
-function MetricPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[18px] border border-white/10 bg-black/20 p-3">
-      <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{label}</div>
-      <div className="mt-2 text-sm font-medium text-white">{value}</div>
-    </div>
-  );
-}
-
-function ControlButton({
+function ActionTile({
   icon: Icon,
   label,
   hint,
@@ -1158,7 +1289,7 @@ function ControlButton({
       ? "border-[#69f0d2]/35 bg-[#69f0d2]/10 hover:border-[#69f0d2]/55"
       : tone === "ghost"
         ? "border-white/10 bg-white/[0.04] hover:border-white/20"
-        : "border-[#7a8bff]/30 bg-[#7a8bff]/10 hover:border-[#7a8bff]/50";
+        : "border-[#86a7ff]/30 bg-[#86a7ff]/10 hover:border-[#86a7ff]/50";
 
   return (
     <button
@@ -1173,5 +1304,112 @@ function ControlButton({
       </div>
       <div className="mt-2 text-xs leading-5 text-slate-300">{hint}</div>
     </button>
+  );
+}
+
+function QuestCard({ step }: { step: QuestStep }) {
+  const palette =
+    step.status === "done"
+      ? "border-[#69f0d2]/25 bg-[#69f0d2]/10"
+      : step.status === "ready"
+        ? "border-[#ffb35b]/25 bg-[#ffb35b]/10"
+        : "border-white/10 bg-white/[0.04]";
+
+  return (
+    <article className={`glass-card panel-glow rounded-[22px] border p-4 ${palette}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="pixel-label text-[#d9e5ff]">{step.label}</div>
+        <div className="text-[11px] uppercase tracking-[0.24em] text-slate-300">{step.status}</div>
+      </div>
+      <div className="mt-3 text-sm leading-6 text-slate-300">{step.caption}</div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="mono text-sm text-white">{step.hash ? shortHash(step.hash) : "Pending"}</div>
+        {step.explorerUrl ? (
+          <a
+            href={step.explorerUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-slate-300 transition hover:text-white"
+          >
+            Open
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </a>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function ProofDock({
+  className,
+  label,
+  value,
+  href,
+  copied,
+  onCopy,
+}: {
+  className?: string;
+  label: string;
+  value: string;
+  href?: string;
+  copied?: boolean;
+  onCopy?: () => void;
+}) {
+  return (
+    <div className={`rounded-[22px] border border-white/10 bg-black/20 p-4 ${className ?? ""}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="pixel-label text-[#b9c7e8]">{label}</div>
+        <div className="flex items-center gap-2">
+          {onCopy ? (
+            <button
+              type="button"
+              onClick={onCopy}
+              className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {copied ? "Copied" : "Copy"}
+            </button>
+          ) : null}
+          {href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-white"
+            >
+              Open
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+          ) : null}
+        </div>
+      </div>
+      <div className="mono mt-3 break-all text-sm text-white">{value}</div>
+    </div>
+  );
+}
+
+function InfoChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-full border border-white/10 bg-black/25 px-3 py-1.5">
+      <span className="pixel-label text-[#b9c7e8]">{label}</span>
+      <span className="ml-2 text-sm font-medium text-white">{value}</span>
+    </div>
+  );
+}
+
+function InfoRow({ children }: { children: string }) {
+  return (
+    <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
+      {children}
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[18px] border border-white/10 bg-black/20 p-3">
+      <div className="pixel-label text-[#b9c7e8]">{label}</div>
+      <div className="mt-2 text-sm font-medium text-white">{value}</div>
+    </div>
   );
 }
