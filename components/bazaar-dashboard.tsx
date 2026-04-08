@@ -1410,10 +1410,10 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
 
   const legendItems = [
     { label: "You", copy: "Wallet-controlled courier.", color: "#f3c44f", accent: "courier" as const },
-    { label: "Merchant", copy: "Opens shops and starts demand.", color: "#72f0d3", accent: "shop" as const },
-    { label: "Supplier", copy: "Routes services through the east lane.", color: "#86a7ff", accent: "supplier" as const },
-    { label: "Worker", copy: "Completes paid tasks.", color: "#ff9a8b", accent: "worker" as const },
-    { label: "Governor", copy: "Updates economy rules.", color: "#d4b5ff", accent: "governor" as const },
+    { label: "Merchant", copy: "Triggers market demand.", color: "#72f0d3", accent: "shop" as const },
+    { label: "Supplier", copy: "Moves goods across lanes.", color: "#86a7ff", accent: "supplier" as const },
+    { label: "Worker", copy: "Executes paid contracts.", color: "#ff9a8b", accent: "worker" as const },
+    { label: "Governor", copy: "Adjusts village tax rates.", color: "#d4b5ff", accent: "governor" as const },
   ];
   const cameraShiftX = (playerPosition.x - 50) * -0.18;
   const cameraShiftY = (playerPosition.y - 56) * -0.14;
@@ -1691,7 +1691,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
       <div className="absolute left-4 top-4 z-30 flex w-[min(280px,calc(100vw-2rem))] flex-col gap-3">
         <div className="pixel-window px-4 py-3 text-[#1a1714]">
           <div className="flex items-start justify-between gap-2">
-            <div className="arcade-face text-[0.85rem] leading-[1.2]">Bazaar X</div>
+            <div className="arcade-face text-[0.7rem] leading-[1.2] tracking-wide text-[#2f251c]">Objective</div>
             <div className="arcade-face border-2 border-[#2f251c] bg-[#2f251c] px-1.5 py-0.5 text-[0.32rem] text-white">
               {controlMode === "auto" ? "auto" : "manual"}
             </div>
@@ -1770,9 +1770,9 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
                 </button>
               </div>
               <div className="mt-3 space-y-3">
-                <SummaryBar label="Quest chain" value={`${questProgress}%`} progress={questProgress} tone="amber" />
-                <SummaryBar label="Treasury energy" value={formatOkb(treasuryOkbValue)} progress={treasuryMomentum} tone="mint" />
-                <SummaryBar label="Tax pressure" value={`${(taxBps / 100).toFixed(2)}%`} progress={taxMomentum} tone="blue" />
+                <SummaryBar label="Campaign progress" value={`${questProgress}%`} progress={questProgress} tone="amber" />
+                <SummaryBar label="Treasury TVL" value={formatOkb(treasuryOkbValue)} progress={treasuryMomentum} tone="mint" />
+                <SummaryBar label="Village tax rate" value={`${(taxBps / 100).toFixed(2)}%`} progress={taxMomentum} tone="blue" />
               </div>
               <div className={`mt-4 border-4 px-3 py-3 text-sm leading-6 ${statusError || isUnsupportedViewerNetwork ? "border-[#7d221b] bg-[#f6d9d1] text-[#5d1b16]" : "border-[#171411] bg-white/70 text-[#4d4338]"}`}>
                 {liveAlert}
@@ -2129,7 +2129,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
       <div className="absolute bottom-4 left-1/2 z-30 w-[min(720px,calc(100vw-1rem))] -translate-x-1/2 px-2">
         <div className="pixel-window-dark grid grid-cols-2 gap-2 px-2 py-2 text-[#f8f2e9] sm:flex sm:items-center sm:justify-between">
           <DockButton
-            label="Focus"
+            label="Inspect"
             icon={MapIcon}
             active={activePanel === "focus"}
             onClick={() => setActivePanel((current) => (current === "focus" ? null : "focus"))}
@@ -2147,7 +2147,7 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
             onClick={() => setActivePanel((current) => (current === "wallet" ? null : "wallet"))}
           />
           <DockButton
-            label="Live"
+            label="Tracker"
             icon={Landmark}
             active={activePanel === "live"}
             onClick={() => setActivePanel((current) => (current === "live" ? null : "live"))}
@@ -2158,13 +2158,12 @@ export function BazaarDashboard({ initialScene = null }: { initialScene?: string
       {onboardingVisible ? (
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[rgba(14,12,10,0.5)] backdrop-blur-md">
           <div className="flex flex-col items-center justify-center fade-in">
-            <div className="arcade-face text-[0.8rem] text-[#f4d594] tracking-widest mb-3 drop-shadow-md">OKX Build X Hackathon</div>
-            <h1 className="arcade-face text-[clamp(2.5rem,7vw,5rem)] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] mb-10 tracking-wider">Bazaar<span className="text-[#f16f51]">X</span></h1>
+            <h1 className="arcade-face mt-6 text-[clamp(2.5rem,7vw,5rem)] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] mb-10 tracking-wider">Bazaar<span className="text-[#f16f51]">X</span></h1>
             
             <div className="pixel-window-dark w-[min(480px,calc(100vw-2rem))] p-8 text-center shadow-[0_24px_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(244,213,148,0.05),transparent_60%)] pointer-events-none" />
               <p className="text-[0.95rem] text-[#d4cabd] mb-8 leading-relaxed relative z-10">
-                Connect your wallet to enter the living village. Once inside, you can watch the agent economy run on X Layer or trigger live actions manually.
+                Connect your wallet to wake the village. Watch the autonomous agent loop run on X Layer, or control the narrative manually via the Courier.
               </p>
               
               <div className="flex flex-col items-center gap-4 relative z-10">
@@ -2809,7 +2808,7 @@ function ControlPad({
         <span />
       </div>
       <div className="mt-3 text-[11px] leading-5 text-[#d4cabd]">
-        Hold directions or click the map to move. {nearbyDistrictTitle ? `Inspect ${nearbyDistrictTitle} from the center button.` : "Use center to keep manual mode close at hand."}
+        Tap the map or use WASD to explore. {nearbyDistrictTitle ? `Press Center or Space to inspect ${nearbyDistrictTitle}.` : "Press Center or Space to inspect nearby areas."}
       </div>
     </div>
   );
