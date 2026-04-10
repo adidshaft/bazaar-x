@@ -24,45 +24,62 @@ export function InteractionSheet({
   onClose,
 }: InteractionSheetProps) {
   return (
-    <div className="pointer-events-auto absolute bottom-3 left-1/2 z-40 w-[min(48rem,calc(100vw-1.5rem))] -translate-x-1/2 md:bottom-5">
-      <div className="overlay-card p-4 md:p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="overlay-kicker">{objectiveLabel ?? "Village Interaction"}</div>
-            <h2 className="overlay-title mt-1 text-lg text-[#fff3d3] md:text-xl">{title}</h2>
-            <p className="mt-1 text-sm text-[#d5c5a1]">{subtitle}</p>
-          </div>
-          <button type="button" onClick={onClose} className="hud-chip">
-            Close
-          </button>
-        </div>
+    <div className="pointer-events-auto absolute bottom-[5.75rem] left-1/2 z-40 w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 md:bottom-5">
+      <div className="pixel-window-dark panel-glow relative overflow-hidden p-4 text-[#f8f2e9] md:p-5">
+        <div className="soft-grid pointer-events-none absolute inset-0 opacity-20" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(244,213,148,0.12),transparent_52%)]" />
 
-        <div className="mt-4 space-y-2">
-          {lines.map((line) => (
-            <p key={line} className="dialogue-line">
-              {line}
-            </p>
-          ))}
-        </div>
+        <div className="relative z-10">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="arcade-face text-[0.34rem] tracking-[0.2em] text-[#f4d594]">
+                {objectiveLabel ?? "Village Interaction"}
+              </div>
+              <h2 className="mt-2 font-[var(--font-display)] text-[1.5rem] leading-none text-white md:text-[1.85rem]">
+                {title}
+              </h2>
+              <p className="mt-2 max-w-[38rem] text-sm leading-6 text-[#d4cabd]">{subtitle}</p>
+            </div>
 
-        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm leading-6 text-[#c9b88f]">
-            {disabledReason ?? "Quest actions here submit real Bazaar X transactions to X Layer."}
-          </div>
-
-          {actionLabel && onAction ? (
             <button
               type="button"
-              onClick={onAction}
-              disabled={actionDisabled || actionPending}
-              className="action-button"
+              onClick={onClose}
+              className="pixel-button bg-[#f8f2e9] px-3 py-2 text-[#171411]"
             >
-              {actionPending ? "Submitting..." : actionLabel}
+              <span className="arcade-face text-[0.38rem]">Close</span>
             </button>
-          ) : null}
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {lines.map((line) => (
+              <div
+                key={line}
+                className="border-4 border-[#1a1510] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm leading-6 text-[#efe4c4]"
+              >
+                {line}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="border-4 border-[#1a1510] bg-[rgba(8,8,8,0.28)] px-4 py-3 text-sm leading-6 text-[#d7c7a0] md:max-w-[32rem]">
+              {disabledReason ??
+                "Quest actions here submit real Bazaar X transactions to X Layer and wait for onchain proof."}
+            </div>
+
+            {actionLabel && onAction ? (
+              <button
+                type="button"
+                onClick={onAction}
+                disabled={actionDisabled || actionPending}
+                className="action-button w-full md:w-auto"
+              >
+                {actionPending ? "Submitting..." : actionLabel}
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
