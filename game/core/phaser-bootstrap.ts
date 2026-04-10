@@ -14,11 +14,11 @@ export function createBazaarPhaserGame(parent: HTMLElement) {
     parent,
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
-    backgroundColor: "#ecd9b8",
+    backgroundColor: "#081018",
     pixelArt: true,
     roundPixels: true,
     scale: {
-      mode: Phaser.Scale.FIT,
+      mode: Phaser.Scale.ENVELOP,
       autoCenter: Phaser.Scale.CENTER_BOTH,
       zoom: WORLD_ZOOM,
     },

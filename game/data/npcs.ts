@@ -1,9 +1,10 @@
-import type { AgentRole, MapId } from "@/game/core/live-types";
+import type { AgentRole, CharacterType, MapId } from "@/game/core/live-types";
 
 export type NpcDefinition = {
   id: string;
   name: string;
   spriteId: string;
+  entityType: CharacterType;
   role: AgentRole | "guide" | "treasurer";
   mapId: MapId;
   pathId?: string;
@@ -18,6 +19,7 @@ export const npcDefinitions: NpcDefinition[] = [
     id: "keeper",
     name: "Village Keeper",
     spriteId: "npc-keeper",
+    entityType: "human",
     role: "guide",
     mapId: "village-exterior",
     pathId: "keeper-route",
@@ -30,6 +32,7 @@ export const npcDefinitions: NpcDefinition[] = [
     id: "shopkeeper",
     name: "Forge Master",
     spriteId: "npc-shopkeeper",
+    entityType: "agent",
     role: "shop",
     mapId: "forge-interior",
     pathId: "forge-loop",
@@ -42,6 +45,7 @@ export const npcDefinitions: NpcDefinition[] = [
     id: "supplier",
     name: "Supply Coil",
     spriteId: "npc-supplier",
+    entityType: "agent",
     role: "supplier",
     mapId: "depot-interior",
     pathId: "depot-loop",
@@ -54,6 +58,7 @@ export const npcDefinitions: NpcDefinition[] = [
     id: "worker",
     name: "Node Pilot",
     spriteId: "npc-worker",
+    entityType: "agent",
     role: "worker",
     mapId: "village-exterior",
     pathId: "worker-route",
@@ -66,6 +71,7 @@ export const npcDefinitions: NpcDefinition[] = [
     id: "treasurer",
     name: "Reserve Steward",
     spriteId: "npc-treasurer",
+    entityType: "human",
     role: "treasurer",
     mapId: "treasury-interior",
     pathId: "treasury-loop",
@@ -78,6 +84,7 @@ export const npcDefinitions: NpcDefinition[] = [
     id: "governor",
     name: "Council Steward",
     spriteId: "npc-governor",
+    entityType: "agent",
     role: "governor",
     mapId: "council-interior",
     pathId: "council-loop",
@@ -87,4 +94,3 @@ export const npcDefinitions: NpcDefinition[] = [
     economyRole: "Runs live governance actions.",
   },
 ];
-

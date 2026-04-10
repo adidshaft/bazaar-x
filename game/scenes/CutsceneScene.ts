@@ -16,16 +16,16 @@ export class CutsceneScene extends Phaser.Scene {
     this.container.setDepth(6000);
     this.container.setAlpha(0);
 
-    const card = this.add.rectangle(0, 0, 360, 56, 0x17120f, 0.78).setStrokeStyle(2, 0xf3d680, 0.7);
+    const card = this.add.rectangle(0, 0, 380, 60, 0x101923, 0.8).setStrokeStyle(2, 0x7de6ff, 0.7);
     this.titleText = this.add.text(0, -9, "", {
-      color: "#fff4cf",
-      fontFamily: "monospace",
+      color: "#f0fbff",
+      fontFamily: "\"Press Start 2P\", monospace",
       fontSize: "15px",
       fontStyle: "bold",
     }).setOrigin(0.5);
     this.subtitleText = this.add.text(0, 10, "", {
-      color: "#d5c59e",
-      fontFamily: "monospace",
+      color: "#acc4d6",
+      fontFamily: "\"Press Start 2P\", monospace",
       fontSize: "11px",
     }).setOrigin(0.5);
 

@@ -137,7 +137,7 @@ function paintAlternatingWater(grid: number[][], x: number, y: number, width: nu
 function addFlowers(grid: number[][], points: Array<[number, number]>) {
   points.forEach(([x, y], index) => {
     if (grid[y]?.[x] !== undefined) {
-      grid[y][x] = index % 2 === 0 ? 2 : 14;
+      grid[y][x] = index % 2 === 0 ? 2 : 19;
     }
   });
 }
@@ -216,73 +216,98 @@ function createObjectLayer(id: number, name: string, objects: MapObject[]): Obje
 }
 
 function buildVillageMap() {
-  const width = 30;
-  const height = 22;
+  const width = 58;
+  const height = 38;
   const ground = makeGrid(width, height, 1);
   const details = makeGrid(width, height, 0);
   const collision = makeGrid(width, height, 0);
 
+  paintAlternatingWater(ground, 27, 0, 4, height);
   paintAlternatingWater(ground, 0, 0, width, 2);
-  paintAlternatingWater(ground, 0, 0, 3, height);
-  paintRect(ground, 12, 0, 2, 4, 8);
-  paintRect(ground, 4, 9, 22, 4, 3);
-  paintRect(ground, 13, 2, 4, 18, 3);
-  paintRect(ground, 10, 8, 10, 6, 5);
+  paintRect(ground, 4, 17, 50, 4, 3);
+  paintRect(ground, 28, 3, 2, 31, 3);
+  paintRect(ground, 22, 13, 14, 12, 5);
+  paintRect(ground, 27, 17, 4, 4, 8);
+  paintRect(ground, 24, 9, 10, 4, 5);
+  paintRect(ground, 10, 13, 8, 5, 3);
+  paintRect(ground, 42, 13, 10, 5, 3);
+  paintRect(ground, 44, 25, 8, 4, 3);
+  paintRect(ground, 8, 26, 8, 4, 3);
+  paintRect(ground, 26, 27, 10, 4, 3);
+  paintRect(ground, 8, 29, 8, 5, 5);
+  paintRect(ground, 26, 30, 10, 5, 5);
+  paintRect(ground, 44, 29, 9, 4, 5);
+  paintRect(ground, 8, 11, 8, 5, 5);
+  paintRect(ground, 44, 11, 8, 5, 5);
+  paintRect(ground, 26, 4, 8, 5, 5);
+  paintRect(ground, 0, 35, width, 3, 4);
+
   addFlowers(details, [
-    [5, 5],
-    [6, 17],
-    [20, 5],
-    [25, 17],
-    [8, 15],
-    [22, 15],
+    [6, 6],
+    [9, 24],
+    [18, 6],
+    [40, 7],
+    [49, 8],
+    [8, 33],
+    [39, 32],
+    [54, 27],
+    [21, 32],
+    [15, 23],
+    [33, 8],
+    [35, 28],
   ]);
 
+  paintRect(collision, 27, 0, 4, height, 16);
+  paintRect(collision, 0, 0, width, 2, 16);
+  paintRect(collision, 0, 0, 2, height, 16);
+  paintRect(collision, width - 2, 0, 2, height, 16);
+  paintRect(collision, 0, height - 2, width, 2, 16);
+
   const buildingRects = [
-    [11, 2, 6, 3],
-    [4, 5, 5, 4],
-    [21, 5, 5, 4],
-    [21, 14, 5, 3],
-    [4, 15, 5, 4],
-    [12, 15, 6, 4],
+    [26, 4, 8, 5],
+    [8, 11, 8, 6],
+    [44, 11, 8, 6],
+    [44, 28, 9, 5],
+    [8, 29, 8, 6],
+    [26, 30, 10, 5],
   ] as const;
+
   buildingRects.forEach(([x, y, widthTiles, heightTiles]) => {
     paintRect(collision, x, y, widthTiles, heightTiles, 16);
   });
-  paintRect(collision, 0, 0, width, 2, 16);
-  paintRect(collision, 0, 0, 3, height, 16);
 
   let objectId = 1;
   const interactables: MapObject[] = [
-    createObject(objectId++, "keeper-gate", "interactable", 10, 6, 2, 2, {
+    createObject(objectId++, "keeper-gate", "interactable", 24, 10, 2, 2, {
       label: "Village Keeper",
       districtId: "village-gate",
       npcId: "keeper",
     }),
-    createObject(objectId++, "settlement-keep", "interactable", 13, 5, 2, 1, {
+    createObject(objectId++, "settlement-keep", "interactable", 29, 9, 2, 1, {
       label: "Settlement Keep",
       districtId: "village-gate",
     }),
-    createObject(objectId++, "forge-door", "interactable", 6, 9, 2, 1, {
+    createObject(objectId++, "forge-door", "interactable", 11, 17, 2, 1, {
       label: "Bazaar Forge",
       districtId: "market-row",
       portalId: "to-forge",
     }),
-    createObject(objectId++, "depot-door", "interactable", 22, 9, 2, 1, {
+    createObject(objectId++, "depot-door", "interactable", 47, 17, 2, 1, {
       label: "Supply Coil Depot",
       districtId: "supplier-lane",
       portalId: "to-depot",
     }),
-    createObject(objectId++, "guild-yard", "interactable", 22, 17, 2, 1, {
+    createObject(objectId++, "guild-yard", "interactable", 47, 32, 2, 1, {
       label: "Node Pilot Yard",
       districtId: "worker-yard",
       npcId: "worker",
     }),
-    createObject(objectId++, "treasury-door", "interactable", 5, 19, 2, 1, {
+    createObject(objectId++, "treasury-door", "interactable", 11, 35, 2, 1, {
       label: "Treasury Vault",
       districtId: "treasury-vault",
       portalId: "to-treasury",
     }),
-    createObject(objectId++, "council-door", "interactable", 14, 19, 2, 1, {
+    createObject(objectId++, "council-door", "interactable", 30, 35, 2, 1, {
       label: "Covenant Hall",
       districtId: "council-hall",
       portalId: "to-council",
@@ -290,42 +315,110 @@ function buildVillageMap() {
   ];
 
   const triggers: MapObject[] = [
-    createObject(objectId++, "keeper-approach", "trigger", 9, 6, 3, 2),
-    createObject(objectId++, "forge-portal", "trigger", 6, 10, 2, 1),
+    createObject(objectId++, "keeper-approach", "trigger", 23, 10, 4, 2),
+    createObject(objectId++, "forge-portal", "trigger", 11, 18, 2, 1),
+    createObject(objectId++, "depot-portal", "trigger", 47, 18, 2, 1),
   ];
 
   const npcSpawns: MapObject[] = [
-    createPoint(objectId++, "keeper", "spawn", 10.5, 7, { npcId: "keeper" }),
-    createPoint(objectId++, "worker", "spawn", 23, 16.5, { npcId: "worker" }),
+    createPoint(objectId++, "keeper", "spawn", 25.5, 11.2, { npcId: "keeper" }),
+    createPoint(objectId++, "worker", "spawn", 48.5, 31.5, { npcId: "worker" }),
   ];
 
   const patrolNodes: MapObject[] = [
-    createPoint(objectId++, "keeper-route-1", "path", 9.5, 7, { pathId: "keeper-route", order: 1 }),
-    createPoint(objectId++, "keeper-route-2", "path", 14, 7, { pathId: "keeper-route", order: 2 }),
-    createPoint(objectId++, "keeper-route-3", "path", 12.5, 11.5, { pathId: "keeper-route", order: 3 }),
-    createPoint(objectId++, "worker-route-1", "path", 23, 16.5, { pathId: "worker-route", order: 1 }),
-    createPoint(objectId++, "worker-route-2", "path", 18, 11, { pathId: "worker-route", order: 2 }),
-    createPoint(objectId++, "worker-route-3", "path", 23, 11, { pathId: "worker-route", order: 3 }),
+    createPoint(objectId++, "keeper-route-1", "path", 25.5, 11.2, { pathId: "keeper-route", order: 1 }),
+    createPoint(objectId++, "keeper-route-2", "path", 20, 18.5, { pathId: "keeper-route", order: 2 }),
+    createPoint(objectId++, "keeper-route-3", "path", 30, 20, { pathId: "keeper-route", order: 3 }),
+    createPoint(objectId++, "keeper-route-4", "path", 33.5, 14.5, { pathId: "keeper-route", order: 4 }),
+    createPoint(objectId++, "worker-route-1", "path", 48.5, 31.5, { pathId: "worker-route", order: 1 }),
+    createPoint(objectId++, "worker-route-2", "path", 45, 24, { pathId: "worker-route", order: 2 }),
+    createPoint(objectId++, "worker-route-3", "path", 38, 18.5, { pathId: "worker-route", order: 3 }),
+    createPoint(objectId++, "worker-route-4", "path", 48, 18.5, { pathId: "worker-route", order: 4 }),
   ];
 
   const portals: MapObject[] = [
-    createObject(objectId++, "to-forge", "portal", 6, 9, 2, 1, {
+    createObject(objectId++, "to-forge", "portal", 11, 17, 2, 1, {
       targetMapId: "forge-interior",
       spawnId: "forge-entry",
     }),
-    createObject(objectId++, "to-depot", "portal", 22, 9, 2, 1, {
+    createObject(objectId++, "to-depot", "portal", 47, 17, 2, 1, {
       targetMapId: "depot-interior",
       spawnId: "depot-entry",
     }),
-    createObject(objectId++, "to-treasury", "portal", 5, 19, 2, 1, {
+    createObject(objectId++, "to-treasury", "portal", 11, 35, 2, 1, {
       targetMapId: "treasury-interior",
       spawnId: "treasury-entry",
     }),
-    createObject(objectId++, "to-council", "portal", 14, 19, 2, 1, {
+    createObject(objectId++, "to-council", "portal", 30, 35, 2, 1, {
       targetMapId: "council-interior",
       spawnId: "council-entry",
     }),
   ];
+
+  const ambientProps: MapObject[] = [
+    ...[
+      [5, 7],
+      [8, 5],
+      [14, 6],
+      [36, 6],
+      [41, 8],
+      [52, 6],
+      [6, 24],
+      [16, 24],
+      [39, 25],
+      [54, 25],
+      [18, 33],
+      [40, 34],
+      [51, 34],
+    ].map(([x, y], index) =>
+      createPoint(objectId + index, `pine-${index + 1}`, "ambient", x, y, {
+        kind: "pine",
+        scale: index % 3 === 0 ? 12 : 10,
+      }),
+    ),
+  ];
+  objectId += 13;
+
+  ambientProps.push(
+    ...[
+      [9, 18],
+      [18, 18],
+      [24, 18],
+      [35, 18],
+      [42, 18],
+      [50, 18],
+      [29, 10],
+      [12, 35],
+      [31, 35],
+    ].map(([x, y], index) =>
+      createPoint(objectId + index, `lamp-${index + 1}`, "ambient", x, y, {
+        kind: "lamp",
+      }),
+    ),
+  );
+  objectId += 9;
+
+  ambientProps.push(
+    createPoint(objectId++, "forge-stall", "ambient", 16, 15, { kind: "stall" }),
+    createPoint(objectId++, "depot-stall", "ambient", 42, 15, { kind: "stall" }),
+    createPoint(objectId++, "north-banner", "ambient", 29, 7, { kind: "banner" }),
+    createPoint(objectId++, "south-banner", "ambient", 31, 32, { kind: "banner" }),
+    createPoint(objectId++, "plaza-statue", "ambient", 28.5, 19, { kind: "statue" }),
+    createPoint(objectId++, "west-signpost", "ambient", 18, 18, { kind: "signpost" }),
+    createPoint(objectId++, "east-signpost", "ambient", 40, 18, { kind: "signpost" }),
+    createPoint(objectId++, "crate-stack-1", "ambient", 44, 20, { kind: "crate" }),
+    createPoint(objectId++, "crate-stack-2", "ambient", 16, 20, { kind: "crate" }),
+    createPoint(objectId++, "reed-bank-1", "ambient", 25, 8, { kind: "reed" }),
+    createPoint(objectId++, "reed-bank-2", "ambient", 32, 28, { kind: "reed" }),
+    createPoint(objectId++, "gate-banner-west", "ambient", 24, 9, { kind: "banner" }),
+    createPoint(objectId++, "gate-banner-east", "ambient", 34, 9, { kind: "banner" }),
+    createPoint(objectId++, "gate-crate-west", "ambient", 22.5, 13.5, { kind: "crate" }),
+    createPoint(objectId++, "gate-crate-east", "ambient", 35.5, 13.5, { kind: "crate" }),
+    createPoint(objectId++, "gate-lamp-west", "ambient", 23, 11.5, { kind: "lamp" }),
+    createPoint(objectId++, "gate-lamp-east", "ambient", 34, 11.5, { kind: "lamp" }),
+    createPoint(objectId++, "gate-pine-west", "ambient", 20, 14, { kind: "pine", scale: 11 }),
+    createPoint(objectId++, "gate-pine-east", "ambient", 38, 14, { kind: "pine", scale: 11 }),
+  );
 
   return {
     compressionlevel: -1,
@@ -340,8 +433,9 @@ function buildVillageMap() {
       createObjectLayer(6, "npcSpawns", npcSpawns),
       createObjectLayer(7, "patrolNodes", patrolNodes),
       createObjectLayer(8, "portals", portals),
+      createObjectLayer(9, "ambientProps", ambientProps),
     ],
-    nextlayerid: 9,
+    nextlayerid: 10,
     nextobjectid: objectId,
     orientation: "orthogonal" as const,
     renderorder: "right-down" as const,
@@ -364,9 +458,10 @@ function buildInteriorMap(config: {
   interactableName: string;
   interactableNpcId: string;
   exitTo: string;
+  props: Array<{ kind: string; x: number; y: number; scale?: number }>;
 }) {
-  const width = 18;
-  const height = 14;
+  const width = 26;
+  const height = 18;
   const ground = makeGrid(width, height, config.roomTile);
   const details = makeGrid(width, height, 0);
   const collision = makeGrid(width, height, 0);
@@ -375,15 +470,18 @@ function buildInteriorMap(config: {
   paintRect(collision, 0, height - 1, width, 1, 16);
   paintRect(collision, 0, 0, 1, height, 16);
   paintRect(collision, width - 1, 0, 1, height, 16);
-  paintRect(collision, 6, 3, 6, 1, 16);
-  paintRect(collision, 6, 3, 1, 3, 16);
-  paintRect(collision, 11, 3, 1, 3, 16);
-  paintRect(details, 2, 2, 2, 2, 15);
-  paintRect(details, 13, 2, 2, 2, 15);
+  paintRect(collision, 7, 3, 12, 1, 16);
+  paintRect(collision, 7, 3, 1, 4, 16);
+  paintRect(collision, 18, 3, 1, 4, 16);
+  paintRect(collision, 5, 11, 16, 1, 16);
+
+  paintRect(details, 3, 3, 3, 3, 15);
+  paintRect(details, 20, 3, 3, 3, 15);
+  paintRect(details, 9, 8, 8, 2, 14);
 
   let objectId = 1;
   const interactables: MapObject[] = [
-    createObject(objectId++, config.interactableName, "interactable", 8, 5, 2, 1, {
+    createObject(objectId++, config.interactableName, "interactable", 12, 6, 2, 1, {
       npcId: config.interactableNpcId,
       label: config.interactableName,
     }),
@@ -398,21 +496,28 @@ function buildInteriorMap(config: {
       pathId: `${config.npcId}-loop`,
       order: 1,
     }),
-    createPoint(objectId++, `${config.npcId}-loop-2`, "path", config.npcSpawn[0] + 2, config.npcSpawn[1], {
+    createPoint(objectId++, `${config.npcId}-loop-2`, "path", config.npcSpawn[0] + 3, config.npcSpawn[1], {
       pathId: `${config.npcId}-loop`,
       order: 2,
     }),
-    createPoint(objectId++, `${config.npcId}-loop-3`, "path", config.npcSpawn[0] + 1, config.npcSpawn[1] + 2, {
+    createPoint(objectId++, `${config.npcId}-loop-3`, "path", config.npcSpawn[0] + 1.5, config.npcSpawn[1] + 2.5, {
       pathId: `${config.npcId}-loop`,
       order: 3,
     }),
   ];
   const portals: MapObject[] = [
-    createObject(objectId++, `${config.mapId}-exit`, "portal", 8, 12, 2, 1, {
+    createObject(objectId++, `${config.mapId}-exit`, "portal", 12, 16, 2, 1, {
       targetMapId: "village-exterior",
       spawnId: config.exitTo,
     }),
   ];
+  const ambientProps = config.props.map((prop, index) =>
+    createPoint(objectId + index, `${config.mapId}-prop-${index + 1}`, "ambient", prop.x, prop.y, {
+      kind: prop.kind,
+      scale: prop.scale ?? 10,
+    }),
+  );
+  objectId += ambientProps.length;
 
   return {
     compressionlevel: -1,
@@ -427,8 +532,9 @@ function buildInteriorMap(config: {
       createObjectLayer(6, "npcSpawns", npcSpawns),
       createObjectLayer(7, "patrolNodes", patrolNodes),
       createObjectLayer(8, "portals", portals),
+      createObjectLayer(9, "ambientProps", ambientProps),
     ],
-    nextlayerid: 9,
+    nextlayerid: 10,
     nextobjectid: objectId,
     orientation: "orthogonal" as const,
     renderorder: "right-down" as const,
@@ -458,10 +564,15 @@ async function main() {
       mapId: "forge-interior",
       roomTile: 11,
       npcId: "shopkeeper",
-      npcSpawn: [8.5, 8],
+      npcSpawn: [12.5, 10],
       interactableName: "forge-board",
       interactableNpcId: "shopkeeper",
       exitTo: "forge-return",
+      props: [
+        { kind: "banner", x: 6, y: 4 },
+        { kind: "stall", x: 20, y: 5 },
+        { kind: "crate", x: 6, y: 12 },
+      ],
     }),
   );
   await writeJson(
@@ -470,10 +581,15 @@ async function main() {
       mapId: "depot-interior",
       roomTile: 9,
       npcId: "supplier",
-      npcSpawn: [8.5, 8],
+      npcSpawn: [12.5, 10],
       interactableName: "supplier-desk",
       interactableNpcId: "supplier",
       exitTo: "depot-return",
+      props: [
+        { kind: "crate", x: 5, y: 5 },
+        { kind: "crate", x: 20, y: 5 },
+        { kind: "banner", x: 13, y: 4 },
+      ],
     }),
   );
   await writeJson(
@@ -482,10 +598,15 @@ async function main() {
       mapId: "treasury-interior",
       roomTile: 12,
       npcId: "treasurer",
-      npcSpawn: [8.5, 8],
+      npcSpawn: [12.5, 10],
       interactableName: "treasury-board",
       interactableNpcId: "treasurer",
       exitTo: "treasury-return",
+      props: [
+        { kind: "lamp", x: 6, y: 5 },
+        { kind: "lamp", x: 20, y: 5 },
+        { kind: "statue", x: 13, y: 4 },
+      ],
     }),
   );
   await writeJson(
@@ -494,10 +615,15 @@ async function main() {
       mapId: "council-interior",
       roomTile: 13,
       npcId: "governor",
-      npcSpawn: [8.5, 8],
+      npcSpawn: [12.5, 10],
       interactableName: "governor-dais",
       interactableNpcId: "governor",
       exitTo: "council-return",
+      props: [
+        { kind: "banner", x: 7, y: 4 },
+        { kind: "banner", x: 18, y: 4 },
+        { kind: "statue", x: 13, y: 5 },
+      ],
     }),
   );
 }
@@ -506,4 +632,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-

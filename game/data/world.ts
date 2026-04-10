@@ -26,9 +26,9 @@ export type BuildingDefinition = {
 export const districtDefinitions: DistrictDefinition[] = [
   {
     id: "village-gate",
-    name: "Sun Gate",
+    name: "Canal Gate",
     subtitle: "Arrival road",
-    theme: "warm stone, banners, canal light",
+    theme: "blue stone, banner shade, canal mist",
     landmarkSet: ["keeper hall", "bridge lamps", "market sign"],
     interactPoints: ["keeper-gate", "settlement-keep"],
     npcRoster: ["keeper"],
@@ -39,7 +39,7 @@ export const districtDefinitions: DistrictDefinition[] = [
     id: "market-row",
     name: "Bazaar Forge",
     subtitle: "Demand district",
-    theme: "carved wood, brass trim, ember glow",
+    theme: "slate roofs, iron trim, forge light",
     landmarkSet: ["forge front", "service board", "coin awning"],
     interactPoints: ["forge-door", "forge-board"],
     npcRoster: ["shopkeeper"],
@@ -50,7 +50,7 @@ export const districtDefinitions: DistrictDefinition[] = [
     id: "supplier-lane",
     name: "Supply Coil Depot",
     subtitle: "Fulfillment district",
-    theme: "canal edging, rope, stacked crates",
+    theme: "canal edge, hoists, stacked cargo",
     landmarkSet: ["depot shutters", "cargo crane", "route banner"],
     interactPoints: ["depot-door", "supplier-desk"],
     npcRoster: ["supplier"],
@@ -61,7 +61,7 @@ export const districtDefinitions: DistrictDefinition[] = [
     id: "worker-yard",
     name: "Node Pilot Yard",
     subtitle: "Labor district",
-    theme: "sunlit planks, ledger posts, workshop sparks",
+    theme: "cool planks, ledger posts, workshop sparks",
     landmarkSet: ["yard gate", "guild sign", "tool rack"],
     interactPoints: ["guild-yard", "worker-bench"],
     npcRoster: ["worker"],
@@ -72,7 +72,7 @@ export const districtDefinitions: DistrictDefinition[] = [
     id: "treasury-vault",
     name: "Treasury Vault",
     subtitle: "Reserve district",
-    theme: "stone ribs, gold light, secure arches",
+    theme: "ribbed stone, vault glow, secure arches",
     landmarkSet: ["vault arch", "treasury notice", "reserve lantern"],
     interactPoints: ["treasury-door", "treasury-board"],
     npcRoster: ["treasurer"],
@@ -100,7 +100,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     landmark: "keeper hall",
     description: "The contract gate, treasury route, and village charter all start here.",
-    roleAccent: "#f4c65c",
+    roleAccent: "#7de6ff",
   },
   {
     id: "forge-door",
@@ -110,7 +110,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     portalMapId: "forge-interior",
     landmark: "forge front",
     description: "Open the first shop, light demand, and post live services from here.",
-    roleAccent: "#ff9265",
+    roleAccent: "#ff9a78",
   },
   {
     id: "depot-door",
@@ -130,7 +130,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     portalMapId: "treasury-interior",
     landmark: "vault arch",
     description: "Watch tax receipts land, brighten the vault, and reveal reserve proof.",
-    roleAccent: "#e6da73",
+    roleAccent: "#8ff0d5",
   },
   {
     id: "council-door",
@@ -143,4 +143,3 @@ export const buildingDefinitions: BuildingDefinition[] = [
     roleAccent: "#d7b8ff",
   },
 ];
-

@@ -1,6 +1,7 @@
 import type { Hex } from "viem";
 
 export type AgentRole = "shop" | "supplier" | "worker" | "governor";
+export type CharacterType = "agent" | "human";
 export type DistrictId =
   | "village-gate"
   | "market-row"
@@ -231,6 +232,7 @@ export type WorldReactionState = {
 export type PersistedPlayerState = {
   currentMapId: MapId;
   lastSpawnId?: string;
+  playerName?: string;
   revealedProofIds: string[];
   unlockedLocations: string[];
   activeQuestStepId?: string;
@@ -256,6 +258,7 @@ export type GameStoreState = {
   liveStatus: LiveDashboardStatus | null;
   proofs: ProofArtifact[];
   pendingAction: PendingAction | null;
+  playerName: string;
   wallet: WalletIdentity;
   settings: {
     muted: boolean;
@@ -264,4 +267,3 @@ export type GameStoreState = {
   world: WorldReactionState;
   hydrated: boolean;
 };
-

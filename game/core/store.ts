@@ -40,6 +40,7 @@ type BazaarGameStore = GameStoreState & {
   setLiveStatus: (status: LiveDashboardStatus | null) => void;
   setPendingAction: (action: PendingAction | null) => void;
   pushProofs: (proofs: ProofArtifact[]) => void;
+  setPlayerName: (playerName: string) => void;
   setWallet: (wallet: WalletIdentity) => void;
   setWorldState: (world: WorldReactionState) => void;
   hydrateFromPersistence: (state: PersistedPlayerState) => void;
@@ -65,6 +66,7 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
   liveStatus: null,
   proofs: [],
   pendingAction: null,
+  playerName: "Agent Echo",
   wallet: {
     connected: false,
     validNetwork: false,
@@ -114,6 +116,10 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
         ),
       };
     }),
+  setPlayerName: (playerName) =>
+    set(() => ({
+      playerName,
+    })),
   setWallet: (wallet) =>
     set((state) => ({
       wallet: {
@@ -131,6 +137,7 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
       currentMapId: persisted.currentMapId,
       objectiveTargetId: persisted.activeQuestStepId ?? state.objectiveTargetId,
       questHighlightId: persisted.activeQuestStepId ?? state.questHighlightId,
+      playerName: persisted.playerName ?? state.playerName,
       settings: {
         muted: persisted.muted,
         lowEffects: persisted.lowEffects,
@@ -149,4 +156,3 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
 export function useBazaarGameStore<T>(selector: (state: BazaarGameStore) => T) {
   return useStore(bazaarGameStore, selector);
 }
-

@@ -21,15 +21,15 @@ export class UIScene extends Phaser.Scene {
     panel.setScrollFactor(0);
     panel.setDepth(5000);
 
-    const background = this.add.rectangle(0, 0, 420, 60, 0x1d1612, 0.82).setStrokeStyle(2, 0xe8d28d, 0.55);
+    const background = this.add.rectangle(0, 0, 420, 60, 0x0f1821, 0.82).setStrokeStyle(2, 0x84ddff, 0.55);
     this.promptText = this.add.text(-188, -10, "", {
-      color: "#f7eed7",
-      fontFamily: "monospace",
+      color: "#eef8ff",
+      fontFamily: "\"Press Start 2P\", monospace",
       fontSize: "14px",
     });
     this.objectiveText = this.add.text(-188, 10, "", {
-      color: "#d5c59e",
-      fontFamily: "monospace",
+      color: "#a9c0cf",
+      fontFamily: "\"Press Start 2P\", monospace",
       fontSize: "11px",
     });
 

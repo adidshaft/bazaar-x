@@ -45,6 +45,7 @@ const REQUIRED_LAYERS = [
   "npcSpawns",
   "patrolNodes",
   "portals",
+  "ambientProps",
 ] as const;
 
 function getMapId(map: TiledMap) {
@@ -121,4 +122,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-
