@@ -3,13 +3,18 @@ import type { MapId, WorldReactionState } from "@/game/core/live-types";
 import { TILE_SIZE } from "@/game/config/constants";
 import { bazaarEventBridge } from "@/game/core/event-bridge";
 import { bazaarGameStore } from "@/game/core/store";
+import { npcDefinitions } from "@/game/data/npcs";
+import type { NpcActor } from "@/game/entities/npc";
+import { loadPersistedPlayerState, savePersistedPlayerState } from "@/game/systems/persistence-service";
 import { findGridPath } from "@/game/systems/a-star-grid";
+import { LaborDispatcher } from "@/game/systems/labor-dispatcher";
 import { BaseWorldScene } from "./base-world-scene";
 import { WorldUpgradeSystem } from "./world-upgrade-system";
 
 export class OverworldScene extends BaseWorldScene {
   private upgradeSystem?: WorldUpgradeSystem;
-  private taxParticlePool?: Phaser.GameObjects.Group;
+  private laborDispatcher?: LaborDispatcher;
+  private valueFlowParticlePool?: Phaser.GameObjects.Group;
   private walkGrid: boolean[][] = [];
 
   constructor() {
@@ -38,14 +43,43 @@ export class OverworldScene extends BaseWorldScene {
 
     this.upgradeSystem = new WorldUpgradeSystem(this);
     this.upgradeSystem.apply(bazaarGameStore.getState().world);
-    this.createTaxParticlePool();
+    this.createValueFlowParticlePool();
     this.buildWalkGrid();
+    this.laborDispatcher = new LaborDispatcher({
+      mapId: () => this.mapId,
+      getWalkGrid: () => this.walkGrid,
+      getNpcActors: () => this.npcs,
+      getNpcActor: (npcId) => this.npcActorLookup.get(npcId),
+      getInteractableCenter: (buildingId) => this.getWorldInteractables().find((entry) => entry.id === buildingId)?.center.clone() ?? null,
+      getTreasuryCenter: () => this.getWorldInteractables().find((entry) => entry.id === "treasury-door")?.center.clone() ?? null,
+      onValueFlow: ({ from, to, job }) => {
+        this.animateValueFlow(from, to, job.kind === "value-flow" ? 40 : 24, job.kind === "value-flow" ? 0xffd36f : 0x9fe8ff);
+      },
+      persist: (state) => this.persistLaborRouting(state),
+    });
+
+    const persisted = loadPersistedPlayerState(bazaarGameStore.getState().wallet);
+    if (persisted?.laborRouting) {
+      bazaarGameStore.getState().setLaborRoutingState(persisted.laborRouting);
+      this.laborDispatcher.restore(persisted.laborRouting);
+    } else {
+      this.laborDispatcher.restore(bazaarGameStore.getState().laborRouting);
+    }
+    this.laborDispatcher.consumeStatus(bazaarGameStore.getState().liveStatus);
 
     const offTax = bazaarEventBridge.on("economy:tax-collected", () => {
       this.animateTaxFlow();
     });
+    const offSync = bazaarEventBridge.on("economy:sync", ({ status }) => {
+      this.laborDispatcher?.consumeStatus(status);
+    });
+    const offTx = bazaarEventBridge.on("tx:confirmed", ({ actionId, stepKey, txHash }) => {
+      this.laborDispatcher?.noteConfirmedAction(actionId, stepKey, txHash);
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offTax();
+      offSync();
+      offTx();
     });
   }
 
@@ -53,8 +87,12 @@ export class OverworldScene extends BaseWorldScene {
     this.upgradeSystem?.apply(world);
   }
 
-  private createTaxParticlePool() {
-    this.taxParticlePool = this.add.group({
+  protected afterWorldUpdate(time: number, delta: number) {
+    this.laborDispatcher?.update(time, delta);
+  }
+
+  private createValueFlowParticlePool() {
+    this.valueFlowParticlePool = this.add.group({
       maxSize: 60,
       runChildUpdate: false,
     });
@@ -66,7 +104,7 @@ export class OverworldScene extends BaseWorldScene {
       coin.setScale(0.22);
       coin.setAlpha(0);
       coin.setBlendMode(Phaser.BlendModes.ADD);
-      this.taxParticlePool.add(coin);
+      this.valueFlowParticlePool.add(coin);
     }
   }
 
@@ -86,35 +124,46 @@ export class OverworldScene extends BaseWorldScene {
   }
 
   private animateTaxFlow() {
-    if (!this.taxParticlePool || this.walkGrid.length === 0) {
+    const source = this.resolveFlowSourceActor();
+    const treasury = this.getWorldInteractables().find((entry) => entry.id === "treasury-door");
+    const sourcePoint = source?.getPosition() ?? this.getWorldInteractables().find((entry) => entry.id === "forge-door")?.center ?? null;
+
+    if (!this.valueFlowParticlePool || this.walkGrid.length === 0 || !sourcePoint || !treasury) {
       return;
     }
 
-    const source = this.getWorldInteractables().find((entry) => entry.id === "forge-door");
-    const treasury = this.getWorldInteractables().find((entry) => entry.id === "treasury-door");
-    if (!source || !treasury) {
+    this.animateValueFlow(sourcePoint, treasury.center, 50, 0xffd36f);
+  }
+
+  private animateValueFlow(
+    source: Phaser.Math.Vector2,
+    target: Phaser.Math.Vector2,
+    count: number,
+    tint: number,
+  ) {
+    if (!this.valueFlowParticlePool || this.walkGrid.length === 0) {
       return;
     }
 
     const pathPoints = findGridPath(
       this.walkGrid,
       {
-        x: Math.floor(source.center.x / TILE_SIZE),
-        y: Math.floor(source.center.y / TILE_SIZE),
+        x: Math.floor(source.x / TILE_SIZE),
+        y: Math.floor(source.y / TILE_SIZE),
       },
       {
-        x: Math.floor(treasury.center.x / TILE_SIZE),
-        y: Math.floor(treasury.center.y / TILE_SIZE),
+        x: Math.floor(target.x / TILE_SIZE),
+        y: Math.floor(target.y / TILE_SIZE),
       },
     ).map((point) => new Phaser.Math.Vector2(point.x * TILE_SIZE + TILE_SIZE / 2, point.y * TILE_SIZE + TILE_SIZE / 2));
 
-    const path = new Phaser.Curves.Path(pathPoints[0]?.x ?? source.center.x, pathPoints[0]?.y ?? source.center.y);
+    const path = new Phaser.Curves.Path(pathPoints[0]?.x ?? source.x, pathPoints[0]?.y ?? source.y);
     pathPoints.slice(1).forEach((point) => {
       path.lineTo(point.x, point.y);
     });
 
-    for (let index = 0; index < 50; index += 1) {
-      const coin = this.taxParticlePool.getFirstDead(false) as Phaser.GameObjects.Image | null;
+    for (let index = 0; index < count; index += 1) {
+      const coin = this.valueFlowParticlePool.getFirstDead(false) as Phaser.GameObjects.Image | null;
       if (!coin) {
         break;
       }
@@ -123,6 +172,7 @@ export class OverworldScene extends BaseWorldScene {
       coin.setActive(true);
       coin.setScale(0.18 + Math.random() * 0.08);
       coin.setAlpha(0.92);
+      coin.setTint(tint);
 
       const progress = { value: 0 };
       this.tweens.add({
@@ -132,7 +182,7 @@ export class OverworldScene extends BaseWorldScene {
         delay: index * 16,
         ease: "Sine.easeInOut",
         onStart: () => {
-          coin.setPosition(source.center.x, source.center.y - 10);
+          coin.setPosition(source.x, source.y - 10);
         },
         onUpdate: () => {
           const point = path.getPoint(progress.value);
@@ -151,5 +201,58 @@ export class OverworldScene extends BaseWorldScene {
         },
       });
     }
+  }
+
+  private resolveFlowSourceActor() {
+    const treasury = this.getWorldInteractables().find((entry) => entry.id === "treasury-door");
+    if (!treasury) {
+      return null;
+    }
+
+    return [...this.npcs]
+      .map((actor) => {
+        const definition = npcDefinitions.find((entry) => entry.id === actor.id);
+        return definition ? { actor, definition } : null;
+      })
+      .filter((entry): entry is { actor: NpcActor; definition: (typeof npcDefinitions)[number] } => {
+        if (!entry) {
+          return false;
+        }
+
+        return ["guide", "worker", "supplier", "shop", "governor"].includes(entry.definition.role);
+      })
+      .map((entry) => ({
+        actor: entry.actor,
+        distance: Phaser.Math.Distance.BetweenPoints(entry.actor.getPosition(), treasury.center),
+      }))
+      .sort((left, right) => left.distance - right.distance)[0]?.actor ?? null;
+  }
+
+  private persistLaborRouting(state: import("@/game/core/live-types").LaborRoutingState) {
+    const wallet = bazaarGameStore.getState().wallet;
+    if (!wallet.address || !wallet.chainId) {
+      return;
+    }
+
+    const existing = loadPersistedPlayerState(wallet);
+    const baseState =
+      existing ?? {
+        currentMapId: this.mapId,
+        lastSpawnId: "gate-spawn",
+        playerName: bazaarGameStore.getState().playerName,
+        revealedProofIds: [],
+        unlockedLocations: [this.mapId],
+        activeQuestStepId: bazaarGameStore.getState().questHighlightId ?? undefined,
+        unlockedSkillIds: bazaarGameStore.getState().unlockedSkillIds,
+        activeSkillId: bazaarGameStore.getState().activeSkillId,
+        muted: bazaarGameStore.getState().settings.muted,
+        lowEffects: bazaarGameStore.getState().settings.lowEffects,
+        laborRouting: state,
+      };
+
+    savePersistedPlayerState(wallet, {
+      ...baseState,
+      laborRouting: state,
+    });
   }
 }

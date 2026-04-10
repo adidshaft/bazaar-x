@@ -7961,12 +7961,174 @@
             }
           ],
           "point": true
+        },
+        {
+          "id": 58,
+          "name": "gate-banner-west",
+          "type": "ambient",
+          "x": 768,
+          "y": 288,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "kind",
+              "type": "string",
+              "value": "banner"
+            }
+          ],
+          "point": true
+        },
+        {
+          "id": 59,
+          "name": "gate-banner-east",
+          "type": "ambient",
+          "x": 1088,
+          "y": 288,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "kind",
+              "type": "string",
+              "value": "banner"
+            }
+          ],
+          "point": true
+        },
+        {
+          "id": 60,
+          "name": "gate-crate-west",
+          "type": "ambient",
+          "x": 720,
+          "y": 432,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "kind",
+              "type": "string",
+              "value": "crate"
+            }
+          ],
+          "point": true
+        },
+        {
+          "id": 61,
+          "name": "gate-crate-east",
+          "type": "ambient",
+          "x": 1136,
+          "y": 432,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "kind",
+              "type": "string",
+              "value": "crate"
+            }
+          ],
+          "point": true
+        },
+        {
+          "id": 62,
+          "name": "gate-lamp-west",
+          "type": "ambient",
+          "x": 736,
+          "y": 368,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "kind",
+              "type": "string",
+              "value": "lamp"
+            }
+          ],
+          "point": true
+        },
+        {
+          "id": 63,
+          "name": "gate-lamp-east",
+          "type": "ambient",
+          "x": 1088,
+          "y": 368,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "kind",
+              "type": "string",
+              "value": "lamp"
+            }
+          ],
+          "point": true
+        },
+        {
+          "id": 64,
+          "name": "gate-pine-west",
+          "type": "ambient",
+          "x": 640,
+          "y": 448,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "kind",
+              "type": "string",
+              "value": "pine"
+            },
+            {
+              "name": "scale",
+              "type": "int",
+              "value": 11
+            }
+          ],
+          "point": true
+        },
+        {
+          "id": 65,
+          "name": "gate-pine-east",
+          "type": "ambient",
+          "x": 1216,
+          "y": 448,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "kind",
+              "type": "string",
+              "value": "pine"
+            },
+            {
+              "name": "scale",
+              "type": "int",
+              "value": 11
+            }
+          ],
+          "point": true
         }
       ]
     }
   ],
   "nextlayerid": 10,
-  "nextobjectid": 58,
+  "nextobjectid": 66,
   "orientation": "orthogonal",
   "renderorder": "right-down",
   "tiledversion": "1.11.0",
@@ -9015,6 +9177,290 @@
           "point": true,
           "properties": {
             "kind": "reed"
+          }
+        },
+        {
+          "id": 58,
+          "name": "gate-banner-west",
+          "type": "ambient",
+          "x": 768,
+          "y": 288,
+          "tileX": 24,
+          "tileY": 9,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "kind": "banner"
+          }
+        },
+        {
+          "id": 59,
+          "name": "gate-banner-east",
+          "type": "ambient",
+          "x": 1088,
+          "y": 288,
+          "tileX": 34,
+          "tileY": 9,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "kind": "banner"
+          }
+        },
+        {
+          "id": 60,
+          "name": "gate-crate-west",
+          "type": "ambient",
+          "x": 720,
+          "y": 432,
+          "tileX": 22.5,
+          "tileY": 13.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "kind": "crate"
+          }
+        },
+        {
+          "id": 61,
+          "name": "gate-crate-east",
+          "type": "ambient",
+          "x": 1136,
+          "y": 432,
+          "tileX": 35.5,
+          "tileY": 13.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "kind": "crate"
+          }
+        },
+        {
+          "id": 62,
+          "name": "gate-lamp-west",
+          "type": "ambient",
+          "x": 736,
+          "y": 368,
+          "tileX": 23,
+          "tileY": 11.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "kind": "lamp"
+          }
+        },
+        {
+          "id": 63,
+          "name": "gate-lamp-east",
+          "type": "ambient",
+          "x": 1088,
+          "y": 368,
+          "tileX": 34,
+          "tileY": 11.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "kind": "lamp"
+          }
+        },
+        {
+          "id": 64,
+          "name": "gate-pine-west",
+          "type": "ambient",
+          "x": 640,
+          "y": 448,
+          "tileX": 20,
+          "tileY": 14,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "kind": "pine",
+            "scale": 11
+          }
+        },
+        {
+          "id": 65,
+          "name": "gate-pine-east",
+          "type": "ambient",
+          "x": 1216,
+          "y": 448,
+          "tileX": 38,
+          "tileY": 14,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "kind": "pine",
+            "scale": 11
+          }
+        }
+      ],
+      "navigationNodes": [
+        {
+          "id": 13,
+          "name": "keeper-route-1",
+          "type": "path",
+          "x": 816,
+          "y": 358.4,
+          "tileX": 25.5,
+          "tileY": 11.2,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "keeper-route",
+            "order": 1
+          }
+        },
+        {
+          "id": 14,
+          "name": "keeper-route-2",
+          "type": "path",
+          "x": 640,
+          "y": 592,
+          "tileX": 20,
+          "tileY": 18.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "keeper-route",
+            "order": 2
+          }
+        },
+        {
+          "id": 15,
+          "name": "keeper-route-3",
+          "type": "path",
+          "x": 960,
+          "y": 640,
+          "tileX": 30,
+          "tileY": 20,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "keeper-route",
+            "order": 3
+          }
+        },
+        {
+          "id": 16,
+          "name": "keeper-route-4",
+          "type": "path",
+          "x": 1072,
+          "y": 464,
+          "tileX": 33.5,
+          "tileY": 14.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "keeper-route",
+            "order": 4
+          }
+        },
+        {
+          "id": 17,
+          "name": "worker-route-1",
+          "type": "path",
+          "x": 1552,
+          "y": 1008,
+          "tileX": 48.5,
+          "tileY": 31.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "worker-route",
+            "order": 1
+          }
+        },
+        {
+          "id": 18,
+          "name": "worker-route-2",
+          "type": "path",
+          "x": 1440,
+          "y": 768,
+          "tileX": 45,
+          "tileY": 24,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "worker-route",
+            "order": 2
+          }
+        },
+        {
+          "id": 19,
+          "name": "worker-route-3",
+          "type": "path",
+          "x": 1216,
+          "y": 592,
+          "tileX": 38,
+          "tileY": 18.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "worker-route",
+            "order": 3
+          }
+        },
+        {
+          "id": 20,
+          "name": "worker-route-4",
+          "type": "path",
+          "x": 1536,
+          "y": 592,
+          "tileX": 48,
+          "tileY": 18.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "worker-route",
+            "order": 4
           }
         }
       ]

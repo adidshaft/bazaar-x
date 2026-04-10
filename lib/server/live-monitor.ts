@@ -12,11 +12,35 @@ import { createXLayerPublicClient, explorerTxUrl } from "../xlayer";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LIVE_MONITOR_CACHE_MS = 12_000;
+const LABOR_DISPATCHER_HEARTBEAT_MS = 100;
+const LIVE_MONITOR_NOTE =
+  "X Layer RPC reads are cached for 12s while the dispatcher heartbeat keeps HUD-facing metrics fresh at 100ms.";
 
-type LiveMonitorSnapshot = {
+type LiveMonitorCoreSnapshot = {
   economics: BazaarEconomicState;
   governance: BazaarGovernanceState;
   gateway: BazaarGatewayState;
+};
+
+type LiveMonitorTelemetry = {
+  cacheAgeMs: number;
+  cacheHitCount: number;
+  dispatcherHeartbeatMs: number;
+  healthLabel: "healthy" | "steady" | "strained";
+  hudGlow: number;
+  hudOpacity: number;
+  lastFetchMs: number;
+  lastSyncedAt: string;
+  note: string;
+  pulseMs: number;
+  refreshInMs: number;
+  rpcFetchCount: number;
+  rpcThrottleMs: number;
+  villageHealth: number;
+};
+
+type LiveMonitorSnapshot = LiveMonitorCoreSnapshot & {
+  monitor: LiveMonitorTelemetry;
 };
 
 type RuntimeStepSample = NonNullable<LiveRuntimeStatus>["steps"][number] & {
@@ -25,8 +49,11 @@ type RuntimeStepSample = NonNullable<LiveRuntimeStatus>["steps"][number] & {
 
 let cachedLiveMonitor:
   | {
-      snapshot: LiveMonitorSnapshot;
+      snapshot: LiveMonitorCoreSnapshot;
       cachedAt: number;
+      fetchCount: number;
+      cacheHitCount: number;
+      lastFetchMs: number;
     }
   | null = null;
 let pendingLiveMonitor: Promise<LiveMonitorSnapshot> | null = null;
@@ -58,24 +85,105 @@ function defaultGateway(): BazaarGatewayState {
   };
 }
 
-function defaultSnapshot(): LiveMonitorSnapshot {
-  return {
-    economics: defaultEconomics(),
-    governance: defaultGovernance(),
-    gateway: defaultGateway(),
-  };
-}
-
 function resolveWorldTier(gdpScore: number) {
-  if (gdpScore >= 20) {
+  if (gdpScore >= 50000) {
     return 2;
   }
 
-  if (gdpScore >= 8) {
+  if (gdpScore >= 10000) {
     return 1;
   }
 
   return 0;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function buildVillageHealth(core: LiveMonitorCoreSnapshot, cacheAgeMs: number) {
+  const gdpHealth = clamp(core.economics.gdpScore / 50000, 0, 1);
+  const treasuryHealth = clamp(core.economics.tvlOkb / 32, 0, 1);
+  const throughputHealth = clamp(
+    (core.economics.dailyVolumeOkb + core.economics.treasuryInflowOkb) / 24,
+    0,
+    1,
+  );
+  const governanceDrag = clamp(core.governance.activeProposalCount / 8, 0, 1);
+  const freshnessHealth = clamp(1 - cacheAgeMs / (LIVE_MONITOR_CACHE_MS * 2), 0, 1);
+
+  return clamp(
+    0.18 +
+      gdpHealth * 0.54 +
+      treasuryHealth * 0.14 +
+      throughputHealth * 0.1 +
+      freshnessHealth * 0.12 -
+      governanceDrag * 0.08,
+    0,
+    1,
+  );
+}
+
+function buildMonitorTelemetry(
+  core: LiveMonitorCoreSnapshot,
+  cacheState: {
+    cachedAt: number;
+    fetchCount: number;
+    cacheHitCount: number;
+    lastFetchMs: number;
+  },
+  now = Date.now(),
+): LiveMonitorTelemetry {
+  const cacheAgeMs = Math.max(0, now - cacheState.cachedAt);
+  const villageHealth = buildVillageHealth(core, cacheAgeMs);
+
+  return {
+    cacheAgeMs,
+    cacheHitCount: cacheState.cacheHitCount,
+    dispatcherHeartbeatMs: LABOR_DISPATCHER_HEARTBEAT_MS,
+    healthLabel: villageHealth >= 0.75 ? "healthy" : villageHealth >= 0.45 ? "steady" : "strained",
+    hudGlow: Number((0.08 + villageHealth * 0.34).toFixed(3)),
+    hudOpacity: Number((0.8 + villageHealth * 0.16).toFixed(3)),
+    lastFetchMs: cacheState.lastFetchMs,
+    lastSyncedAt: new Date(cacheState.cachedAt).toISOString(),
+    note: LIVE_MONITOR_NOTE,
+    pulseMs: Math.max(3600, Math.round(6800 - villageHealth * 2200)),
+    refreshInMs: Math.max(0, LIVE_MONITOR_CACHE_MS - cacheAgeMs),
+    rpcFetchCount: cacheState.fetchCount,
+    rpcThrottleMs: LIVE_MONITOR_CACHE_MS,
+    villageHealth: Number(villageHealth.toFixed(3)),
+  };
+}
+
+function decorateSnapshot(
+  core: LiveMonitorCoreSnapshot,
+  cacheState: {
+    cachedAt: number;
+    fetchCount: number;
+    cacheHitCount: number;
+    lastFetchMs: number;
+  },
+  now = Date.now(),
+): LiveMonitorSnapshot {
+  return {
+    ...core,
+    monitor: buildMonitorTelemetry(core, cacheState, now),
+  };
+}
+
+function defaultSnapshot(): LiveMonitorSnapshot {
+  const core = {
+    economics: defaultEconomics(),
+    governance: defaultGovernance(),
+    gateway: defaultGateway(),
+  };
+
+  return decorateSnapshot(core, {
+    cachedAt: Date.now(),
+    fetchCount: 0,
+    cacheHitCount: 0,
+    lastFetchMs: 0,
+  });
 }
 
 function extractOkbAmount(detail?: string | null) {
@@ -238,7 +346,13 @@ export async function readLiveMonitorSnapshot(
   runtime: LiveRuntimeStatus | null,
 ) {
   if (cachedLiveMonitor && Date.now() - cachedLiveMonitor.cachedAt < LIVE_MONITOR_CACHE_MS) {
-    return cachedLiveMonitor.snapshot;
+    cachedLiveMonitor.cacheHitCount += 1;
+    return decorateSnapshot(cachedLiveMonitor.snapshot, {
+      cachedAt: cachedLiveMonitor.cachedAt,
+      fetchCount: cachedLiveMonitor.fetchCount,
+      cacheHitCount: cachedLiveMonitor.cacheHitCount,
+      lastFetchMs: cachedLiveMonitor.lastFetchMs,
+    });
   }
 
   if (pendingLiveMonitor) {
@@ -256,6 +370,7 @@ export async function readLiveMonitorSnapshot(
       deployment.rpcUrl,
       deployment.explorerBaseUrl,
     );
+    const fetchStartedAt = Date.now();
 
     const [latestBlockNumber, latestBlock, governance] = await Promise.all([
       client.getBlockNumber(),
@@ -267,7 +382,7 @@ export async function readLiveMonitorSnapshot(
     ]);
 
     const gatewayLatestTxHash = runtime?.txHashes.at(-1);
-    const snapshot = {
+    const coreSnapshot = {
       economics: buildEconomicState(bazaarSnapshot, runtime, deployment, governance),
       governance,
       gateway: {
@@ -278,13 +393,22 @@ export async function readLiveMonitorSnapshot(
           : undefined,
         syncedAt: new Date(Number(latestBlock.timestamp) * 1000).toISOString(),
       } satisfies BazaarGatewayState,
-    } satisfies LiveMonitorSnapshot;
+    } satisfies LiveMonitorCoreSnapshot;
+    const lastFetchMs = Date.now() - fetchStartedAt;
 
     cachedLiveMonitor = {
-      snapshot,
+      snapshot: coreSnapshot,
       cachedAt: Date.now(),
+      fetchCount: (cachedLiveMonitor?.fetchCount ?? 0) + 1,
+      cacheHitCount: cachedLiveMonitor?.cacheHitCount ?? 0,
+      lastFetchMs,
     };
-    return snapshot;
+    return decorateSnapshot(coreSnapshot, {
+      cachedAt: cachedLiveMonitor.cachedAt,
+      fetchCount: cachedLiveMonitor.fetchCount,
+      cacheHitCount: cachedLiveMonitor.cacheHitCount,
+      lastFetchMs,
+    });
   })()
     .catch((error) => {
       console.warn("[live-monitor] falling back to defaults", error);

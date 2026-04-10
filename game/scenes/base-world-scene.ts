@@ -42,6 +42,8 @@ type GlowEntry = {
   group: "lamp" | "treasury" | "governance";
 };
 
+type FootstepSurface = "grass" | "stone" | "plaza" | "wood";
+
 const buildingSpriteMap: Record<string, BuildingSpriteConfig> = {
   "settlement-keep": { texture: "building-keep", yOffset: 82 },
   "forge-door": { texture: "building-forge", yOffset: 82 },
@@ -122,7 +124,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   private playerRing?: Phaser.GameObjects.Image;
   private playerNameLabel?: Phaser.GameObjects.Text;
   private playerAuraGlow?: Phaser.FX.Glow;
+  private focusVignette?: Phaser.GameObjects.Rectangle;
+  private focusVignetteFx?: Phaser.FX.Vignette;
   private activeAuraSkillId: string | null = null;
+  private focusMode = false;
   private proofPickup?: {
     proof: ProofArtifact;
     sprite: Phaser.GameObjects.Image;
@@ -237,6 +242,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.playerNameLabel.setDepth(spawn.y + 200);
 
     this.cameras.main.startFollow(this.player.sprite, true, CAMERA_LERP, CAMERA_LERP);
+    this.createFocusVignette();
 
     const portalLookup = new Map(
       (compiledMap.bazaarx.objectLayers.portals ?? []).map((portal) => [portal.name, portal] as const),
@@ -294,6 +300,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.updateNameplates();
     this.pulseWater(time);
     this.checkProofPickup();
+    this.updateAudioSpatialMix();
     this.afterWorldUpdate(time, delta);
   }
 
@@ -378,6 +385,9 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       }),
       bazaarEventBridge.on("camera:flash", ({ duration, red = 255, green = 255, blue = 255 }) => {
         this.cameras.main.flash(duration, red, green, blue, false);
+      }),
+      bazaarEventBridge.on("camera:focus-mode", ({ active }) => {
+        this.handleFocusMode(active);
       }),
       bazaarEventBridge.on("proof:verified", ({ proof }) => {
         this.realityPulse();
@@ -959,7 +969,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       return;
     }
 
-    const widthDelta = payload.rightWidth - payload.leftWidth;
+    const widthDelta = this.focusMode ? 0 : payload.rightWidth - payload.leftWidth;
     const worldOffset = Phaser.Math.Clamp(widthDelta * 0.11, -112, 112);
 
     this.cameras.main.setFollowOffset(-worldOffset, 0);
@@ -970,5 +980,93 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       "Sine.easeOut",
       false,
     );
+  }
+
+  private createFocusVignette() {
+    const vignette = this.add
+      .rectangle(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2,
+        this.cameras.main.width,
+        this.cameras.main.height,
+        0x05080d,
+        0.01,
+      )
+      .setScrollFactor(0)
+      .setDepth(3850)
+      .setVisible(false);
+
+    this.focusVignette = vignette;
+    this.focusVignetteFx = vignette.postFX?.addVignette(0.5, 0.5, 0.55, 0.52) ?? undefined;
+  }
+
+  private handleFocusMode(active: boolean) {
+    if (!this.player?.sprite?.active) {
+      return;
+    }
+
+    this.focusMode = active;
+    this.cameras.main.pan(this.player.sprite.x, this.player.sprite.y, 220, "Sine.easeOut", false);
+    this.cameras.main.zoomTo(active ? 1.2 : 1, 220, "Sine.easeOut");
+
+    if (!this.focusVignette) {
+      return;
+    }
+
+    if (this.focusVignetteFx) {
+      this.focusVignetteFx.radius = active ? 0.48 : 0.6;
+      this.focusVignetteFx.strength = active ? 0.6 : 0.36;
+    }
+
+    this.focusVignette.setVisible(true);
+    this.tweens.add({
+      targets: this.focusVignette,
+      alpha: active ? 0.22 : 0.01,
+      duration: 220,
+      ease: "Sine.easeOut",
+      onComplete: () => {
+        if (!active) {
+          this.focusVignette?.setVisible(false);
+        }
+      },
+    });
+  }
+
+  private updateAudioSpatialMix() {
+    const walkingCount = Object.values(bazaarGameStore.getState().laborRouting.npcStates).filter(
+      (snapshot) => snapshot.status === "walking",
+    ).length;
+
+    bazaarAudioSystem.setSpatialMix({
+      surface: this.resolveFootstepSurface(),
+      laborRoutingCount: walkingCount,
+      crowdChatter: Phaser.Math.Clamp(walkingCount / 6, 0, 1),
+    });
+  }
+
+  private resolveFootstepSurface(): FootstepSurface {
+    if (this.mapId === "forge-interior" || this.mapId === "depot-interior") {
+      return "wood";
+    }
+
+    if (this.mapId === "treasury-interior" || this.mapId === "council-interior") {
+      return "stone";
+    }
+
+    const groundLayer = this.getRenderLayer("ground");
+    const tile = groundLayer?.getTileAtWorldXY(this.player.sprite.x, this.player.sprite.y, true);
+    if (!tile) {
+      return "grass";
+    }
+
+    if (tile.index >= 5 || tile.index === 19) {
+      return "stone";
+    }
+
+    if (tile.index === 3 || tile.index === 4) {
+      return "plaza";
+    }
+
+    return "grass";
   }
 }

@@ -42,6 +42,13 @@ export async function getLiveStatus() {
     liveDashboard.bazaarSnapshot as BazaarSnapshot | null,
     liveDashboard.runtime,
   );
+  const monitor = {
+    ...liveMonitor.monitor,
+    villageHealth: liveMonitor.monitor.villageHealth,
+    hudOpacity: liveMonitor.monitor.hudOpacity,
+    hudGlow: liveMonitor.monitor.hudGlow,
+    pulseMs: liveMonitor.monitor.pulseMs,
+  };
   const fallbackLatestTxHash =
     liveMonitor.gateway.latestTxHash ?? liveDashboard.runtime?.txHashes.at(-1);
   const gateway = fallbackLatestTxHash
@@ -62,6 +69,13 @@ export async function getLiveStatus() {
     economics: liveMonitor.economics,
     governance: liveMonitor.governance,
     gateway,
+    monitor,
+    hud: {
+      opacity: monitor.hudOpacity,
+      glow: monitor.hudGlow,
+      pulseMs: monitor.pulseMs,
+      label: monitor.healthLabel,
+    },
     liveDashboard: sanitizeManifestPayload(liveDashboard),
     sources: {
       artifacts: {

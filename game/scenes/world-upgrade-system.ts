@@ -4,6 +4,10 @@ import { TILE_SIZE } from "@/game/config/constants";
 import { BaseWorldScene } from "./base-world-scene";
 
 const lanternAnchors = ["settlement-keep", "forge-door", "depot-door", "treasury-door", "council-door"];
+const pavedGroundTileSources = [1, 3, 4, 5];
+const pavedGroundTileTarget = 5;
+const sovereignGroundTileSources = [6, 7, 8];
+const tierTransitionDurationMs = 420;
 
 function setLayerFromSnapshot(
   layer: Phaser.Tilemaps.TilemapLayer | undefined,
@@ -57,6 +61,7 @@ function buildWaterSegments(tiles: Phaser.Tilemaps.Tile[]) {
 
 export class WorldUpgradeSystem {
   private currentTier = -1;
+  private tierTween: Phaser.Tweens.Tween | null = null;
   private readonly groundLayer: Phaser.Tilemaps.TilemapLayer | undefined;
   private readonly detailsLayer: Phaser.Tilemaps.TilemapLayer | undefined;
   private readonly baseGround: number[][];
@@ -78,16 +83,7 @@ export class WorldUpgradeSystem {
 
   apply(world: WorldReactionState) {
     if (this.currentTier !== world.worldTier) {
-      this.restoreBase();
-
-      if (world.worldTier >= 1) {
-        this.applyGrowingTier();
-      }
-
-      if (world.worldTier >= 2) {
-        this.applySovereignTier();
-      }
-
+      this.transitionToTier(world.worldTier);
       this.currentTier = world.worldTier;
     }
 
@@ -102,13 +98,42 @@ export class WorldUpgradeSystem {
 
     this.waterShimmer.forEach((segment) => {
       segment.setVisible(world.worldTier >= 2);
-      segment.setAlpha(world.worldTier >= 2 ? 0.08 + Math.min(0.1, world.gdpScore / 220) : 0);
+      segment.setAlpha(world.worldTier >= 2 ? 0.08 + Math.min(0.12, world.gdpScore / 85000) : 0);
+    });
+  }
+
+  private transitionToTier(worldTier: number) {
+    const transitionLayers = [this.groundLayer, this.detailsLayer].filter(
+      (layer): layer is Phaser.Tilemaps.TilemapLayer => Boolean(layer),
+    );
+
+    this.tierTween?.stop();
+    this.restoreBase();
+    transitionLayers.forEach((layer) => {
+      layer.setAlpha(0.1);
+    });
+
+    if (worldTier >= 1) {
+      this.applyGrowingTier();
+    }
+
+    if (worldTier >= 2) {
+      this.applySovereignTier();
+    }
+
+    this.tierTween = this.scene.tweens.add({
+      targets: transitionLayers,
+      alpha: 1,
+      duration: tierTransitionDurationMs,
+      ease: "Sine.easeOut",
     });
   }
 
   private restoreBase() {
     setLayerFromSnapshot(this.groundLayer, this.baseGround);
     setLayerFromSnapshot(this.detailsLayer, this.baseDetails);
+    this.groundLayer?.setAlpha(1);
+    this.detailsLayer?.setAlpha(1);
 
     this.scene.getBuildingSpriteLookup().forEach((sprites) => {
       sprites.forEach((sprite) => {
@@ -124,21 +149,26 @@ export class WorldUpgradeSystem {
   private applyGrowingTier() {
     const mapWidth = this.scene.getTilemap()?.width ?? 0;
     const mapHeight = this.scene.getTilemap()?.height ?? 0;
-    this.groundLayer?.replaceByIndex(1, 5, 0, 0, mapWidth, mapHeight);
-    this.groundLayer?.replaceByIndex(2, 5, 0, 0, mapWidth, mapHeight);
-    this.groundLayer?.replaceByIndex(3, 4, 0, 0, mapWidth, mapHeight);
+    pavedGroundTileSources.forEach((sourceIndex) => {
+      this.groundLayer?.replaceByIndex(sourceIndex, pavedGroundTileTarget, 0, 0, mapWidth, mapHeight);
+    });
   }
 
   private applySovereignTier() {
     const mapWidth = this.scene.getTilemap()?.width ?? 0;
     const mapHeight = this.scene.getTilemap()?.height ?? 0;
-    this.detailsLayer?.replaceByIndex(2, 19, 0, 0, mapWidth, mapHeight);
+    sovereignGroundTileSources.forEach((sourceIndex) => {
+      this.detailsLayer?.replaceByIndex(sourceIndex, 19, 0, 0, mapWidth, mapHeight);
+    });
 
     this.scene.getBuildingSpriteLookup().forEach((sprites) => {
       sprites.forEach((sprite) => {
         const sovereignTexture = `${sprite.texture.key}-sovereign`;
         if (this.scene.textures.exists(sovereignTexture)) {
           sprite.setTexture(sovereignTexture);
+          if (sprite.texture.key.includes("council") || sprite.texture.key.includes("treasury")) {
+            sprite.setTint(0xd8be72, 0xd1b166, 0x8d97a8, 0xf7ebc2);
+          }
           return;
         }
 

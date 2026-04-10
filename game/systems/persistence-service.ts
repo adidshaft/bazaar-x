@@ -1,5 +1,17 @@
 import { STORAGE_PREFIX } from "@/game/config/constants";
-import type { PersistedPlayerState, WalletIdentity } from "@/game/core/live-types";
+import type {
+  LaborRoutingState,
+  PersistedPlayerState,
+  WalletIdentity,
+} from "@/game/core/live-types";
+
+function createEmptyLaborRoutingState(): LaborRoutingState {
+  return {
+    jobs: [],
+    npcStates: {},
+    observedStepKeys: [],
+  };
+}
 
 export function createWalletStorageKey(wallet: WalletIdentity) {
   if (!wallet.address || !wallet.chainId) {
@@ -33,6 +45,7 @@ export function loadPersistedPlayerState(wallet: WalletIdentity): PersistedPlaye
       activeSkillId: parsed.activeSkillId ?? null,
       muted: parsed.muted ?? false,
       lowEffects: parsed.lowEffects ?? false,
+      laborRouting: parsed.laborRouting ?? createEmptyLaborRoutingState(),
     };
   } catch {
     return null;

@@ -1,4 +1,7 @@
+import { useState } from "react";
 import type { AISkillDefinition } from "@/game/core/live-types";
+import { bazaarEventBridge } from "@/game/core/event-bridge";
+import { transactionService } from "@/game/systems/transaction-service";
 
 type SkillGrimoireProps = {
   skills: AISkillDefinition[];
@@ -27,6 +30,77 @@ export function SkillGrimoire({
   onDelegateTrade,
   onClose,
 }: SkillGrimoireProps) {
+  const [commandDrafts, setCommandDrafts] = useState<Record<string, string>>({});
+  const [exportPendingSkillId, setExportPendingSkillId] = useState<string | null>(null);
+  const [commandPendingSkillId, setCommandPendingSkillId] = useState<string | null>(null);
+  const [exportedSkillId, setExportedSkillId] = useState<string | null>(null);
+
+  async function handleExport(skill: AISkillDefinition) {
+    setExportPendingSkillId(skill.skill_id);
+
+    try {
+      const payload = await transactionService.exportSkillManifest(skill.skill_id);
+      const blob = new Blob([JSON.stringify(payload.manifestJsonLd, null, 2)], {
+        type: "application/ld+json",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${skill.skill_id}.jsonld`;
+      anchor.rel = "noreferrer";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setExportedSkillId(skill.skill_id);
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:export:${skill.skill_id}`,
+        title: "Sovereign Export Complete",
+        body: `${skill.identity.name} manifest signed and downloaded as JSON-LD.`,
+        tone: "success",
+      });
+    } catch (error) {
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:export:error:${skill.skill_id}`,
+        title: "Export Failed",
+        body: error instanceof Error ? error.message : "Unable to export the skill manifest.",
+        tone: "skill",
+      });
+    } finally {
+      setExportPendingSkillId(null);
+    }
+  }
+
+  async function handleDelegateCommand(skill: AISkillDefinition) {
+    const command = commandDrafts[skill.skill_id]?.trim();
+    if (!command) {
+      onDelegateTrade(skill.skill_id);
+      return;
+    }
+
+    setCommandPendingSkillId(skill.skill_id);
+
+    try {
+      const payload = await transactionService.delegateTradeSkill(skill.skill_id, command);
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:delegate:command:${skill.skill_id}`,
+        title: "Agentic Command Routed",
+        body: `"${command}" routed through ${payload.protocol} to ${payload.agentNpcId}.`,
+        tone: "success",
+      });
+      setCommandDrafts((current) => ({ ...current, [skill.skill_id]: "" }));
+    } catch (error) {
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:delegate:command:error:${skill.skill_id}`,
+        title: "Command Routing Failed",
+        body: error instanceof Error ? error.message : "Unable to route the natural-language command.",
+        tone: "skill",
+      });
+    } finally {
+      setCommandPendingSkillId(null);
+    }
+  }
+
   return (
     <div className="pointer-events-auto absolute inset-0 z-[70] overflow-y-auto bg-[rgba(4,8,14,0.76)] px-4 py-5 backdrop-blur-md">
       <div className="mx-auto w-full max-w-[1040px] rounded-[28px] border border-[rgba(125,230,255,0.18)] bg-[linear-gradient(180deg,rgba(8,16,24,0.97),rgba(5,10,18,0.98))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:p-7">
@@ -166,19 +240,59 @@ export function SkillGrimoire({
                     )}
 
                     {unlocked && skill.execution.delegated_action === "Trade" ? (
-                      <button
-                        type="button"
-                        onClick={() => onDelegateTrade(skill.skill_id)}
-                        disabled={delegatePendingSkillId === skill.skill_id}
-                        className="pixel-button bg-[rgba(255,255,255,0.06)] px-4 py-3 text-[#f1fbff]"
-                      >
-                        <span className="arcade-face text-[0.38rem]">
-                          {delegatePendingSkillId === skill.skill_id
-                            ? "Routing Trade"
-                            : "Delegate Trade"}
-                        </span>
-                      </button>
+                      <div className="flex flex-1 flex-col gap-2 sm:min-w-[18rem]">
+                        <input
+                          value={commandDrafts[skill.skill_id] ?? ""}
+                          onChange={(event) =>
+                            setCommandDrafts((current) => ({
+                              ...current,
+                              [skill.skill_id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Natural-language command, e.g. keep inventory above 50"
+                          className="rounded-[16px] border border-[rgba(125,230,255,0.16)] bg-[rgba(3,8,14,0.48)] px-4 py-3 text-sm text-[#f1fbff] outline-none placeholder:text-[#6f8aa0]"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleDelegateCommand(skill)}
+                            disabled={
+                              delegatePendingSkillId === skill.skill_id ||
+                              commandPendingSkillId === skill.skill_id
+                            }
+                            className="pixel-button bg-[rgba(255,255,255,0.06)] px-4 py-3 text-[#f1fbff]"
+                          >
+                            <span className="arcade-face text-[0.38rem]">
+                              {commandPendingSkillId === skill.skill_id
+                                ? "Routing Command"
+                                : commandDrafts[skill.skill_id]?.trim()
+                                  ? "Route Command"
+                                  : delegatePendingSkillId === skill.skill_id
+                                    ? "Routing Trade"
+                                    : "Delegate Trade"}
+                            </span>
+                          </button>
+                          {exportedSkillId === skill.skill_id ? (
+                            <span className="self-center text-[0.72rem] text-[#9de6ff]">
+                              JSON-LD exported
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
                     ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() => handleExport(skill)}
+                      disabled={exportPendingSkillId === skill.skill_id}
+                      className="pixel-button bg-[linear-gradient(135deg,#7de6ff,#d6f7ff)] px-4 py-3 text-[#08111a]"
+                    >
+                      <span className="arcade-face text-[0.38rem]">
+                        {exportPendingSkillId === skill.skill_id
+                          ? "Signing JSON-LD"
+                          : "Export to X Layer"}
+                      </span>
+                    </button>
                   </div>
                 </article>
               );

@@ -70,6 +70,9 @@ type BridgePayloads = {
     green?: number;
     blue?: number;
   };
+  "camera:focus-mode": {
+    active: boolean;
+  };
   "skill:altar-open": {
     mapId: MapId;
   };

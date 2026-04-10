@@ -11,12 +11,57 @@ type SoundCue =
   | "success-chime"
   | "ambient";
 
+type FootstepSurface = "grass" | "stone" | "plaza" | "wood";
+
+type SpatialMix = {
+  surface?: FootstepSurface;
+  laborRoutingCount?: number;
+  crowdChatter?: number;
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function resolveFootstepSurfaceProfile(surface: FootstepSurface, economyTone: { gdpScore: number; worldTier: number }) {
+  switch (surface) {
+    case "stone":
+      return {
+        pitchOffset: 20 + economyTone.worldTier * 4,
+        noiseHighpass: 560,
+        clinkVolume: 0.018,
+      };
+    case "plaza":
+      return {
+        pitchOffset: 11 + economyTone.worldTier * 3,
+        noiseHighpass: 470,
+        clinkVolume: 0.012,
+      };
+    case "wood":
+      return {
+        pitchOffset: 6,
+        noiseHighpass: 330,
+        clinkVolume: 0.008,
+      };
+    case "grass":
+    default:
+      return {
+        pitchOffset: -8,
+        noiseHighpass: 290,
+        clinkVolume: 0,
+      };
+  }
+}
+
 class BazaarAudioSystem {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private ambientInterval: number | null = null;
   private muted = false;
   private lastFootstepAt = 0;
+  private surfaceProfile: FootstepSurface = "grass";
+  private laborRoutingCount = 0;
+  private crowdChatter = 0;
   private economyTone = {
     gdpScore: 0,
     worldTier: 0,
@@ -63,6 +108,20 @@ class BazaarAudioSystem {
       gdpScore,
       worldTier,
     };
+  }
+
+  setSpatialMix(mix: SpatialMix) {
+    if (mix.surface) {
+      this.surfaceProfile = mix.surface;
+    }
+
+    if (typeof mix.laborRoutingCount === "number") {
+      this.laborRoutingCount = Math.max(0, mix.laborRoutingCount);
+    }
+
+    if (typeof mix.crowdChatter === "number") {
+      this.crowdChatter = clamp(mix.crowdChatter, 0, 1);
+    }
   }
 
   private playTone({
@@ -147,10 +206,28 @@ class BazaarAudioSystem {
     }
 
     const now = context.currentTime;
+    const routingLift = clamp(this.laborRoutingCount / 12, 0, 1);
+    const chatterLift = clamp(this.crowdChatter + routingLift * 0.65, 0, 1);
     const tones = [
-      { frequency: 196, duration: 0.72, type: "triangle" as OscillatorType, volume: 0.025 },
-      { frequency: 293.66, duration: 0.48, type: "sine" as OscillatorType, volume: 0.018, detune: 7 },
-      { frequency: 392, duration: 0.28, type: "triangle" as OscillatorType, volume: 0.015 },
+      {
+        frequency: 196,
+        duration: 0.72,
+        type: "triangle" as OscillatorType,
+        volume: 0.025 + routingLift * 0.01,
+      },
+      {
+        frequency: 293.66,
+        duration: 0.48,
+        type: "sine" as OscillatorType,
+        volume: 0.018 + chatterLift * 0.015,
+        detune: 7,
+      },
+      {
+        frequency: 392,
+        duration: 0.28,
+        type: "triangle" as OscillatorType,
+        volume: 0.015 + routingLift * 0.006,
+      },
     ];
 
     tones.forEach((tone, index) => {
@@ -169,6 +246,14 @@ class BazaarAudioSystem {
       oscillator.start(now + index * 0.12);
       oscillator.stop(now + index * 0.12 + tone.duration + 0.05);
     });
+
+    if (chatterLift > 0.05) {
+      this.playNoise({
+        duration: 0.14,
+        volume: 0.006 + chatterLift * 0.02,
+        highpass: 720 - Math.floor(chatterLift * 220),
+      });
+    }
   }
 
   startAmbient() {
@@ -190,7 +275,7 @@ class BazaarAudioSystem {
     }
   }
 
-  play(cue: SoundCue) {
+  play(cue: SoundCue, mix?: SpatialMix) {
     this.ensureContext();
     if (this.muted) {
       return;
@@ -203,16 +288,23 @@ class BazaarAudioSystem {
           return;
         }
         this.lastFootstepAt = now;
-        const wealthLift = Math.min(0.05, this.economyTone.gdpScore / 600);
-        const footstepPitch = 110 + this.economyTone.worldTier * 20 + this.economyTone.gdpScore * 0.6;
-        this.playNoise({ duration: 0.06, volume: 0.018 + wealthLift * 0.15, highpass: 380 });
-        this.playTone({ frequency: footstepPitch, duration: 0.03, type: "triangle", volume: 0.03 + wealthLift });
-        if (this.economyTone.worldTier >= 1) {
+        const resolvedSurface = mix?.surface ?? this.surfaceProfile;
+        const profile = resolveFootstepSurfaceProfile(resolvedSurface, this.economyTone);
+        const wealthLift = clamp(this.economyTone.gdpScore / 60000, 0, 0.12);
+        const footstepPitch = 110 + this.economyTone.worldTier * 18 + this.economyTone.gdpScore * 0.0009 + profile.pitchOffset;
+        this.playNoise({ duration: 0.06, volume: 0.016 + wealthLift * 0.12, highpass: profile.noiseHighpass });
+        this.playTone({
+          frequency: footstepPitch,
+          duration: 0.03,
+          type: "triangle",
+          volume: 0.028 + wealthLift * 0.55,
+        });
+        if (profile.clinkVolume > 0 || this.economyTone.worldTier >= 1) {
           this.playTone({
-            frequency: 620 + this.economyTone.worldTier * 80,
+            frequency: 620 + this.economyTone.worldTier * 80 + profile.pitchOffset * 2,
             duration: 0.018,
             type: "sine",
-            volume: 0.012 + wealthLift * 0.5,
+            volume: profile.clinkVolume + wealthLift * 0.34,
           });
         }
         break;

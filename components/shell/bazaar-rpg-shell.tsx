@@ -326,6 +326,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const skillCatalog = useBazaarGameStore((state) => state.skillCatalog);
   const unlockedSkillIds = useBazaarGameStore((state) => state.unlockedSkillIds);
   const activeSkillId = useBazaarGameStore((state) => state.activeSkillId);
+  const laborRouting = useBazaarGameStore((state) => state.laborRouting);
 
   const statusQuery = useQuery({
     queryKey: STATUS_QUERY_KEY,
@@ -426,10 +427,12 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       activeSkillId,
       muted: settings.muted,
       lowEffects: settings.lowEffects,
+      laborRouting,
     });
   }, [
     activeSkillId,
     currentMapId,
+    laborRouting,
     objectiveTargetId,
     playerName,
     proofs,
@@ -666,6 +669,16 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const onboardingVisible =
     !hydrated || !walletIdentity.connected || !walletIdentity.validNetwork || !hasEnteredVillage;
   const canEnterVillage = hydrated && walletIdentity.connected && walletIdentity.validNetwork;
+  const activeLaborCount = useMemo(
+    () => Object.values(laborRouting.npcStates).filter((snapshot) => snapshot.status === "walking").length,
+    [laborRouting.npcStates],
+  );
+
+  useEffect(() => {
+    bazaarEventBridge.emit("camera:focus-mode", {
+      active: focusActive,
+    });
+  }, [focusActive]);
 
   async function handleQuestAction(actionId: QuestActionId) {
     bazaarAudioSystem.play("ui-confirm");
@@ -933,8 +946,22 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     () => ({
       ["--left-width" as string]: briefOpen ? "22rem" : "4.75rem",
       ["--right-width" as string]: drawerOpen ? "25rem" : "5.25rem",
+      ["--hud-village-health" as string]: String(liveStatus?.monitor?.villageHealth ?? 0.72),
+      ["--hud-village-opacity" as string]: String(liveStatus?.hud?.opacity ?? liveStatus?.monitor?.hudOpacity ?? 0.94),
+      ["--hud-village-glow" as string]: String(liveStatus?.hud?.glow ?? liveStatus?.monitor?.hudGlow ?? 0.18),
+      ["--hud-village-pulse-ms" as string]: `${liveStatus?.hud?.pulseMs ?? liveStatus?.monitor?.pulseMs ?? 6400}ms`,
     }),
-    [briefOpen, drawerOpen],
+    [
+      briefOpen,
+      drawerOpen,
+      liveStatus?.hud?.glow,
+      liveStatus?.hud?.opacity,
+      liveStatus?.hud?.pulseMs,
+      liveStatus?.monitor?.hudGlow,
+      liveStatus?.monitor?.hudOpacity,
+      liveStatus?.monitor?.pulseMs,
+      liveStatus?.monitor?.villageHealth,
+    ],
   );
 
   return (
@@ -1134,7 +1161,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
           </div>
 
           <div className="shell-stage-wrap">
-            <div className="game-stage world-vignette shell-stage-surface relative overflow-hidden rounded-[28px] border-4 border-[#161c24]">
+            <div className={`game-stage world-vignette shell-stage-surface relative overflow-hidden rounded-[28px] border-4 border-[#161c24] ${focusActive ? "is-focus" : ""}`}>
               <PhaserGameClient />
             </div>
           </div>
@@ -1316,6 +1343,8 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                   <div className="shell-terminal-card"><span>Block</span><strong>{world.blockHeight || "Syncing"}</strong></div>
                   <div className="shell-terminal-card"><span>Tax</span><strong>{taxLabel}</strong></div>
                   <div className="shell-terminal-card"><span>Treasury</span><strong>{treasuryLabel}</strong></div>
+                  <div className="shell-terminal-card"><span>Village</span><strong>{liveStatus?.monitor?.healthLabel ?? "steady"}</strong></div>
+                  <div className="shell-terminal-card"><span>Routing</span><strong>{activeLaborCount}</strong></div>
                 </div>
 
                 <ShellCard kicker="Runtime Note" title="World Tracker" accent="green">
@@ -1323,6 +1352,17 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                     {liveError ?? (pendingAction ? `${pendingAction.label} is ${pendingAction.status}.` : "The tracker stays live while X Layer settles the current economy loop.")}
                   </p>
                 </ShellCard>
+
+                {liveStatus?.monitor ? (
+                  <ShellCard kicker="Monitor" title={`${Math.round(liveStatus.monitor.villageHealth * 100)}% Village Health`} accent="violet">
+                    <p className="shell-mini-copy">{liveStatus.monitor.note}</p>
+                    <div className="shell-detail-list">
+                      <div><strong>Dispatcher heartbeat:</strong> {liveStatus.monitor.dispatcherHeartbeatMs}ms</div>
+                      <div><strong>RPC throttle:</strong> {liveStatus.monitor.rpcThrottleMs}ms cache window</div>
+                      <div><strong>Last fetch:</strong> {liveStatus.monitor.lastFetchMs}ms</div>
+                    </div>
+                  </ShellCard>
+                ) : null}
 
                 {recentSteps.length ? (
                   recentSteps.map((step) => (

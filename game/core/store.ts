@@ -7,6 +7,7 @@ import type {
   GameStoreState,
   LiveDashboardStatus,
   MapId,
+  LaborRoutingState,
   PendingAction,
   PersistedPlayerState,
   ProofArtifact,
@@ -35,6 +36,12 @@ const defaultWorldState: WorldReactionState = {
   objectiveTargetId: "keeper-gate",
 };
 
+const defaultLaborRoutingState: LaborRoutingState = {
+  jobs: [],
+  npcStates: {},
+  observedStepKeys: [],
+};
+
 type BazaarGameStore = GameStoreState & {
   setScene: (sceneId: SceneId, mapId?: MapId) => void;
   setPlayerState: (player: Partial<GameStoreState["player"]>) => void;
@@ -52,6 +59,7 @@ type BazaarGameStore = GameStoreState & {
   setWorldState: (world: WorldReactionState) => void;
   setSkillCatalog: (skills: AISkillDefinition[]) => void;
   setSkillLoadout: (input: { unlockedSkillIds?: string[]; activeSkillId?: string | null }) => void;
+  setLaborRoutingState: (state: LaborRoutingState) => void;
   hydrateFromPersistence: (state: PersistedPlayerState) => void;
   setSettings: (settings: Partial<GameStoreState["settings"]>) => void;
   markHydrated: () => void;
@@ -87,6 +95,7 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
     muted: false,
     lowEffects: false,
   },
+  laborRouting: defaultLaborRoutingState,
   world: defaultWorldState,
   hydrated: false,
   setScene: (sceneId, mapId) =>
@@ -153,6 +162,7 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
           ? state.activeSkillId
           : activeSkillId,
     })),
+  setLaborRoutingState: (laborRouting) => set(() => ({ laborRouting })),
   hydrateFromPersistence: (persisted) =>
     set((state) => ({
       currentMapId: persisted.currentMapId,
@@ -161,6 +171,7 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
       playerName: persisted.playerName ?? state.playerName,
       unlockedSkillIds: persisted.unlockedSkillIds,
       activeSkillId: persisted.activeSkillId ?? state.activeSkillId,
+      laborRouting: persisted.laborRouting ?? state.laborRouting,
       settings: {
         muted: persisted.muted,
         lowEffects: persisted.lowEffects,

@@ -14,6 +14,14 @@ export function ProofRealityOverlay({ proof, onClose }: ProofRealityOverlayProps
             <div className="arcade-face text-[0.34rem] tracking-[0.2em] text-[#7de6ff]">
               Reality Pulse
             </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[rgba(125,230,255,0.18)] bg-[rgba(125,230,255,0.08)] px-3 py-1 text-[0.68rem] uppercase tracking-[0.2em] text-[#8de6ff]">
+                {proof.kind}
+              </span>
+              <span className="rounded-full border border-[rgba(255,255,255,0.08)] px-3 py-1 text-[0.68rem] uppercase tracking-[0.2em] text-[#9db6c7]">
+                {proof.districtId}
+              </span>
+            </div>
             <h2 className="mt-3 font-[var(--font-display)] text-[2rem] leading-none text-white">
               {proof.title}
             </h2>
@@ -60,7 +68,11 @@ export function ProofRealityOverlay({ proof, onClose }: ProofRealityOverlayProps
             >
               <span className="arcade-face text-[0.38rem]">Open Explorer Link</span>
             </a>
-          ) : null}
+          ) : (
+            <div className="rounded-[22px] border border-[rgba(125,230,255,0.12)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm leading-7 text-[#a4c0d1]">
+              The proof is fully anchored, but no explorer link was provided for this record.
+            </div>
+          )}
         </div>
       </div>
     </div>

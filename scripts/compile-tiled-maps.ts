@@ -98,19 +98,24 @@ async function main() {
       }
     }
 
+    const objectLayers = Object.fromEntries(
+      map.layers
+        .filter(
+          (layer): layer is Extract<TiledLayer, { type: "objectgroup" }> => layer.type === "objectgroup",
+        )
+        .map((layer) => [layer.name, normalizeObjectLayer(layer, map.tilewidth, map.tileheight)]),
+    );
+
     const compiled = {
       ...map,
       bazaarx: {
         mapId: getMapId(map),
         collisionLayer: "collision",
         renderLayers: ["ground", "details"],
-        objectLayers: Object.fromEntries(
-          map.layers
-            .filter(
-              (layer): layer is Extract<TiledLayer, { type: "objectgroup" }> => layer.type === "objectgroup",
-            )
-            .map((layer) => [layer.name, normalizeObjectLayer(layer, map.tilewidth, map.tileheight)]),
-        ),
+        objectLayers: {
+          ...objectLayers,
+          navigationNodes: objectLayers.navigationNodes ?? objectLayers.patrolNodes ?? [],
+        },
       },
     };
 

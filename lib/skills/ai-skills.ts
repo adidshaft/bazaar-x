@@ -1,5 +1,68 @@
 import type { AISkillDefinition } from "@/game/core/live-types";
 
+export type SkillManifestJsonLd = {
+  "@context": Array<string | Record<string, string>>;
+  "@type": "SkillManifest";
+  version: string;
+  skill_id: string;
+  identity: AISkillDefinition["identity"];
+  execution: AISkillDefinition["execution"];
+  visual_metadata: AISkillDefinition["visual_metadata"];
+  interop_stats: AISkillDefinition["interop_stats"];
+  logic_hash: string;
+  permission_scope: string[];
+};
+
+export function findSkillById(skillId: string) {
+  return aiSkillCatalog.find((skill) => skill.skill_id === skillId) ?? null;
+}
+
+function deepSort(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => deepSort(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.keys(value as Record<string, unknown>)
+    .sort()
+    .reduce<Record<string, unknown>>((accumulator, key) => {
+      const next = (value as Record<string, unknown>)[key];
+      if (next !== undefined) {
+        accumulator[key] = deepSort(next);
+      }
+      return accumulator;
+    }, {});
+}
+
+export function stableStringify(value: unknown) {
+  return JSON.stringify(deepSort(value));
+}
+
+export function buildSkillManifestJsonLd(skill: AISkillDefinition): SkillManifestJsonLd {
+  return {
+    "@context": [
+      "https://schema.org",
+      {
+        skill: "https://bazaar-x.example/ns/skill#",
+        logic_hash: "skill:logicHash",
+        permission_scope: "skill:permissionScope",
+      },
+    ],
+    "@type": "SkillManifest",
+    version: skill.version,
+    skill_id: skill.skill_id,
+    identity: skill.identity,
+    execution: skill.execution,
+    visual_metadata: skill.visual_metadata,
+    interop_stats: skill.interop_stats,
+    logic_hash: skill.execution.logic_hash,
+    permission_scope: skill.execution.permission_scope,
+  };
+}
+
 export const aiSkillCatalog: AISkillDefinition[] = [
   {
     version: "2026.1.0",
