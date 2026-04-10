@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpRight,
@@ -24,9 +24,11 @@ import {
 import { useAccount, useBalance, useSwitchChain } from "wagmi";
 import { ConnectWalletButton } from "@/components/connect-wallet-button";
 import { InteractionSheet } from "@/components/overlay/interaction-sheet";
+import { ProofRealityOverlay } from "@/components/overlay/proof-reality-overlay";
+import { SkillGrimoire } from "@/components/overlay/skill-grimoire";
 import { STATUS_QUERY_KEY, TILE_SIZE } from "@/game/config/constants";
 import { bazaarEventBridge } from "@/game/core/event-bridge";
-import type { DistrictId, MapId, QuestActionId } from "@/game/core/live-types";
+import type { DistrictId, MapId, ProofArtifact, QuestActionId } from "@/game/core/live-types";
 import { bazaarGameStore, useBazaarGameStore } from "@/game/core/store";
 import { dialogueEntries } from "@/game/data/dialogue";
 import { npcDefinitions } from "@/game/data/npcs";
@@ -39,10 +41,16 @@ import {
 } from "@/game/systems/player-service";
 import { deriveQuestRail, getActiveQuestStep } from "@/game/systems/quest-service";
 import { loadPersistedPlayerState, savePersistedPlayerState } from "@/game/systems/persistence-service";
-import { buildProofArtifacts } from "@/game/systems/proof-service";
-import { executeQuestAction, fetchDashboardStatus } from "@/game/systems/transaction-service";
+import { ProofListener } from "@/game/systems/proof-service";
+import {
+  delegateTradeSkill,
+  executeQuestAction,
+  fetchDashboardStatus,
+  unlockSkill,
+} from "@/game/systems/transaction-service";
 import { bazaarAudioSystem } from "@/game/systems/audio-system";
-import { deriveWorldState } from "@/game/systems/world-state-service";
+import { deriveWorldState, EconomicMonitor } from "@/game/systems/world-state-service";
+import { aiSkillCatalog, defaultUnlockedSkillIds } from "@/lib/skills/ai-skills";
 import { defaultXLayerChain } from "@/lib/xlayer";
 import { PhaserGameClient } from "./phaser-game-client";
 
@@ -216,7 +224,7 @@ function resolveInitialDrawerTab(initialScene?: string | null): DrawerTab {
   if (initialScene === "districts") {
     return "districts";
   }
-  if (initialScene === "stats" || initialScene === "live") {
+  if (initialScene === "live") {
     return "live";
   }
   return "quests";
@@ -271,12 +279,19 @@ function ShellCard({ kicker, title, children, accent = "cyan" }: ShellCardProps)
 
 export function BazaarRpgShell({ initialScene }: { initialScene?: string | null }) {
   const queryClient = useQueryClient();
+  const economicMonitorRef = useRef(new EconomicMonitor());
+  const proofListenerRef = useRef(new ProofListener());
   const [selection, setSelection] = useState<InteractionSelection | null>(null);
   const [briefOpen, setBriefOpen] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(Boolean(initialScene));
   const [drawerTab, setDrawerTab] = useState<DrawerTab>(resolveInitialDrawerTab(initialScene));
   const [hasEnteredVillage, setHasEnteredVillage] = useState(Boolean(initialScene));
   const [playerNameDraft, setPlayerNameDraft] = useState("");
+  const [skillHudMapId, setSkillHudMapId] = useState<MapId | null>(null);
+  const [proofOverlay, setProofOverlay] = useState<ProofArtifact | null>(null);
+  const [unlockPendingSkillId, setUnlockPendingSkillId] = useState<string | null>(null);
+  const [delegatePendingSkillId, setDelegatePendingSkillId] = useState<string | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
 
   const { address, chain, isConnected } = useAccount();
   const { data: balance } = useBalance({
@@ -308,6 +323,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const selectedDistrictId = useBazaarGameStore((state) => state.selectedDistrictId);
   const playerName = useBazaarGameStore((state) => state.playerName);
   const player = useBazaarGameStore((state) => state.player);
+  const skillCatalog = useBazaarGameStore((state) => state.skillCatalog);
+  const unlockedSkillIds = useBazaarGameStore((state) => state.unlockedSkillIds);
+  const activeSkillId = useBazaarGameStore((state) => state.activeSkillId);
 
   const statusQuery = useQuery({
     queryKey: STATUS_QUERY_KEY,
@@ -332,6 +350,10 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   );
 
   useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -343,6 +365,16 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   useEffect(() => {
     bazaarGameStore.getState().setWallet(walletIdentity);
   }, [walletIdentity]);
+
+  useEffect(() => {
+    bazaarGameStore.getState().setSkillCatalog(aiSkillCatalog);
+    if (bazaarGameStore.getState().unlockedSkillIds.length === 0) {
+      bazaarGameStore.getState().setSkillLoadout({
+        unlockedSkillIds: [...defaultUnlockedSkillIds],
+        activeSkillId: defaultUnlockedSkillIds[0] ?? null,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (!walletIdentity.connected || !walletIdentity.validNetwork) {
@@ -390,22 +422,66 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         "council-interior",
       ],
       activeQuestStepId: objectiveTargetId ?? undefined,
+      unlockedSkillIds,
+      activeSkillId,
       muted: settings.muted,
       lowEffects: settings.lowEffects,
     });
-  }, [currentMapId, objectiveTargetId, playerName, proofs, settings, walletIdentity]);
+  }, [
+    activeSkillId,
+    currentMapId,
+    objectiveTargetId,
+    playerName,
+    proofs,
+    settings,
+    unlockedSkillIds,
+    walletIdentity,
+  ]);
 
   useEffect(() => {
     const status = statusQuery.data ?? null;
+    const proofSnapshot = proofListenerRef.current.consume(status);
+    const worldState = deriveWorldState(status);
+
     bazaarGameStore.getState().setLiveStatus(status);
-    bazaarGameStore.getState().setWorldState(deriveWorldState(status));
-    bazaarGameStore.getState().pushProofs(buildProofArtifacts(status));
+    bazaarGameStore.getState().setWorldState(worldState);
+    bazaarGameStore.getState().pushProofs(proofSnapshot.proofs);
+    bazaarGameStore.getState().setSkillCatalog(status?.aiSkills ?? aiSkillCatalog);
     bazaarEventBridge.emit("economy:sync", { status });
+
+    const taxCollection = economicMonitorRef.current.detectTaxCollection(status);
+    if (taxCollection) {
+      bazaarEventBridge.emit("economy:tax-collected", taxCollection);
+      bazaarEventBridge.emit("toast:show", {
+        id: `tax:${taxCollection.id}`,
+        title: "Tax Collected",
+        body: `${taxCollection.amountOkb} OKB moved into treasury.`,
+        tone: "tax",
+      });
+    }
+
+    proofSnapshot.freshProofs.forEach((proof) => {
+      bazaarEventBridge.emit("proof:verified", { proof });
+    });
   }, [statusQuery.data]);
 
   useEffect(() => {
     bazaarAudioSystem.setMuted(settings.muted);
   }, [settings.muted]);
+
+  useEffect(() => {
+    bazaarAudioSystem.setEconomyTone(world.gdpScore, world.worldTier);
+  }, [world.gdpScore, world.worldTier]);
+
+  useEffect(() => {
+    const isStacked = typeof window !== "undefined" && window.innerWidth <= 1180;
+    bazaarEventBridge.emit("ui:viewport-changed", {
+      briefOpen,
+      drawerOpen,
+      leftWidth: isStacked ? 0 : briefOpen ? 352 : 76,
+      rightWidth: isStacked ? 0 : drawerOpen ? 400 : 84,
+    });
+  }, [briefOpen, drawerOpen]);
 
   const rail = useMemo(
     () => deriveQuestRail(liveStatus, walletIdentity),
@@ -433,10 +509,24 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     const offDistrict = bazaarEventBridge.on("district:selected", ({ interactionId }) => {
       setSelection({ interactionId });
     });
+    const offSkillAltar = bazaarEventBridge.on("skill:altar-open", ({ mapId }) => {
+      startTransition(() => {
+        setSkillHudMapId(mapId);
+      });
+    });
+    const offProofPicked = bazaarEventBridge.on("proof:scroll-picked", ({ proof }) => {
+      startTransition(() => {
+        setProofOverlay(proof);
+        setDrawerOpen(true);
+        setDrawerTab("proof");
+      });
+    });
 
     return () => {
       offNpc();
       offDistrict();
+      offSkillAltar();
+      offProofPicked();
     };
   }, []);
 
@@ -508,7 +598,8 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       : "Syncing"
     : "Not connected";
   const chainLabel = chain?.name ?? "Wallet offline";
-  const runtimeLabel = statusQuery.isFetching
+  const isStatusSyncing = hasMounted && statusQuery.isFetching;
+  const runtimeLabel = isStatusSyncing
     ? "syncing"
     : liveStatus?.liveDashboard.runtime?.status ?? "ready";
   const taxLabel = `${(
@@ -741,6 +832,103 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     bazaarAudioSystem.play("ui-confirm");
   }
 
+  function handleCloseSkillHud() {
+    if (!skillHudMapId) {
+      return;
+    }
+
+    bazaarAudioSystem.play("ui-confirm");
+    bazaarEventBridge.emit("skill:altar-close", {
+      mapId: skillHudMapId,
+    });
+    setSkillHudMapId(null);
+  }
+
+  async function handleUnlockSkill(skillId: string) {
+    setUnlockPendingSkillId(skillId);
+
+    try {
+      const receipt = await unlockSkill(skillId);
+      const nextUnlocked = Array.from(new Set([...unlockedSkillIds, skillId]));
+      bazaarGameStore.getState().setSkillLoadout({
+        unlockedSkillIds: nextUnlocked,
+        activeSkillId: activeSkillId ?? skillId,
+      });
+      if (!activeSkillId) {
+        bazaarEventBridge.emit("skill:activated", {
+          skillId,
+        });
+      }
+      bazaarEventBridge.emit("camera:flash", {
+        duration: 500,
+        red: 168,
+        green: 244,
+        blue: 255,
+      });
+      bazaarEventBridge.emit("skill:unlock-success", {
+        skillId,
+      });
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:unlock:${skillId}`,
+        title: "Skill Unlocked",
+        body: `${receipt.amountOkb} OKB settled through ${receipt.protocol}.`,
+        tone: "success",
+      });
+      bazaarAudioSystem.play("success-chime");
+    } catch (error) {
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:unlock:error:${skillId}`,
+        title: "Unlock Failed",
+        body: error instanceof Error ? error.message : "Unable to unlock the skill.",
+        tone: "skill",
+      });
+    } finally {
+      setUnlockPendingSkillId(null);
+    }
+  }
+
+  function handleSlotSkill(skillId: string) {
+    bazaarAudioSystem.play("ui-confirm");
+    bazaarGameStore.getState().setSkillLoadout({
+      activeSkillId: skillId,
+    });
+    bazaarEventBridge.emit("skill:activated", {
+      skillId,
+    });
+    bazaarEventBridge.emit("toast:show", {
+      id: `skill:slot:${skillId}`,
+      title: "Aura Rebound",
+      body: `${skillCatalog.find((skill) => skill.skill_id === skillId)?.identity.name ?? "Skill"} is now active.`,
+      tone: "skill",
+    });
+  }
+
+  async function handleDelegateTrade(skillId: string) {
+    setDelegatePendingSkillId(skillId);
+
+    try {
+      const payload = await delegateTradeSkill(skillId);
+      bazaarEventBridge.emit("skill:delegate-trade", payload);
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:delegate:${skillId}`,
+        title: "Trade Delegated",
+        body: `${payload.delegatedAction} routed through ${payload.protocol} to ${humanize(payload.agentNpcId)}.`,
+        tone: "skill",
+      });
+      setDrawerOpen(true);
+      setDrawerTab("live");
+    } catch (error) {
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:delegate:error:${skillId}`,
+        title: "Delegation Failed",
+        body: error instanceof Error ? error.message : "Unable to route the delegated trade.",
+        tone: "skill",
+      });
+    } finally {
+      setDelegatePendingSkillId(null);
+    }
+  }
+
   const sidebarStyle = useMemo(
     () => ({
       ["--left-width" as string]: briefOpen ? "22rem" : "4.75rem",
@@ -890,6 +1078,10 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             <div className="shell-stage-pill">
               <Landmark className="h-4 w-4" />
               <span>{runtimeLabel}</span>
+            </div>
+            <div className="shell-stage-pill">
+              <Compass className="h-4 w-4" />
+              <span>GDP {world.gdpScore.toFixed(1)}</span>
             </div>
             <div className="shell-stage-pill">
               <Radio className="h-4 w-4" />
@@ -1120,6 +1312,8 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 <div className="shell-terminal-grid">
                   <div className="shell-terminal-card"><span>Status</span><strong>{runtimeLabel}</strong></div>
                   <div className="shell-terminal-card"><span>Updated</span><strong>{lastUpdatedLabel}</strong></div>
+                  <div className="shell-terminal-card"><span>GDP Tier</span><strong>L{world.worldTier}</strong></div>
+                  <div className="shell-terminal-card"><span>Block</span><strong>{world.blockHeight || "Syncing"}</strong></div>
                   <div className="shell-terminal-card"><span>Tax</span><strong>{taxLabel}</strong></div>
                   <div className="shell-terminal-card"><span>Treasury</span><strong>{treasuryLabel}</strong></div>
                 </div>
@@ -1198,9 +1392,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 ) : null}
 
                 <div className="shell-inline-actions">
-                  <button type="button" onClick={() => void statusQuery.refetch()} disabled={statusQuery.isFetching} className="shell-inline-link">
+                  <button type="button" onClick={() => void statusQuery.refetch()} disabled={isStatusSyncing} className="shell-inline-link">
                     <RefreshCw className="h-4 w-4" />
-                    <span>{statusQuery.isFetching ? "Refreshing..." : "Refresh State"}</span>
+                    <span>{isStatusSyncing ? "Refreshing..." : "Refresh State"}</span>
                   </button>
                   <button type="button" onClick={toggleMuted} className="shell-inline-link">
                     {settings.muted ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
@@ -1245,6 +1439,27 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               : undefined
           }
           onClose={() => setSelection(null)}
+        />
+      ) : null}
+
+      {skillHudMapId ? (
+        <SkillGrimoire
+          skills={skillCatalog.length ? skillCatalog : aiSkillCatalog}
+          unlockedSkillIds={unlockedSkillIds}
+          activeSkillId={activeSkillId}
+          unlockPendingSkillId={unlockPendingSkillId}
+          delegatePendingSkillId={delegatePendingSkillId}
+          onUnlock={handleUnlockSkill}
+          onSlot={handleSlotSkill}
+          onDelegateTrade={handleDelegateTrade}
+          onClose={handleCloseSkillHud}
+        />
+      ) : null}
+
+      {proofOverlay ? (
+        <ProofRealityOverlay
+          proof={proofOverlay}
+          onClose={() => setProofOverlay(null)}
         />
       ) : null}
 

@@ -1,6 +1,7 @@
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import type {
+  AISkillDefinition,
   Direction,
   DistrictId,
   GameStoreState,
@@ -21,6 +22,12 @@ const defaultWorldState: WorldReactionState = {
   treasuryUnlocked: false,
   councilUnlocked: false,
   governancePassed: false,
+  worldTier: 0,
+  tvlOkb: 0,
+  dailyVolumeOkb: 0,
+  gdpScore: 0,
+  activeProposalCount: 0,
+  blockHeight: 0,
   treasuryGlow: 0.2,
   lanternGlow: 0.55,
   taxRateBps: 500,
@@ -43,6 +50,8 @@ type BazaarGameStore = GameStoreState & {
   setPlayerName: (playerName: string) => void;
   setWallet: (wallet: WalletIdentity) => void;
   setWorldState: (world: WorldReactionState) => void;
+  setSkillCatalog: (skills: AISkillDefinition[]) => void;
+  setSkillLoadout: (input: { unlockedSkillIds?: string[]; activeSkillId?: string | null }) => void;
   hydrateFromPersistence: (state: PersistedPlayerState) => void;
   setSettings: (settings: Partial<GameStoreState["settings"]>) => void;
   markHydrated: () => void;
@@ -71,6 +80,9 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
     connected: false,
     validNetwork: false,
   },
+  skillCatalog: [],
+  unlockedSkillIds: [],
+  activeSkillId: null,
   settings: {
     muted: false,
     lowEffects: false,
@@ -132,12 +144,23 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
       world,
       objectiveTargetId: world.objectiveTargetId,
     })),
+  setSkillCatalog: (skillCatalog) => set(() => ({ skillCatalog })),
+  setSkillLoadout: ({ unlockedSkillIds, activeSkillId }) =>
+    set((state) => ({
+      unlockedSkillIds: unlockedSkillIds ?? state.unlockedSkillIds,
+      activeSkillId:
+        activeSkillId === undefined
+          ? state.activeSkillId
+          : activeSkillId,
+    })),
   hydrateFromPersistence: (persisted) =>
     set((state) => ({
       currentMapId: persisted.currentMapId,
       objectiveTargetId: persisted.activeQuestStepId ?? state.objectiveTargetId,
       questHighlightId: persisted.activeQuestStepId ?? state.questHighlightId,
       playerName: persisted.playerName ?? state.playerName,
+      unlockedSkillIds: persisted.unlockedSkillIds,
+      activeSkillId: persisted.activeSkillId ?? state.activeSkillId,
       settings: {
         muted: persisted.muted,
         lowEffects: persisted.lowEffects,

@@ -310,6 +310,101 @@ function drawQuestMarker(scene: Phaser.Scene) {
   texture.refresh();
 }
 
+function drawSkillAltar(scene: Phaser.Scene) {
+  drawAmbientProp(scene, "prop-skill-altar", (ctx) => {
+    fill(ctx, "#2d3342", 12, 42, 40, 18);
+    fill(ctx, "#5d6879", 16, 46, 32, 10);
+    fill(ctx, "#1a2230", 22, 18, 20, 24);
+    fill(ctx, "#7df0ff", 24, 20, 16, 12);
+    fill(ctx, "#d9fbff", 27, 23, 10, 6);
+    fill(ctx, "#8b6dff", 28, 12, 8, 6);
+    outline(ctx, "#171813", 12, 18, 40, 42);
+  });
+}
+
+function drawVeritasScroll(scene: Phaser.Scene) {
+  const texture = createCanvas(scene, "fx-veritas-scroll", 28, 32);
+  if (!texture) {
+    return;
+  }
+
+  const ctx = texture.context;
+  fill(ctx, "#f7f0db", 6, 5, 16, 22);
+  fill(ctx, "#dfcda4", 4, 8, 4, 16);
+  fill(ctx, "#dfcda4", 20, 8, 4, 16);
+  fill(ctx, "#7df0ff", 9, 10, 10, 2);
+  fill(ctx, "#7df0ff", 9, 15, 10, 2);
+  fill(ctx, "#7df0ff", 9, 20, 7, 2);
+  outline(ctx, "#1b2027", 6, 5, 16, 22);
+  texture.refresh();
+}
+
+function drawHearthFireFrame(scene: Phaser.Scene, key: string, colors: { core: string; mid: string; rim: string }) {
+  const texture = createCanvas(scene, key, 32, 40);
+  if (!texture) {
+    return;
+  }
+
+  const ctx = texture.context;
+  fill(ctx, "#49382f", 8, 28, 16, 8);
+  fill(ctx, "#2d2420", 6, 34, 20, 4);
+  fill(ctx, colors.rim, 10, 12, 12, 18);
+  fill(ctx, colors.mid, 12, 8, 8, 16);
+  fill(ctx, colors.core, 14, 4, 4, 12);
+  texture.refresh();
+}
+
+function ensureGeneratedBitmapFonts(scene: Phaser.Scene) {
+  if (scene.cache.bitmapFont.exists("ledger-font")) {
+    return;
+  }
+
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:-.#/()<>? ";
+  const charsPerRow = 8;
+  const cellWidth = 12;
+  const cellHeight = 16;
+  const rows = Math.ceil(chars.length / charsPerRow);
+  const texture = createCanvas(
+    scene,
+    "font-ledger-image",
+    charsPerRow * cellWidth,
+    rows * cellHeight,
+  );
+  if (!texture) {
+    return;
+  }
+
+  const ctx = texture.context;
+  ctx.fillStyle = "#e8fbff";
+  ctx.font = "14px monospace";
+  ctx.textBaseline = "top";
+
+  [...chars].forEach((character, index) => {
+    const x = (index % charsPerRow) * cellWidth;
+    const y = Math.floor(index / charsPerRow) * cellHeight;
+    ctx.fillText(character, x + 1, y + 1);
+  });
+
+  texture.refresh();
+
+  scene.cache.bitmapFont.add("ledger-font", {
+    data: Phaser.GameObjects.RetroFont.Parse(scene, {
+      image: "font-ledger-image",
+      "offset.x": 0,
+      "offset.y": 0,
+      width: cellWidth,
+      height: cellHeight,
+      chars,
+      charsPerRow,
+      "spacing.x": 0,
+      "spacing.y": 0,
+      lineSpacing: 0,
+    }),
+    texture: "font-ledger-image",
+    fromAtlas: false,
+  });
+}
+
 function drawProps(scene: Phaser.Scene) {
   drawAmbientProp(scene, "prop-pine", (ctx) => {
     fill(ctx, "#2b4337", 28, 48, 8, 22);
@@ -428,6 +523,42 @@ export function ensureGeneratedSpriteTextures(scene: Phaser.Scene) {
     banner: "#cdbbff",
     lamp: "#f0ecff",
   });
+  drawBuilding(scene, "building-keep-sovereign", {
+    roof: "#c8a85c",
+    wall: "#7f8a97",
+    banner: "#dff8ff",
+    lamp: "#fff6db",
+  });
+  drawBuilding(scene, "building-forge-sovereign", {
+    roof: "#c99d5c",
+    wall: "#7e8794",
+    banner: "#ffd0a8",
+    lamp: "#fff3d6",
+  });
+  drawBuilding(scene, "building-depot-sovereign", {
+    roof: "#7d8897",
+    wall: "#7e8794",
+    banner: "#cfe3ff",
+    lamp: "#f2fbff",
+  });
+  drawBuilding(scene, "building-guild-sovereign", {
+    roof: "#7f8a97",
+    wall: "#867b71",
+    banner: "#ffd2c8",
+    lamp: "#fff6e4",
+  });
+  drawBuilding(scene, "building-treasury-sovereign", {
+    roof: "#c8a85c",
+    wall: "#8a8479",
+    banner: "#eff7da",
+    lamp: "#fffbe3",
+  });
+  drawBuilding(scene, "building-council-sovereign", {
+    roof: "#8a93a4",
+    wall: "#9289a0",
+    banner: "#e1d4ff",
+    lamp: "#fff7ff",
+  });
 
   drawInteriorProp(scene, "interior-forge", "#544034", "#927056", "#ffb071");
   drawInteriorProp(scene, "interior-depot", "#434c56", "#6f8192", "#b7d6e8");
@@ -435,6 +566,24 @@ export function ensureGeneratedSpriteTextures(scene: Phaser.Scene) {
   drawInteriorProp(scene, "interior-council", "#434051", "#706b86", "#cdbbff");
 
   drawProps(scene);
+  drawSkillAltar(scene);
+  drawVeritasScroll(scene);
+  drawHearthFireFrame(scene, "fx-hearth-fire-0", {
+    core: "#fff2b5",
+    mid: "#ffb467",
+    rim: "#ff6f4f",
+  });
+  drawHearthFireFrame(scene, "fx-hearth-fire-1", {
+    core: "#fff6c5",
+    mid: "#ffc26d",
+    rim: "#ff8d55",
+  });
+  drawHearthFireFrame(scene, "fx-hearth-fire-2", {
+    core: "#fff4be",
+    mid: "#ffaf59",
+    rim: "#ff5e49",
+  });
+  ensureGeneratedBitmapFonts(scene);
 
   drawFxTexture(scene, "fx-glow", "rgba(125,240,255,0.9)");
   drawFxTexture(scene, "fx-coin", "rgba(255,193,107,0.95)");
@@ -478,4 +627,17 @@ export function registerGeneratedAnimations(scene: Phaser.Scene) {
   Object.keys(characterPalettes).forEach((characterId) => {
     registerCharacterAnimations(scene, characterId);
   });
+
+  if (!scene.anims.exists("fx:hearth-fire")) {
+    scene.anims.create({
+      key: "fx:hearth-fire",
+      frames: [
+        { key: "fx-hearth-fire-0" },
+        { key: "fx-hearth-fire-1" },
+        { key: "fx-hearth-fire-2" },
+      ],
+      repeat: -1,
+      frameRate: 7,
+    });
+  }
 }

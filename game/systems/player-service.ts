@@ -1,3 +1,4 @@
+import { defaultUnlockedSkillIds } from "@/lib/skills/ai-skills";
 import { XRAY_CHAIN_IDS } from "@/game/config/constants";
 import type { PersistedPlayerState, WalletIdentity } from "@/game/core/live-types";
 
@@ -39,6 +40,8 @@ export function createDefaultPlayerPersistence(): PersistedPlayerState {
     revealedProofIds: [],
     unlockedLocations: ["village-exterior", "forge-interior", "depot-interior"],
     activeQuestStepId: "meet-keeper",
+    unlockedSkillIds: [...defaultUnlockedSkillIds],
+    activeSkillId: defaultUnlockedSkillIds[0] ?? null,
     muted: false,
     lowEffects: false,
   };

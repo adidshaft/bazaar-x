@@ -145,14 +145,18 @@ body::after {
 }
 
 .phaser-stage {
+  display: grid;
+  place-items: center;
   height: 100%;
   width: 100%;
 }
 
 .phaser-stage canvas {
   display: block;
-  height: 100%;
-  width: 100%;
+  height: auto !important;
+  width: auto !important;
+  max-height: 100%;
+  max-width: 100%;
   image-rendering: pixelated;
 }
 
@@ -886,13 +890,18 @@ body::after {
 }
 
 .shell-stage-wrap {
+  display: grid;
+  place-items: center;
   min-height: 0;
   flex: 1;
 }
 
 .shell-stage-surface {
+  display: grid;
+  place-items: center;
   height: 100%;
   min-height: 0;
+  width: 100%;
 }
 
 .shell-summary-grid {

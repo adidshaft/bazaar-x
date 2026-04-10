@@ -50,3 +50,73 @@ export async function executeQuestAction(actionId: QuestActionId) {
   return payload;
 }
 
+export async function vote(support: boolean) {
+  if (support) {
+    return executeQuestAction("vote-rule-change");
+  }
+
+  return {
+    ok: true as const,
+    simulated: true,
+    support: false,
+  };
+}
+
+export async function unlockSkill(skillId: string) {
+  const response = await fetch("/api/skills/unlock", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ skillId }),
+  });
+  const payload = await parseJson<{
+    ok: true;
+    skillId: string;
+    protocol: string;
+    amountOkb: string;
+    paidAt: string;
+    receiptId: string;
+  }>(response);
+
+  if (!response.ok || !payload) {
+    throw new Error(extractError(payload, `Failed to unlock ${skillId}.`));
+  }
+
+  return payload;
+}
+
+export async function delegateTradeSkill(skillId: string) {
+  const response = await fetch("/api/skills/delegate", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      skillId,
+      action: "Trade",
+    }),
+  });
+  const payload = await parseJson<{
+    ok: true;
+    skillId: string;
+    delegatedAction: string;
+    agentNpcId: string;
+    protocol: string;
+    routedAt: string;
+  }>(response);
+
+  if (!response.ok || !payload) {
+    throw new Error(extractError(payload, `Failed to delegate trade for ${skillId}.`));
+  }
+
+  return payload;
+}
+
+export const transactionService = {
+  executeQuestAction,
+  fetchDashboardStatus,
+  vote,
+  unlockSkill,
+  delegateTradeSkill,
+};

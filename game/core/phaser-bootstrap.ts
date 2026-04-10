@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH, WORLD_ZOOM } from "@/game/config/constants";
+import { GAME_HEIGHT, GAME_WIDTH } from "@/game/config/constants";
 import { bazaarEventBridge } from "./event-bridge";
 import { BootScene } from "@/game/scenes/BootScene";
 import { PreloadScene } from "@/game/scenes/PreloadScene";
@@ -18,9 +18,8 @@ export function createBazaarPhaserGame(parent: HTMLElement) {
     pixelArt: true,
     roundPixels: true,
     scale: {
-      mode: Phaser.Scale.ENVELOP,
+      mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
-      zoom: WORLD_ZOOM,
     },
     physics: {
       default: "arcade",

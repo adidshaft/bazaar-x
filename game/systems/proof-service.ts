@@ -61,6 +61,7 @@ export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofAr
         kind: summarizeStep(step) as ProofArtifact["kind"],
         title: step.label,
         body: step.detail ?? "Confirmed on X Layer.",
+        statement: `${step.label}: ${step.detail ?? "Confirmed on X Layer."}`,
         label: step.meta?.taxOkb ? `Tax ${step.meta.taxOkb} OKB` : step.txHash ? "Confirmed" : "Recovered",
         districtId,
         actionId,
@@ -72,3 +73,42 @@ export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofAr
     });
 }
 
+export class ProofListener {
+  private seenProofIds = new Set<string>();
+  private bootstrapped = false;
+
+  consume(status: LiveDashboardStatus | null) {
+    const nextProofs = buildProofArtifacts(status);
+    if (!this.bootstrapped) {
+      if (!status) {
+        return {
+          proofs: nextProofs,
+          freshProofs: [] as ProofArtifact[],
+        };
+      }
+
+      nextProofs.forEach((proof) => {
+        this.seenProofIds.add(proof.id);
+      });
+      this.bootstrapped = true;
+      return {
+        proofs: nextProofs,
+        freshProofs: [] as ProofArtifact[],
+      };
+    }
+
+    const freshProofs = nextProofs.filter((proof) => {
+      if (this.seenProofIds.has(proof.id)) {
+        return false;
+      }
+
+      this.seenProofIds.add(proof.id);
+      return Boolean(proof.txHash);
+    });
+
+    return {
+      proofs: nextProofs,
+      freshProofs,
+    };
+  }
+}

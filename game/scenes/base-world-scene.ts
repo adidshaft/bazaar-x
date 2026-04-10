@@ -6,6 +6,7 @@ import type { CompiledMapObject } from "@/game/core/map-types";
 import type {
   DistrictId,
   MapId,
+  ProofArtifact,
   QuestActionId,
   SceneId,
   WorldReactionState,
@@ -99,6 +100,12 @@ const questActionTargetMap = new Map(
 export abstract class BaseWorldScene extends Phaser.Scene {
   protected mapId!: MapId;
   protected spawnId?: string;
+  protected tilemap?: Phaser.Tilemaps.Tilemap;
+  protected collisionLayer?: Phaser.Tilemaps.TilemapLayer;
+  protected renderLayerLookup = new Map<string, Phaser.Tilemaps.TilemapLayer>();
+  protected buildingSpriteLookup = new Map<string, Phaser.GameObjects.Image[]>();
+  protected waterTiles: Phaser.Tilemaps.Tile[] = [];
+  protected npcActorLookup = new Map<string, NpcActor>();
   protected player!: PlayerCharacter;
   protected interactables: WorldInteractable[] = [];
   protected npcs: NpcActor[] = [];
@@ -108,17 +115,56 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<string, Phaser.Input.Keyboard.Key>;
   private activeUnsubscribers: Array<() => void> = [];
-  private waterTiles: Phaser.Tilemaps.Tile[] = [];
   private lastWaterPulse = 0;
   private lastDustAt = 0;
   private labelEntries: LabelEntry[] = [];
   private glowEntries: GlowEntry[] = [];
   private playerRing?: Phaser.GameObjects.Image;
   private playerNameLabel?: Phaser.GameObjects.Text;
+  private playerAuraGlow?: Phaser.FX.Glow;
+  private activeAuraSkillId: string | null = null;
+  private proofPickup?: {
+    proof: ProofArtifact;
+    sprite: Phaser.GameObjects.Image;
+    ring: Phaser.GameObjects.Image;
+  };
 
   protected abstract resolveDefaultMapId(): MapId;
   protected abstract resolveSceneId(): SceneId;
   protected abstract resolveSceneCard(mapId: MapId): { title: string; subtitle: string };
+  protected augmentInteractables() {}
+  protected afterWorldCreate() {}
+  protected afterWorldUpdate(time: number, delta: number) {
+    void time;
+    void delta;
+  }
+  protected onWorldStateApplied(world: WorldReactionState) {
+    void world;
+  }
+
+  public getTilemap() {
+    return this.tilemap;
+  }
+
+  public getRenderLayer(name: string) {
+    return this.renderLayerLookup.get(name);
+  }
+
+  public getBuildingSpriteLookup() {
+    return this.buildingSpriteLookup;
+  }
+
+  public getWaterTiles() {
+    return this.waterTiles;
+  }
+
+  public getWorldInteractables() {
+    return this.interactables;
+  }
+
+  public getPlayerCharacter() {
+    return this.player;
+  }
 
   init(data: ScenePayload) {
     this.mapId = data.mapId ?? this.resolveDefaultMapId();
@@ -131,6 +177,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
     const compiledMap = getCompiledMap(this.mapId);
     const tilemap = this.make.tilemap({ key: this.mapId });
+    this.tilemap = tilemap;
     const tilesetName = compiledMap.tilesets[0]?.name ?? "bazaar-outdoor";
     const tileset = tilemap.addTilesetImage(
       tilesetName,
@@ -143,7 +190,11 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     }
 
     compiledMap.bazaarx.renderLayers.forEach((layerName, index) => {
-      tilemap.createLayer(layerName, tileset, 0, 0)?.setDepth(index);
+      const layer = tilemap.createLayer(layerName, tileset, 0, 0);
+      layer?.setDepth(index);
+      if (layer) {
+        this.renderLayerLookup.set(layerName, layer);
+      }
     });
 
     const collisionLayer = tilemap.createLayer(compiledMap.bazaarx.collisionLayer, tileset, 0, 0);
@@ -151,6 +202,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       collisionLayer.setVisible(false);
       collisionLayer.setCollisionByExclusion([-1, 0]);
     }
+    this.collisionLayer = collisionLayer ?? undefined;
 
     const mapWidthPixels = compiledMap.width * compiledMap.tilewidth;
     const mapHeightPixels = compiledMap.height * compiledMap.tileheight;
@@ -206,6 +258,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
       return interactable;
     });
+    this.augmentInteractables();
 
     this.createNameplates();
     this.createNpcs(compiledMap.bazaarx.objectLayers);
@@ -214,6 +267,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.setupInput();
     this.setupBridgeListeners();
     this.applyWorldState(bazaarGameStore.getState().world);
+    this.applyPlayerAura();
+    this.afterWorldCreate();
 
     const card = this.resolveSceneCard(this.mapId);
     const cutscene = this.scene.get("CutsceneScene");
@@ -238,6 +293,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.updateObjectiveMarker();
     this.updateNameplates();
     this.pulseWater(time);
+    this.checkProofPickup();
+    this.afterWorldUpdate(time, delta);
   }
 
   shutdown() {
@@ -316,6 +373,24 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       bazaarEventBridge.on("tx:confirmed", ({ actionId }) => {
         this.handleConfirmedAction(actionId);
       }),
+      bazaarEventBridge.on("ui:viewport-changed", (payload) => {
+        this.handleViewportChanged(payload);
+      }),
+      bazaarEventBridge.on("camera:flash", ({ duration, red = 255, green = 255, blue = 255 }) => {
+        this.cameras.main.flash(duration, red, green, blue, false);
+      }),
+      bazaarEventBridge.on("proof:verified", ({ proof }) => {
+        this.realityPulse();
+        this.spawnProofPickup(proof);
+      }),
+      bazaarEventBridge.on("skill:altar-close", ({ mapId }) => {
+        if (mapId === this.mapId && this.scene.isPaused()) {
+          this.scene.resume();
+        }
+      }),
+      bazaarEventBridge.on("skill:activated", () => {
+        this.applyPlayerAura();
+      }),
     );
   }
 
@@ -390,6 +465,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.playerNameLabel?.setText(playerName);
     this.playerNameLabel?.setPosition(this.player.sprite.x, this.player.sprite.y - 34);
     this.playerNameLabel?.setDepth(this.player.sprite.y + 200);
+    this.applyPlayerAura();
   }
 
   private refreshActiveInteractable() {
@@ -431,6 +507,14 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     }
 
     bazaarAudioSystem.play("ui-confirm");
+
+    if (this.activeInteractable.id === "skill-altar") {
+      this.scene.pause();
+      bazaarEventBridge.emit("skill:altar-open", {
+        mapId: this.mapId,
+      });
+      return;
+    }
 
     if (this.activeInteractable.targetMapId) {
       bazaarAudioSystem.play("door-open");
@@ -554,6 +638,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
           path,
         );
         this.npcs.push(actor);
+        this.npcActorLookup.set(npc.id, actor);
 
         const ring = this.add.image(spawn.x, spawn.y + 8, npc.entityType === "agent" ? "fx-agent-ring" : "fx-human-ring");
         ring.setBlendMode(Phaser.BlendModes.ADD);
@@ -711,7 +796,11 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         object.y - config.yOffset,
         config.texture,
       );
+      sprite.setData("baseTexture", config.texture);
       sprite.setDepth(object.y - 20);
+      const sprites = this.buildingSpriteLookup.get(object.name) ?? [];
+      sprites.push(sprite);
+      this.buildingSpriteLookup.set(object.name, sprites);
     });
   }
 
@@ -735,5 +824,151 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         entry.sprite.setAlpha(0.12 + world.lanternGlow * 0.26);
       }
     });
+    this.onWorldStateApplied(world);
+  }
+
+  public realityPulse() {
+    const overlay = this.add
+      .rectangle(
+        this.cameras.main.midPoint.x,
+        this.cameras.main.midPoint.y,
+        this.cameras.main.width,
+        this.cameras.main.height,
+        0xf4fbff,
+        0.18,
+      )
+      .setScrollFactor(0)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(3900);
+
+    this.cameras.main.shake(200, 0.0045);
+
+    const tintableChildren = this.children.list.filter(
+      (child): child is Phaser.GameObjects.GameObject & {
+        setTintFill: (color: number) => unknown;
+        clearTint: () => unknown;
+      } => "setTintFill" in child && "clearTint" in child,
+    );
+
+    tintableChildren.forEach((child) => {
+      child.setTintFill(0xf0fbff);
+    });
+
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: 200,
+      ease: "Sine.easeOut",
+      onComplete: () => overlay.destroy(),
+    });
+
+    this.time.delayedCall(200, () => {
+      tintableChildren.forEach((child) => child.clearTint());
+    });
+  }
+
+  private applyPlayerAura() {
+    const { activeSkillId, skillCatalog } = bazaarGameStore.getState();
+    if (activeSkillId === this.activeAuraSkillId) {
+      return;
+    }
+
+    if (this.playerAuraGlow) {
+      this.player.sprite.postFX?.remove(this.playerAuraGlow);
+      this.playerAuraGlow = undefined;
+    }
+
+    this.activeAuraSkillId = activeSkillId;
+
+    if (!activeSkillId) {
+      this.playerRing?.clearTint();
+      return;
+    }
+
+    const skill = skillCatalog.find((entry) => entry.skill_id === activeSkillId);
+    const color = Phaser.Display.Color.HexStringToColor(
+      skill?.visual_metadata.glow_color ?? "#7de6ff",
+    ).color;
+
+    this.playerAuraGlow =
+      this.player.sprite.postFX?.addGlow(color, 2.2, 0.35, false, 0.15, 10) ?? undefined;
+    this.playerRing?.setTint(color);
+  }
+
+  private spawnProofPickup(proof: ProofArtifact) {
+    this.proofPickup?.sprite.destroy();
+    this.proofPickup?.ring.destroy();
+
+    const sprite = this.add.image(this.player.sprite.x, this.player.sprite.y + 6, "fx-veritas-scroll");
+    sprite.setDepth(this.player.sprite.y + 32);
+    const ring = this.add.image(this.player.sprite.x, this.player.sprite.y + 8, "fx-glow");
+    ring.setDepth(this.player.sprite.y + 28);
+    ring.setScale(0.5);
+    ring.setAlpha(0.28);
+    ring.setBlendMode(Phaser.BlendModes.ADD);
+
+    this.tweens.add({
+      targets: [sprite, ring],
+      y: "-=10",
+      yoyo: true,
+      repeat: -1,
+      duration: 840,
+      ease: "Sine.easeInOut",
+    });
+
+    this.proofPickup = {
+      proof,
+      sprite,
+      ring,
+    };
+  }
+
+  private checkProofPickup() {
+    if (!this.proofPickup) {
+      return;
+    }
+
+    const distance = Phaser.Math.Distance.Between(
+      this.player.sprite.x,
+      this.player.sprite.y,
+      this.proofPickup.sprite.x,
+      this.proofPickup.sprite.y,
+    );
+    if (distance > 26) {
+      return;
+    }
+
+    const collectedProof = this.proofPickup.proof;
+    this.proofPickup.sprite.destroy();
+    this.proofPickup.ring.destroy();
+    this.proofPickup = undefined;
+
+    bazaarAudioSystem.play("ui-confirm");
+    bazaarEventBridge.emit("proof:scroll-picked", {
+      proof: collectedProof,
+    });
+  }
+
+  private handleViewportChanged(payload: {
+    briefOpen: boolean;
+    drawerOpen: boolean;
+    leftWidth: number;
+    rightWidth: number;
+  }) {
+    if (!this.player?.sprite?.active) {
+      return;
+    }
+
+    const widthDelta = payload.rightWidth - payload.leftWidth;
+    const worldOffset = Phaser.Math.Clamp(widthDelta * 0.11, -112, 112);
+
+    this.cameras.main.setFollowOffset(-worldOffset, 0);
+    this.cameras.main.pan(
+      this.player.sprite.x + worldOffset,
+      this.player.sprite.y,
+      220,
+      "Sine.easeOut",
+      false,
+    );
   }
 }

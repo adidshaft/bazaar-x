@@ -8,6 +8,7 @@ type SoundCue =
   | "governance-vote"
   | "rule-update"
   | "door-open"
+  | "success-chime"
   | "ambient";
 
 class BazaarAudioSystem {
@@ -16,6 +17,10 @@ class BazaarAudioSystem {
   private ambientInterval: number | null = null;
   private muted = false;
   private lastFootstepAt = 0;
+  private economyTone = {
+    gdpScore: 0,
+    worldTier: 0,
+  };
 
   private ensureContext() {
     if (typeof window === "undefined") {
@@ -42,16 +47,6 @@ class BazaarAudioSystem {
     return this.context;
   }
 
-  private connectNode(node: AudioNode) {
-    const context = this.ensureContext();
-    if (!context || !this.masterGain) {
-      return null;
-    }
-
-    node.connect(this.masterGain);
-    return context;
-  }
-
   setMuted(muted: boolean) {
     this.muted = muted;
     if (this.masterGain) {
@@ -61,6 +56,13 @@ class BazaarAudioSystem {
 
   unlock() {
     this.ensureContext();
+  }
+
+  setEconomyTone(gdpScore: number, worldTier: number) {
+    this.economyTone = {
+      gdpScore,
+      worldTier,
+    };
   }
 
   private playTone({
@@ -201,8 +203,18 @@ class BazaarAudioSystem {
           return;
         }
         this.lastFootstepAt = now;
-        this.playNoise({ duration: 0.06, volume: 0.018, highpass: 380 });
-        this.playTone({ frequency: 110, duration: 0.03, type: "triangle", volume: 0.03 });
+        const wealthLift = Math.min(0.05, this.economyTone.gdpScore / 600);
+        const footstepPitch = 110 + this.economyTone.worldTier * 20 + this.economyTone.gdpScore * 0.6;
+        this.playNoise({ duration: 0.06, volume: 0.018 + wealthLift * 0.15, highpass: 380 });
+        this.playTone({ frequency: footstepPitch, duration: 0.03, type: "triangle", volume: 0.03 + wealthLift });
+        if (this.economyTone.worldTier >= 1) {
+          this.playTone({
+            frequency: 620 + this.economyTone.worldTier * 80,
+            duration: 0.018,
+            type: "sine",
+            volume: 0.012 + wealthLift * 0.5,
+          });
+        }
         break;
       }
       case "ui-confirm":
@@ -229,6 +241,11 @@ class BazaarAudioSystem {
       case "door-open":
         this.playTone({ frequency: 196, duration: 0.08, type: "square", volume: 0.06 });
         this.playNoise({ duration: 0.05, volume: 0.015, highpass: 520 });
+        break;
+      case "success-chime":
+        this.playTone({ frequency: 523.25, duration: 0.08, type: "triangle", volume: 0.06 });
+        this.playTone({ frequency: 783.99, duration: 0.12, type: "triangle", volume: 0.05 });
+        this.playTone({ frequency: 1046.5, duration: 0.16, type: "sine", volume: 0.045 });
         break;
       case "ambient":
         this.scheduleAmbientPulse();

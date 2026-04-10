@@ -21,7 +21,19 @@ export function loadPersistedPlayerState(wallet: WalletIdentity): PersistedPlaye
   }
 
   try {
-    return JSON.parse(raw) as PersistedPlayerState;
+    const parsed = JSON.parse(raw) as Partial<PersistedPlayerState>;
+    return {
+      currentMapId: parsed.currentMapId ?? "village-exterior",
+      lastSpawnId: parsed.lastSpawnId,
+      playerName: parsed.playerName,
+      revealedProofIds: parsed.revealedProofIds ?? [],
+      unlockedLocations: parsed.unlockedLocations ?? ["village-exterior"],
+      activeQuestStepId: parsed.activeQuestStepId,
+      unlockedSkillIds: parsed.unlockedSkillIds ?? [],
+      activeSkillId: parsed.activeSkillId ?? null,
+      muted: parsed.muted ?? false,
+      lowEffects: parsed.lowEffects ?? false,
+    };
   } catch {
     return null;
   }
@@ -38,4 +50,3 @@ export function savePersistedPlayerState(
 
   window.localStorage.setItem(key, JSON.stringify(state));
 }
-
