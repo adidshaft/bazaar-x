@@ -24,7 +24,7 @@ import {
 import { useAccount, useBalance, useSwitchChain } from "wagmi";
 import { ConnectWalletButton } from "@/components/connect-wallet-button";
 import { InteractionSheet } from "@/components/overlay/interaction-sheet";
-import { STATUS_QUERY_KEY } from "@/game/config/constants";
+import { STATUS_QUERY_KEY, TILE_SIZE } from "@/game/config/constants";
 import { bazaarEventBridge } from "@/game/core/event-bridge";
 import type { DistrictId, MapId, QuestActionId } from "@/game/core/live-types";
 import { bazaarGameStore, useBazaarGameStore } from "@/game/core/store";
@@ -67,6 +67,20 @@ const mapLabels: Record<MapId, string> = {
   "depot-interior": "Supply Coil Depot",
   "treasury-interior": "Treasury Vault",
   "council-interior": "Covenant Hall",
+};
+
+const interactionLabels: Record<string, string> = {
+  "keeper-gate": "Village Keeper",
+  "settlement-keep": "Settlement Keep",
+  "forge-door": "Bazaar Forge",
+  "depot-door": "Supply Coil Depot",
+  "guild-yard": "Node Pilot Yard",
+  "treasury-door": "Treasury Vault",
+  "council-door": "Covenant Hall",
+  "forge-board": "Forge Board",
+  "supplier-desk": "Supplier Desk",
+  "treasury-board": "Treasury Board",
+  "governor-dais": "Governor Dais",
 };
 
 const interactionNavigation: Record<
@@ -293,6 +307,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const hydrated = useBazaarGameStore((state) => state.hydrated);
   const selectedDistrictId = useBazaarGameStore((state) => state.selectedDistrictId);
   const playerName = useBazaarGameStore((state) => state.playerName);
+  const player = useBazaarGameStore((state) => state.player);
 
   const statusQuery = useQuery({
     queryKey: STATUS_QUERY_KEY,
@@ -358,7 +373,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   }, [playerName]);
 
   useEffect(() => {
-    if (!walletIdentity.connected || !walletIdentity.validNetwork) {
+    if (!hydrated || !walletIdentity.connected || !walletIdentity.validNetwork) {
       return;
     }
 
@@ -530,6 +545,33 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const latestProof = deferredProofs[0] ?? null;
   const stageLabel = currentDistrict?.name ?? mapLabels[currentMapId];
 
+  const objectiveNavigation = activeQuest?.targetId ? interactionNavigation[activeQuest.targetId] : null;
+  const objectiveSummary = useMemo(() => {
+    if (!activeQuest) {
+      return null;
+    }
+
+    const targetLabel = interactionLabels[activeQuest.targetId] ?? humanize(activeQuest.targetId);
+    const routeLabel = activeQuest.targetMapId ? mapLabels[activeQuest.targetMapId] : mapLabels[currentMapId];
+
+    if (!objectiveNavigation || objectiveNavigation.mapId !== currentMapId) {
+      return {
+        targetLabel,
+        routeLabel,
+        distanceLabel: activeQuest.targetMapId ? `Travel to ${routeLabel}` : "Route available",
+      };
+    }
+
+    const distance = Math.hypot(player.x - objectiveNavigation.x, player.y - objectiveNavigation.y);
+    const strides = Math.max(1, Math.round(distance / (TILE_SIZE * 1.5)));
+    return {
+      targetLabel,
+      routeLabel,
+      distanceLabel: `${strides} stride${strides === 1 ? "" : "s"} away`,
+    };
+  }, [activeQuest, currentMapId, objectiveNavigation, player.x, player.y]);
+
+  const focusActive = !briefOpen && !drawerOpen;
   const onboardingVisible =
     !hydrated || !walletIdentity.connected || !walletIdentity.validNetwork || !hasEnteredVillage;
   const canEnterVillage = hydrated && walletIdentity.connected && walletIdentity.validNetwork;
@@ -594,6 +636,32 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     bazaarAudioSystem.play("ui-confirm");
     setDrawerOpen(true);
     setDrawerTab(tab);
+  }
+
+  function toggleFocusMode() {
+    bazaarAudioSystem.play("ui-confirm");
+    if (focusActive) {
+      setBriefOpen(true);
+      setDrawerOpen(true);
+      return;
+    }
+
+    setBriefOpen(false);
+    setDrawerOpen(false);
+  }
+
+  function toggleMuted() {
+    bazaarGameStore.getState().setSettings({
+      muted: !bazaarGameStore.getState().settings.muted,
+    });
+    bazaarAudioSystem.play("ui-confirm");
+  }
+
+  function toggleLowEffects() {
+    bazaarGameStore.getState().setSettings({
+      lowEffects: !bazaarGameStore.getState().settings.lowEffects,
+    });
+    bazaarAudioSystem.play("ui-confirm");
   }
 
   function handleGuideToTarget(targetId: string) {
@@ -673,10 +741,13 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     bazaarAudioSystem.play("ui-confirm");
   }
 
-  const sidebarStyle = {
-    ["--left-width" as string]: briefOpen ? "22rem" : "4.75rem",
-    ["--right-width" as string]: drawerOpen ? "25rem" : "5.25rem",
-  };
+  const sidebarStyle = useMemo(
+    () => ({
+      ["--left-width" as string]: briefOpen ? "22rem" : "4.75rem",
+      ["--right-width" as string]: drawerOpen ? "25rem" : "5.25rem",
+    }),
+    [briefOpen, drawerOpen],
+  );
 
   return (
     <main className="game-shell game-shell-detailed">
@@ -825,6 +896,50 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <span>{deferredProofs.length} {deferredProofs.length === 1 ? "proof" : "proofs"}</span>
             </div>
           </header>
+
+          <section className="shell-stage-mission">
+            <div className="shell-stage-mission-main">
+              <div className="shell-stage-label">Current Run</div>
+              <h2 className="shell-stage-title">{activeQuest?.title ?? "Explore Bazaar X"}</h2>
+              <p className="shell-stage-copy">
+                {pendingAction
+                  ? `${pendingAction.label} is ${pendingAction.status}. Keep the route open while proof syncs.`
+                  : activeQuest?.requiredInteraction ??
+                    "Move through the district, inspect the next landmark, and keep the economy loop progressing."}
+              </p>
+              <div className="shell-stage-meta">
+                <span>{objectiveSummary?.targetLabel ?? "Free roam"}</span>
+                <span>{objectiveSummary?.routeLabel ?? stageLabel}</span>
+                <span>{objectiveSummary?.distanceLabel ?? "Village live"}</span>
+              </div>
+            </div>
+
+            <div className="shell-stage-actions">
+              <button type="button" onClick={() => handleGuideToQuest()} className="shell-stage-action shell-stage-action-primary">
+                <LocateFixed className="h-4 w-4" />
+                <span>Guide</span>
+              </button>
+              <button type="button" onClick={() => openDrawer("quests")} className="shell-stage-action shell-stage-action-hide-mobile">
+                <BookOpen className="h-4 w-4" />
+                <span>Quest Rail</span>
+              </button>
+              <button type="button" onClick={toggleFocusMode} className={`shell-stage-action ${focusActive ? "is-active" : ""}`}>
+                {focusActive ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                <span>{focusActive ? "Open UI" : "Focus Mode"}</span>
+              </button>
+              <button type="button" onClick={toggleMuted} className={`shell-stage-action shell-stage-action-hide-mobile ${settings.muted ? "is-active" : ""}`}>
+                {settings.muted ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                <span>{settings.muted ? "Unmute" : "Mute"}</span>
+              </button>
+            </div>
+          </section>
+
+          <div className="shell-control-hints">
+            <span>WASD or arrows to move</span>
+            <span>Click or tap to route</span>
+            <span>E or space to inspect</span>
+            <span>{settings.lowEffects ? "Low FX enabled" : "Full FX enabled"}</span>
+          </div>
 
           <div className="shell-stage-wrap">
             <div className="game-stage world-vignette shell-stage-surface relative overflow-hidden rounded-[28px] border-4 border-[#161c24]">
@@ -1087,31 +1202,17 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                     <RefreshCw className="h-4 w-4" />
                     <span>{statusQuery.isFetching ? "Refreshing..." : "Refresh State"}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      bazaarGameStore.getState().setSettings({
-                        muted: !bazaarGameStore.getState().settings.muted,
-                      });
-                      bazaarAudioSystem.play("ui-confirm");
-                    }}
-                    className="shell-inline-link"
-                  >
+                  <button type="button" onClick={toggleMuted} className="shell-inline-link">
                     {settings.muted ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                     <span>{settings.muted ? "Unmute" : "Mute"}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      bazaarGameStore.getState().setSettings({
-                        lowEffects: !bazaarGameStore.getState().settings.lowEffects,
-                      });
-                      bazaarAudioSystem.play("ui-confirm");
-                    }}
-                    className="shell-inline-link"
-                  >
+                  <button type="button" onClick={toggleLowEffects} className="shell-inline-link">
                     <Sparkles className="h-4 w-4" />
                     <span>{settings.lowEffects ? "Full FX" : "Low FX"}</span>
+                  </button>
+                  <button type="button" onClick={toggleFocusMode} className="shell-inline-link">
+                    {focusActive ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                    <span>{focusActive ? "Open UI" : "Focus Mode"}</span>
                   </button>
                 </div>
               </div>

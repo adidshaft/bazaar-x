@@ -48,6 +48,10 @@ export class PlayerCharacter {
     let dx = intent.dx;
     let dy = intent.dy;
 
+    if (dx !== 0 || dy !== 0) {
+      this.pointerTarget = null;
+    }
+
     if (dx === 0 && dy === 0 && this.pointerTarget) {
       const distance = Phaser.Math.Distance.Between(
         this.sprite.x,

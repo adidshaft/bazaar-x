@@ -344,26 +344,32 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private emitRewardBurst(x: number, y: number) {
+    const lowEffects = bazaarGameStore.getState().settings.lowEffects;
     const particles = this.add.particles(x, y, "fx-coin", {
       speed: { min: 24, max: 72 },
-      lifespan: 640,
-      quantity: 6,
-      scale: { start: 0.36, end: 0 },
-      alpha: { start: 0.9, end: 0 },
+      lifespan: lowEffects ? 420 : 640,
+      quantity: lowEffects ? 3 : 6,
+      scale: { start: lowEffects ? 0.28 : 0.36, end: 0 },
+      alpha: { start: lowEffects ? 0.7 : 0.9, end: 0 },
       gravityY: 120,
       blendMode: Phaser.BlendModes.ADD,
     });
     particles.setDepth(y + 120);
-    this.time.delayedCall(700, () => particles.destroy());
+    this.time.delayedCall(lowEffects ? 460 : 700, () => particles.destroy());
   }
 
   private emitMovementFeedback(time: number) {
-    if (time - this.lastDustAt < 185) {
+    const lowEffects = bazaarGameStore.getState().settings.lowEffects;
+    if (time - this.lastDustAt < (lowEffects ? 260 : 185)) {
       return;
     }
 
     this.lastDustAt = time;
     bazaarAudioSystem.play("footstep");
+
+    if (lowEffects) {
+      return;
+    }
 
     const particles = this.add.particles(this.player.sprite.x, this.player.sprite.y + 10, "fx-dust", {
       speed: { min: 8, max: 28 },
@@ -477,7 +483,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private pulseWater(time: number) {
-    if (time - this.lastWaterPulse < 420) {
+    const lowEffects = bazaarGameStore.getState().settings.lowEffects;
+    if (time - this.lastWaterPulse < (lowEffects ? 720 : 420)) {
       return;
     }
 
