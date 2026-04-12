@@ -121,7 +121,18 @@ Supporting differentiators:
 
 ### Covenant Skill
 
-`covenant-skill` is the reusable policy module that exposes:
+`covenant-skill` is the reusable policy module.
+
+Real today:
+- It builds as an installable typed package artifact under `covenant-skill/dist`.
+- Another project can install it today from a packed tarball without importing Bazaar X internals.
+- The stable package entrypoints are `@bazaar-x/covenant-skill`, `@bazaar-x/covenant-skill/engine`, `@bazaar-x/covenant-skill/registry`, `@bazaar-x/covenant-skill/skill`, and `@bazaar-x/covenant-skill/types`.
+
+Still pending:
+- The package is not published to a public npm registry yet.
+- Bazaar X still consumes the local package source inside this repo.
+
+The module exposes:
 - `enforcePolicy(tx)`
 - `checkBalanceRules()`
 - `applyTax()`
@@ -148,6 +159,8 @@ That means another game or world economy can keep the same runtime loop and swap
 - crafting recipes
 - transport tolls
 - seasonal world events
+
+External consumers should install the packed artifact today, or the npm package once it is published, instead of reaching into app-local files.
 
 See [docs/skills.md](/Users/amanpandey/projects/bazaar-x/docs/skills.md) for the extension pattern.
 
@@ -235,7 +248,7 @@ The codebase also expects X Layer RPC and contract env vars for live reads:
 - `app/` - Next.js app router screens and API routes
 - `agents/` - deterministic agent planning
 - `contracts/` - Solidity contracts and Foundry tests
-- `covenant-skill/` - reusable policy engine
+- `covenant-skill/` - installable policy engine workspace package
 - `lib/` - economy, onchain, and server utilities
 - `docs/` - judging notes, demo notes, submission checklist
 

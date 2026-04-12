@@ -2,6 +2,32 @@
 
 Bazaar X treats economy logic as a pluggable skill system so the same runtime can power more than one game or market.
 
+## Package Status
+
+Real today:
+- `covenant-skill/` builds to a publishable `dist/` artifact with ESM entrypoints and generated `.d.ts` files.
+- A clean-room consumer can install the packed tarball without importing Bazaar X internals.
+- The stable package entrypoints are `@bazaar-x/covenant-skill`, `@bazaar-x/covenant-skill/engine`, `@bazaar-x/covenant-skill/registry`, `@bazaar-x/covenant-skill/skill`, and `@bazaar-x/covenant-skill/types`.
+
+Still pending:
+- Registry publishing is not live yet.
+
+Install from a local packed artifact today:
+
+```bash
+cd covenant-skill
+pnpm pack
+
+cd /path/to/another-project
+pnpm add /absolute/path/to/bazaar-x/covenant-skill/bazaar-x-covenant-skill-0.1.0.tgz
+```
+
+Future registry install:
+
+```bash
+pnpm add @bazaar-x/covenant-skill
+```
+
 ## Why It Exists
 
 The town UI is Bazaar X specific.
@@ -38,11 +64,13 @@ This is the policy, treasury, and governance brain for Bazaar X.
 
 ## Extension Pattern
 
-Another world economy can register extra skills beside Covenant:
+Another world economy can register extra skills beside Covenant.
+
+External consumers can build on the same registry surface today from the packed artifact, and later from the published package:
 
 ```ts
-import { createBazaarSkillRegistry } from "../lib/economy/skills";
-import type { WorldEconomySkill } from "../covenant-skill";
+import { createWorldEconomySkillRegistry, createCovenantSkill } from "@bazaar-x/covenant-skill";
+import type { WorldEconomySkill } from "@bazaar-x/covenant-skill";
 
 const weatherSkill: WorldEconomySkill = {
   id: "weather-skill",
@@ -57,7 +85,7 @@ const weatherSkill: WorldEconomySkill = {
   },
 };
 
-const registry = createBazaarSkillRegistry([weatherSkill]);
+const registry = createWorldEconomySkillRegistry([createCovenantSkill(), weatherSkill]);
 ```
 
 Because the registry rejects duplicate IDs, extensions fail loudly instead of silently replacing a live rule system.

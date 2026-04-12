@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false
+  },
+  "include": [
+    "./index.ts",
+    "./engine.ts",
+    "./registry.ts",
+    "./skill.ts",
+    "./types.ts"
+  ]
+}
