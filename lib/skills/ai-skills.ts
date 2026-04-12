@@ -157,6 +157,68 @@ export const aiSkillCatalog: AISkillDefinition[] = [
       compatible_tags: ["Governance", "Council", "Onchain-Coordination"],
     },
   },
+  {
+    version: "2026.1.0",
+    skill_id: "onchain-os-oracle-v1",
+    identity: {
+      name: "OnchainOS Oracle Feed",
+      description:
+        "Verifies live price feeds and treasury balance proofs through the OnchainOS oracle network before any payment is dispatched.",
+      owner_requirement: "EIP-8004 Agent Identity",
+    },
+    execution: {
+      protocol: "OnchainOS",
+      target_contract: "0xOnchainOS_Oracle_XLayer_Contract",
+      logic_hash: "ipfs://QmBazaarXOnchainOSSkill",
+      permission_scope: ["read:price_feed", "read:treasury_state", "call:verify_oracle"],
+      delegation_protocol: "okx-agentic-wallet",
+      monetization_protocol: "okx-x402-payment",
+      delegated_action: "Oracle",
+      unlock_price_okb: "0.008",
+    },
+    visual_metadata: {
+      sprite_aura: "gold_glow",
+      ui_icon: "icon_oracle_gold.webp",
+      rarity: "Epic",
+      glow_color: "#ffd700",
+    },
+    interop_stats: {
+      efficiency_bonus: 1.12,
+      gas_reduction_bps: 300,
+      compatible_tags: ["Oracle", "Price-Feed", "OnchainOS", "Treasury"],
+    },
+  },
+  {
+    version: "2026.1.0",
+    skill_id: "uniswap-xlayer-amm-v1",
+    identity: {
+      name: "Uniswap X Layer AMM",
+      description:
+        "Routes village supply payments through Uniswap V3 pools on X Layer. Every hire-supplier action creates a live swap signal in the AMM.",
+      owner_requirement: "EIP-8004 Agent Identity",
+    },
+    execution: {
+      protocol: "Uniswap-V3-XLayer",
+      target_contract: "0xUniswap_V3_XLayer_Pool_Address",
+      logic_hash: "ipfs://QmBazaarXUniswapXLayerSkill",
+      permission_scope: ["read:pool_state", "write:swap_route", "call:execute_swap"],
+      delegation_protocol: "okx-agentic-wallet",
+      monetization_protocol: "okx-x402-payment",
+      delegated_action: "Swap",
+      unlock_price_okb: "0.010",
+    },
+    visual_metadata: {
+      sprite_aura: "pink_glow",
+      ui_icon: "icon_uniswap_pink.webp",
+      rarity: "Legendary",
+      glow_color: "#ff007a",
+    },
+    interop_stats: {
+      efficiency_bonus: 1.18,
+      gas_reduction_bps: 420,
+      compatible_tags: ["DeFi", "AMM", "Uniswap", "X-Layer", "Swap"],
+    },
+  },
 ];
 
 export const defaultUnlockedSkillIds = ["bazaar-x-logistics-v1"];

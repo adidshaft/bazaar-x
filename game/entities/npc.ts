@@ -86,7 +86,7 @@ export class NpcActor {
       return;
     }
 
-    this.sprite.anims.play(`${this.sprite.name}:walk:${this.direction}`, true);
+    this.safePlayAnim(`${this.sprite.name}:walk:${this.direction}`);
   }
 
   restoreLaborRoute(snapshot: LaborRoutingNpcState) {
@@ -109,11 +109,11 @@ export class NpcActor {
     }
 
     if (snapshot.status === "working") {
-      this.sprite.anims.play(`${this.sprite.name}:work:${this.direction}`, true);
+      this.safePlayAnim(`${this.sprite.name}:work:${this.direction}`);
       return;
     }
 
-    this.sprite.anims.play(`${this.sprite.name}:walk:${this.direction}`, true);
+    this.safePlayAnim(`${this.sprite.name}:walk:${this.direction}`);
   }
 
   clearLaborRoute() {
@@ -139,7 +139,7 @@ export class NpcActor {
         return;
       }
 
-      this.sprite.anims.play(`${this.sprite.name}:work:${this.direction}`, true);
+      this.safePlayAnim(`${this.sprite.name}:work:${this.direction}`);
       return;
     }
 
@@ -179,14 +179,33 @@ export class NpcActor {
       : target.y >= this.sprite.y
         ? "down"
         : "up";
-    this.sprite.anims.play(`${this.sprite.name}:walk:${this.direction}`, true);
+    this.safePlayAnim(`${this.sprite.name}:walk:${this.direction}`);
     this.sprite.setDepth(this.sprite.y);
   }
 
   private beginWork() {
     this.routeStatus = "working";
     this.workUntilAt = Date.now() + 900;
-    this.sprite.anims.play(`${this.sprite.name}:work:${this.direction}`, true);
+    this.safePlayAnim(`${this.sprite.name}:work:${this.direction}`);
+  }
+
+  private safePlayAnim(key: string) {
+    if (!this.sprite?.active || !this.sprite.anims) {
+      return;
+    }
+    if (!this.sprite.anims.exists(key)) {
+      // Fall back to idle frame rather than crash
+      const idleKey = `${this.sprite.name}-${this.direction}-idle-0`;
+      if (this.sprite.anims.currentAnim?.key !== key) {
+        this.sprite.stop();
+        const tex = `${this.sprite.name}-${this.direction}-idle-0`;
+        if (this.sprite.scene?.textures.exists(tex)) {
+          this.sprite.setTexture(tex);
+        }
+      }
+      return;
+    }
+    this.sprite.anims.play(key, true);
   }
 
   private releaseLaborRoute() {

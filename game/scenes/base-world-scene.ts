@@ -77,16 +77,16 @@ const fallbackSpawns: Record<MapId, Record<string, { x: number; y: number }>> = 
     "council-return": { x: 31 * TILE_SIZE, y: 34 * TILE_SIZE },
   },
   "forge-interior": {
-    "forge-entry": { x: 13 * TILE_SIZE, y: 14.5 * TILE_SIZE },
+    "forge-entry": { x: 13 * TILE_SIZE, y: 5 * TILE_SIZE },
   },
   "depot-interior": {
-    "depot-entry": { x: 13 * TILE_SIZE, y: 14.5 * TILE_SIZE },
+    "depot-entry": { x: 13 * TILE_SIZE, y: 5 * TILE_SIZE },
   },
   "treasury-interior": {
-    "treasury-entry": { x: 13 * TILE_SIZE, y: 14.5 * TILE_SIZE },
+    "treasury-entry": { x: 13 * TILE_SIZE, y: 5 * TILE_SIZE },
   },
   "council-interior": {
-    "council-entry": { x: 13 * TILE_SIZE, y: 14.5 * TILE_SIZE },
+    "council-entry": { x: 13 * TILE_SIZE, y: 5 * TILE_SIZE },
   },
 };
 

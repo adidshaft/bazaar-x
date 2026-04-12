@@ -109,7 +109,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "forge-interior",
     landmark: "forge front",
-    description: "Open the first shop, light demand, and post live services from here.",
+    description: "Open the first shop here — 0.001 OKB sends a demand signal to the Uniswap X Layer pool.",
     roleAccent: "#ff9a78",
   },
   {
@@ -129,7 +129,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "treasury-interior",
     landmark: "vault arch",
-    description: "Watch tax receipts land, brighten the vault, and reveal reserve proof.",
+    description: "OnchainOS oracle feeds the vault. Watch tax receipts land, verify balance, and approve reinvestment.",
     roleAccent: "#8ff0d5",
   },
   {
