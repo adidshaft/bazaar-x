@@ -49,7 +49,7 @@ export const districtDefinitions: DistrictDefinition[] = [
   {
     id: "supplier-lane",
     name: "Supply Coil Lane",
-    subtitle: "Routes, pool, and fulfillment",
+    subtitle: "Routes, pool, and execution truth",
     theme: "canal edge, hoists, stacked cargo",
     landmarkSet: ["depot shutters", "cargo crane", "route board", "pool board"],
     interactPoints: ["depot-door", "supplier-desk"],
@@ -119,7 +119,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "depot-interior",
     landmark: "cargo depot",
-    description: "List routes, watch the supplier-credit pool, and dispatch fulfillment against live shop orders.",
+    description: "List routes, watch the supplier-credit pool, and dispatch fulfillment against live shop orders while Ops labels the real autonomous executor.",
     roleAccent: "#8db8ff",
   },
   {
@@ -129,7 +129,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "treasury-interior",
     landmark: "vault arch",
-    description: "Tax receipts accumulate here before the treasury steward routes reserve surplus back into the market. OnchainOS status remains visible in Ops when configured.",
+    description: "Tax receipts accumulate here before the treasury steward routes reserve surplus back into the market. Ops keeps OnchainOS readiness and manifest fallback labels visible.",
     roleAccent: "#8ff0d5",
   },
   {
@@ -139,7 +139,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "council-interior",
     landmark: "council stair",
-    description: "Propose, vote, execute, and replay the same payment under the new rule.",
+    description: "Propose, vote, execute, and replay the same payment under the new rule while the runtime tells you who actually executed it.",
     roleAccent: "#d7b8ff",
   },
 ];

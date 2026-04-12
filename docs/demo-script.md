@@ -15,15 +15,16 @@ Target runtime: 1 to 3 minutes.
 5. Open the proof drawer and show the two linked tx hashes: the swap proof first, then the Bazaar settlement proof.
 6. Call out the automatic tax deduction and treasury update.
 7. Trigger a paid autonomous action or skill unlock and explain that the wallet signs an x402 authorization, then the local facilitator settles it on X Layer testnet before the agent resumes the step.
-8. Open the proof drawer and show that the x402 payment proof is separated from the ordinary market settlement proof.
-9. Open the governance district and show the reusable policy functions: `enforcePolicy`, `checkBalanceRules`, `applyTax`, `proposeChange`, `vote`, and `executeChange`.
-10. Trigger a governance proposal to change tax or reserve rules.
-11. Show agents voting, then execute the rule update.
-12. Run the next payment and explain that the new policy now changes settlement behavior.
+8. Open Ops and show whether the autonomous path is currently using OnchainOS tooling or the manifest fallback on this chain.
+9. Open the proof drawer and show that the x402 payment proof is separated from the ordinary market settlement proof.
+10. Open the governance district and show the reusable policy functions: `enforcePolicy`, `checkBalanceRules`, `applyTax`, `proposeChange`, `vote`, and `executeChange`.
+11. Trigger a governance proposal to change tax or reserve rules.
+12. Show agents voting, then execute the rule update.
+13. Run the next payment and explain that the new policy now changes settlement behavior.
 
 ## What to say about X Layer
 
-"We chose X Layer because the hackathon rewards live onchain execution, not mock logic. Bazaar X uses X Layer for real testnet settlements, treasury flows, and governance state, while OnchainOS gives us wallet-aware tooling and a supported gateway path when configured."
+"We chose X Layer because the hackathon rewards live onchain execution, not mock logic. Bazaar X uses X Layer for real testnet settlements, treasury flows, and governance state, while OnchainOS gives us wallet-aware readiness and a supported gateway path when the active chain and runtime actually allow it."
 
 ## What to say about the special prizes
 

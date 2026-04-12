@@ -8,7 +8,7 @@ export const dialogueSets: Record<string, DialogueSet> = {
     pre: [
       "Your wallet is the key. The village turns connection into citizenship.",
       "The village only makes sense when it wakes in order, so start at the keep.",
-      "The keep is the first stop in the canonical economy loop.",
+      "The keep is the first stop in the canonical economy loop, and Ops will tell you which actions are wallet-led, delegated, or recovered.",
     ],
     post: [
       "Citizenship is set and the roster is awake.",
@@ -30,7 +30,7 @@ export const dialogueSets: Record<string, DialogueSet> = {
     pre: [
       "I only move routes when a shop exists to pull against them.",
       "That keeps the village honest: demand first, fulfillment second.",
-      "Bring me the order and the shop will clear supplier credit through the Uniswap pool before I release the route.",
+      "Bring me the order and the shop will clear supplier credit through the Uniswap pool before I release the route. Ops will say whether the autonomous run used OnchainOS or the manifest fallback.",
     ],
     post: [
       "The route is live and the supplier credit cleared onchain.",
@@ -51,6 +51,7 @@ export const dialogueSets: Record<string, DialogueSet> = {
     pre: [
       "The vault trusts receipts, not stories.",
       "Bring me a confirmed tax notice and I will read both the native reserve and the supplier-credit spillover.",
+      "Payment proof is not the same thing as execution proof. The drawer keeps those separate.",
     ],
     post: [
       "The reserve is live.",
@@ -61,6 +62,7 @@ export const dialogueSets: Record<string, DialogueSet> = {
     pre: [
       "A vote matters only if the next payment behaves differently.",
       "Propose it, vote it, then execute it before replaying the route.",
+      "The village should also tell the truth about who executed the step, not just whether it confirmed.",
     ],
     post: [
       "The new rule is in place.",

@@ -19,6 +19,7 @@ import type {
   AgentRole,
   AgentWallet,
   DeploymentArtifact,
+  ExecutionResolution,
   LiveRuntimeArtifact,
   StepRecord,
   WalletManifest,
@@ -29,7 +30,10 @@ import {
   getLiveDashboardStatus,
   initializeBazaarLiveState,
 } from "./flow";
-import type { QuestActionId } from "@/game/core/live-types";
+import type {
+  ActionExecutionDetail,
+  QuestActionId,
+} from "@/game/core/live-types";
 import {
   computeSupplierTaxOkbEquivalent,
   SUPPLIER_ROUTE_RECORD_STEP_KEY,
@@ -50,6 +54,7 @@ type StepResult = {
   detail?: string;
   meta?: Record<string, string | number | boolean | null>;
   executionMode?: "viem" | "onchainos-gateway";
+  execution?: ExecutionResolution;
   gatewayOrderId?: string;
   simulated?: boolean;
   simulationGasUsed?: string;
@@ -59,6 +64,7 @@ type ActionExecution = {
   recovered: boolean;
   stepKey?: string;
   txHash?: Hex;
+  execution?: ActionExecutionDetail;
 };
 
 function now() {
@@ -69,6 +75,37 @@ function withExecutionMeta(result: StepResult) {
   const meta = {
     ...(result.meta ?? {}),
   } as Record<string, string | number | boolean | null>;
+
+  if (result.execution) {
+    meta.requestedMode = result.execution.requestedMode;
+    meta.resolvedMode = result.execution.resolvedMode;
+    meta.requestedExecutor = result.execution.requestedExecutor;
+    meta.actualExecutor = result.execution.actualExecutor;
+    meta.supportsGatewayBroadcast = result.execution.supportsGatewayBroadcast;
+    meta.supportsAgenticWallet = result.execution.supportsAgenticWallet;
+    meta.walletLoggedIn = result.execution.walletLoggedIn;
+    meta.walletReady = result.execution.walletReady;
+
+    if (result.execution.chainAlias) {
+      meta.chainAlias = result.execution.chainAlias;
+    }
+
+    if (result.execution.walletAccountId) {
+      meta.walletAccountId = result.execution.walletAccountId;
+    }
+
+    if (result.execution.walletAccountName) {
+      meta.walletAccountName = result.execution.walletAccountName;
+    }
+
+    if (result.execution.note) {
+      meta.executionNote = result.execution.note;
+    }
+
+    if (result.execution.fallbackReason) {
+      meta.fallbackReason = result.execution.fallbackReason;
+    }
+  }
 
   if (result.executionMode) {
     meta.executionMode = result.executionMode;
@@ -87,6 +124,96 @@ function withExecutionMeta(result: StepResult) {
   }
 
   return Object.keys(meta).length ? meta : undefined;
+}
+
+function readMetaBoolean(step: StepRecord | null, key: string) {
+  const value = step?.meta?.[key];
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    if (value === "true") {
+      return true;
+    }
+    if (value === "false") {
+      return false;
+    }
+  }
+
+  return undefined;
+}
+
+function readMetaString(step: StepRecord | null, key: string) {
+  const value = step?.meta?.[key];
+  if (typeof value === "string" && value.trim()) {
+    return value;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return undefined;
+}
+
+function buildActionExecutionDetail(
+  runtime: LiveRuntimeArtifact,
+  stepKey?: string,
+  recoveryKind: ActionExecutionDetail["recoveryKind"] = "none",
+): ActionExecutionDetail | undefined {
+  const currentStep = stepKey ? latestStep(runtime, stepKey) : null;
+  const execution = runtime.onchainOs?.execution ?? runtime.execution;
+
+  if (!execution && !currentStep?.meta) {
+    return undefined;
+  }
+
+  return {
+    requestedMode: readMetaString(currentStep, "requestedMode") ?? execution?.requestedMode,
+    resolvedMode:
+      (readMetaString(currentStep, "executionMode") as ActionExecutionDetail["resolvedMode"]) ??
+      (readMetaString(currentStep, "resolvedMode") as ActionExecutionDetail["resolvedMode"]) ??
+      execution?.resolvedMode,
+    requestedExecutor:
+      (readMetaString(currentStep, "requestedExecutor") as ActionExecutionDetail["requestedExecutor"]) ??
+      execution?.requestedExecutor,
+    actualExecutor:
+      (readMetaString(currentStep, "actualExecutor") as ActionExecutionDetail["actualExecutor"]) ??
+      execution?.actualExecutor,
+    chainAlias: readMetaString(currentStep, "chainAlias") ?? execution?.chainAlias,
+    supportsGatewayBroadcast:
+      readMetaBoolean(currentStep, "supportsGatewayBroadcast") ??
+      execution?.supportsGatewayBroadcast,
+    supportsAgenticWallet:
+      readMetaBoolean(currentStep, "supportsAgenticWallet") ??
+      execution?.supportsAgenticWallet,
+    walletLoggedIn: readMetaBoolean(currentStep, "walletLoggedIn") ?? execution?.walletLoggedIn,
+    walletReady: readMetaBoolean(currentStep, "walletReady") ?? execution?.walletReady,
+    walletAccountId: readMetaString(currentStep, "walletAccountId") ?? execution?.walletAccountId,
+    walletAccountName:
+      readMetaString(currentStep, "walletAccountName") ?? execution?.walletAccountName,
+    note: readMetaString(currentStep, "executionNote") ?? execution?.note,
+    fallbackReason: readMetaString(currentStep, "fallbackReason") ?? execution?.fallbackReason,
+    gatewayOrderId: readMetaString(currentStep, "gatewayOrderId"),
+    simulated: readMetaBoolean(currentStep, "simulated"),
+    simulationGasUsed: readMetaString(currentStep, "simulationGasUsed"),
+    recoveryKind,
+  };
+}
+
+function buildRuntimeExecutionSnapshot(snapshot?: LiveRuntimeArtifact["onchainOs"]) {
+  const execution = snapshot?.execution;
+  if (!execution) {
+    return undefined;
+  }
+
+  return {
+    ...execution,
+    simulateBeforeBroadcast: execution.resolvedMode === "onchainos-gateway",
+    usesOnchainOsGateway: execution.resolvedMode === "onchainos-gateway",
+    usesAgenticWallet: execution.actualExecutor === "agentic-wallet",
+  };
 }
 
 function createRuntimeBase(existing?: LiveRuntimeArtifact | null): LiveRuntimeArtifact {
@@ -330,6 +457,7 @@ async function ensureBootstrapTransfers(
         txHash: tx.txHash,
         detail: `Transferred ${formatEther(delta)} OKB from deployer to ${agent.name}.`,
         executionMode: tx.executionMode,
+        execution: tx.execution,
         gatewayOrderId: tx.gatewayOrderId,
         simulated: tx.simulated,
         simulationGasUsed: tx.simulationGasUsed,
@@ -343,6 +471,7 @@ async function ensureActionContext() {
   const runtime = createRuntimeBase(await loadLiveRuntime());
   runtime.funding = await getFundingSnapshot(manifest);
   runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
+  runtime.execution = buildRuntimeExecutionSnapshot(runtime.onchainOs);
   runtime.error = undefined;
   recoverRuntimeReferences(runtime);
   await persist(runtime);
@@ -384,6 +513,7 @@ async function ensureRegistrationSet(
           txHash: tx.txHash,
           detail: `Registered ${agent.handle} on Bazaar X.`,
           executionMode: tx.executionMode,
+          execution: tx.execution,
           gatewayOrderId: tx.gatewayOrderId,
           simulated: tx.simulated,
           simulationGasUsed: tx.simulationGasUsed,
@@ -420,6 +550,7 @@ async function executeOpenShop(
       detail: `Created primary shop #${shopId}.`,
       meta: { shopId },
       executionMode: tx.executionMode,
+      execution: tx.execution,
       gatewayOrderId: tx.gatewayOrderId,
       simulated: tx.simulated,
       simulationGasUsed: tx.simulationGasUsed,
@@ -430,6 +561,11 @@ async function executeOpenShop(
     recovered: result.recovered,
     stepKey: "shop-create",
     txHash: result.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "shop-create",
+      result.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -466,6 +602,7 @@ async function executeOpenDepot(
         detail: `Created supplier shop #${shopId}.`,
         meta: { shopId },
         executionMode: tx.executionMode,
+        execution: tx.execution,
         gatewayOrderId: tx.gatewayOrderId,
         simulated: tx.simulated,
         simulationGasUsed: tx.simulationGasUsed,
@@ -517,6 +654,7 @@ async function executeOpenDepot(
           paymentTokenAddress: uniswap.settlementTokenAddress,
         },
         executionMode: tx.executionMode,
+        execution: tx.execution,
         gatewayOrderId: tx.gatewayOrderId,
         simulated: tx.simulated,
         simulationGasUsed: tx.simulationGasUsed,
@@ -528,6 +666,11 @@ async function executeOpenDepot(
     recovered: shopResult.recovered && serviceResult.recovered,
     stepKey: "supplier-service",
     txHash: serviceResult.step.txHash ?? shopResult.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "supplier-service",
+      shopResult.recovered && serviceResult.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -558,6 +701,7 @@ async function executeOpenGuild(
       detail: `Created worker shop #${shopId}.`,
       meta: { shopId },
       executionMode: tx.executionMode,
+      execution: tx.execution,
       gatewayOrderId: tx.gatewayOrderId,
       simulated: tx.simulated,
       simulationGasUsed: tx.simulationGasUsed,
@@ -603,6 +747,7 @@ async function executeOpenGuild(
         detail: `Listed worker service #${serviceId}.`,
         meta: { serviceId, priceOkb: formatEther(WORKER_SERVICE_PRICE) },
         executionMode: tx.executionMode,
+        execution: tx.execution,
         gatewayOrderId: tx.gatewayOrderId,
         simulated: tx.simulated,
         simulationGasUsed: tx.simulationGasUsed,
@@ -614,6 +759,11 @@ async function executeOpenGuild(
     recovered: shopResult.recovered && serviceResult.recovered,
     stepKey: "worker-service",
     txHash: serviceResult.step.txHash ?? shopResult.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "worker-service",
+      shopResult.recovered && serviceResult.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -655,6 +805,7 @@ async function executeHireWorker(
           jobId: Number(event?.args?.jobId ?? 0n),
         },
         executionMode: tx.executionMode,
+        execution: tx.execution,
         gatewayOrderId: tx.gatewayOrderId,
         simulated: tx.simulated,
         simulationGasUsed: tx.simulationGasUsed,
@@ -666,6 +817,11 @@ async function executeHireWorker(
     recovered: result.recovered,
     stepKey: "supplier-hires-worker",
     txHash: result.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "supplier-hires-worker",
+      result.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -701,6 +857,7 @@ async function executeHireSupplier(
           transferTxHash: swap.transferTxHash,
         }),
         executionMode: swap.executionMode,
+        execution: swap.execution,
         gatewayOrderId: swap.gatewayOrderId,
         simulated: swap.simulated,
         simulationGasUsed: swap.simulationGasUsed,
@@ -746,6 +903,7 @@ async function executeHireSupplier(
         jobId: Number(event?.args?.jobId ?? 0n),
       },
       executionMode: tx.executionMode,
+      execution: tx.execution,
       gatewayOrderId: tx.gatewayOrderId,
       simulated: tx.simulated,
       simulationGasUsed: tx.simulationGasUsed,
@@ -756,6 +914,11 @@ async function executeHireSupplier(
     recovered: swapResult.recovered && result.recovered,
     stepKey: "shop-hires-supplier",
     txHash: result.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "shop-hires-supplier",
+      swapResult.recovered && result.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -799,6 +962,7 @@ async function executeProposal(
       detail: `Created proposal #${runtime.proposalId} to raise tax from 5% to 8%.`,
       meta: { proposalId: runtime.proposalId },
       executionMode: tx.executionMode,
+      execution: tx.execution,
       gatewayOrderId: tx.gatewayOrderId,
       simulated: tx.simulated,
       simulationGasUsed: tx.simulationGasUsed,
@@ -809,6 +973,11 @@ async function executeProposal(
     recovered: result.recovered,
     stepKey: "proposal",
     txHash: result.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "proposal",
+      result.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -839,6 +1008,7 @@ async function executeVotes(
         detail: `${agent.name} voted in favor of the covenant update.`,
         meta: { proposalId: runtime.proposalId ?? null },
         executionMode: tx.executionMode,
+        execution: tx.execution,
         gatewayOrderId: tx.gatewayOrderId,
         simulated: tx.simulated,
         simulationGasUsed: tx.simulationGasUsed,
@@ -853,6 +1023,11 @@ async function executeVotes(
     recovered: allRecovered,
     stepKey: "vote-worker",
     txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "vote-worker",
+      allRecovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -891,6 +1066,7 @@ async function executeGovernance(
       detail: `Executed proposal #${runtime.proposalId}. New tax is now 8%.`,
       meta: { proposalId: runtime.proposalId, nextTaxBps: 800 },
       executionMode: tx.executionMode,
+      execution: tx.execution,
       gatewayOrderId: tx.gatewayOrderId,
       simulated: tx.simulated,
       simulationGasUsed: tx.simulationGasUsed,
@@ -901,6 +1077,11 @@ async function executeGovernance(
     recovered: result.recovered,
     stepKey: "execute",
     txHash: result.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "execute",
+      result.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -937,6 +1118,7 @@ async function executePostGovernanceHire(
         jobId: Number(event?.args?.jobId ?? 0n),
       },
       executionMode: tx.executionMode,
+      execution: tx.execution,
       gatewayOrderId: tx.gatewayOrderId,
       simulated: tx.simulated,
       simulationGasUsed: tx.simulationGasUsed,
@@ -947,6 +1129,11 @@ async function executePostGovernanceHire(
     recovered: result.recovered,
     stepKey: "post-governance-hire",
     txHash: result.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "post-governance-hire",
+      result.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
@@ -969,6 +1156,7 @@ async function executeTreasuryReinvest(
       txHash: tx.txHash,
       detail: `Treasury reinvested ${formatEther(TREASURY_REINVEST_GRANT)} OKB back into the shop wallet.`,
       executionMode: tx.executionMode,
+      execution: tx.execution,
       gatewayOrderId: tx.gatewayOrderId,
       simulated: tx.simulated,
       simulationGasUsed: tx.simulationGasUsed,
@@ -979,17 +1167,24 @@ async function executeTreasuryReinvest(
     recovered: result.recovered,
     stepKey: "treasury-reinvests",
     txHash: result.step.txHash,
+    execution: buildActionExecutionDetail(
+      runtime,
+      "treasury-reinvests",
+      result.recovered ? "runtime-replay" : "none",
+    ),
   } satisfies ActionExecution;
 }
 
 export async function runGameAction(actionId: QuestActionId) {
   if (actionId === "initialize-town") {
-    await initializeBazaarLiveState();
+    const initialized = await initializeBazaarLiveState();
+    const status = await getLiveDashboardStatus();
     return {
       actionId,
       txState: "recovered" as const,
       recovered: true,
-      status: await getLiveDashboardStatus(),
+      execution: buildActionExecutionDetail(initialized.runtime, undefined, "runtime-replay"),
+      status,
     };
   }
 
@@ -997,13 +1192,20 @@ export async function runGameAction(actionId: QuestActionId) {
     const existingRuntime = await loadLiveRuntime();
     const existingDeployment = existingRuntime?.deployment ?? (await loadDeploymentArtifact());
     const deployment = await deployLiveBazaar();
+    const runtime = createRuntimeBase(await loadLiveRuntime());
+    const status = await getLiveDashboardStatus();
     return {
       actionId,
       txState: existingDeployment ? ("recovered" as const) : ("confirmed" as const),
       recovered: Boolean(existingDeployment),
       txHash: deployment.deployTxHash,
       stepKey: "deploy",
-      status: await getLiveDashboardStatus(),
+      execution: buildActionExecutionDetail(
+        runtime,
+        "deploy",
+        existingDeployment ? "runtime-replay" : "none",
+      ),
+      status,
     };
   }
 
@@ -1036,8 +1238,10 @@ export async function runGameAction(actionId: QuestActionId) {
   runtime.status = "ready";
   runtime.funding = await getFundingSnapshot(manifest);
   runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
+  runtime.execution = buildRuntimeExecutionSnapshot(runtime.onchainOs);
   runtime.error = undefined;
   await persist(runtime);
+  const status = await getLiveDashboardStatus();
 
   return {
     actionId,
@@ -1045,6 +1249,7 @@ export async function runGameAction(actionId: QuestActionId) {
     recovered: execution.recovered,
     stepKey: execution.stepKey,
     txHash: execution.txHash,
-    status: await getLiveDashboardStatus(),
+    execution: execution.execution,
+    status,
   };
 }

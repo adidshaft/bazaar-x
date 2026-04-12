@@ -34,7 +34,10 @@ export type QuestActionId =
   | "treasury-reinvest";
 
 export type ActionControlMode = "manual" | "agent";
-export type ActionExecutionKind = "player-wallet" | "x402-agent" | "system";
+export type ActionExecutionKind = "player-wallet" | "paid-agent" | "system";
+export type ExecutionMode = "viem" | "onchainos-gateway";
+export type AutonomousExecutor = "manifest-wallet" | "agentic-wallet";
+export type ExecutionRecoveryKind = "none" | "payment-session" | "runtime-replay";
 export type QuestState = "locked" | "available" | "active" | "complete";
 export type TxState = "idle" | "pending" | "submitted" | "confirmed" | "failed" | "recovered";
 export type Direction = "up" | "down" | "left" | "right";
@@ -214,6 +217,7 @@ export type LiveRuntimeStatus = {
   lastUpdatedAt?: string;
   txHashes: Hex[];
   steps: LiveStepRecord[];
+  execution?: ActionExecutionDetail;
   proposalId?: number;
   firstTaxWei?: string;
   secondTaxWei?: string;
@@ -232,6 +236,26 @@ export type LiveRuntimeStatus = {
     };
   };
 } | null;
+
+export type ActionExecutionDetail = {
+  requestedMode?: string;
+  resolvedMode?: ExecutionMode;
+  requestedExecutor?: AutonomousExecutor;
+  actualExecutor?: AutonomousExecutor;
+  chainAlias?: string | null;
+  supportsGatewayBroadcast?: boolean;
+  supportsAgenticWallet?: boolean;
+  walletLoggedIn?: boolean;
+  walletReady?: boolean;
+  walletAccountId?: string | null;
+  walletAccountName?: string | null;
+  note?: string;
+  fallbackReason?: string;
+  gatewayOrderId?: string;
+  simulated?: boolean;
+  simulationGasUsed?: string;
+  recoveryKind?: ExecutionRecoveryKind;
+};
 
 export type LiveDashboardStatus = {
   runtime: {
@@ -293,12 +317,9 @@ export type LiveDashboardStatus = {
     onchainSnapshot: {
       collectedAt?: string;
       gatewayGas?: { data?: Array<{ normal?: string; min?: string; max?: string }> };
-      walletStatus?: { data?: { loggedIn?: boolean } };
-      execution?: {
-        requestedMode?: string;
-        resolvedMode?: "viem" | "onchainos-gateway";
-        note?: string;
-      };
+      walletChains?: { data?: Array<{ chainIndex?: number; showName?: string }> };
+      walletStatus?: { data?: { loggedIn?: boolean; currentAccountName?: string; currentAccountId?: string } };
+      execution?: ActionExecutionDetail;
       error?: string;
     } | null;
     bazaarSnapshot: BazaarSnapshot | null;
@@ -398,6 +419,7 @@ export type GameActionResponse = {
   txHash?: Hex;
   message?: string;
   errorMessage?: string;
+  execution?: ActionExecutionDetail;
   paymentReceipt?: X402PaymentReceipt | null;
   status: LiveDashboardStatus;
 };
@@ -430,6 +452,7 @@ export type ProofArtifact = {
   body: string;
   statement: string;
   label: string;
+  executionLabel?: string;
   districtId: DistrictId;
   actionId?: QuestActionId;
   stepKey?: string;
@@ -449,6 +472,7 @@ export type PendingAction = {
   errorMessage?: string;
   txHash?: Hex;
   stepKey?: string;
+  execution?: ActionExecutionDetail;
 };
 
 export type WalletIdentity = {

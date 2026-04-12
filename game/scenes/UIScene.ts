@@ -7,6 +7,23 @@ function humanize(id: string | null) {
   return id ? id.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "";
 }
 
+function pendingActionSourceLabel() {
+  const pendingAction = bazaarGameStore.getState().pendingAction;
+  if (!pendingAction?.executionKind) {
+    return "Step";
+  }
+
+  if (pendingAction.executionKind === "paid-agent") {
+    return "Delegated";
+  }
+
+  if (pendingAction.executionKind === "system") {
+    return "Recovered";
+  }
+
+  return "Wallet-led";
+}
+
 export class UIScene extends Phaser.Scene {
   private promptPanel!: Phaser.GameObjects.Container;
   private promptText!: Phaser.GameObjects.Text;
@@ -86,6 +103,14 @@ export class UIScene extends Phaser.Scene {
       this.txPill.status !== "failed"
     ) {
       this.updateTxPill(this.txPill.actionId, "failed");
+    }
+
+    if (
+      this.txPill &&
+      state.pendingAction?.actionId === this.txPill.actionId &&
+      this.txPill.status === "pending"
+    ) {
+      this.txPill.label.setText(`${pendingActionSourceLabel()}: ${humanize(this.txPill.actionId)}`);
     }
 
     if (this.txPill && !state.pendingAction && this.txPill.status === "pending") {

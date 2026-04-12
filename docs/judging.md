@@ -31,7 +31,7 @@ Additional differentiators that strengthen the main judging story:
 - A strong economy loop of earn, pay, tax, treasury, vote, and update.
 - One live Uniswap V2 supplier route on X Layer testnet with separate swap and settlement proof.
 - One live x402-aligned paid delegation rail on X Layer testnet with separate payment proof.
-- Clear OnchainOS usage through wallet-aware execution and supported-chain simulation or broadcast when configured.
+- Clear OnchainOS usage through wallet-aware readiness, supported-chain simulation or broadcast when configured, and truthful fallback labeling when it is not the active executor.
 - A reusable Covenant layer that can extend to paid agent resources.
 
 ## Required Deliverables
@@ -84,7 +84,7 @@ Chain facts to cite in the README and demo:
 ## Onchain OS Integration
 
 Use the OKX stack as the proof layer:
-- Agentic wallet for real account flows when it is actually logged in and used.
+- Agentic wallet only when it is actually logged in, supported on the active chain, and used by the recorded run.
 - Gateway for simulation, broadcast, and order tracking on supported chains.
 - Payment tooling only when you can prove the exact x402 path you are showing.
 - Wallet-native transfers and contract calls for live execution.
@@ -93,7 +93,7 @@ Important honesty rule for submission:
 
 - Bazaar X's recorded public proof is currently on X Layer testnet (`1952`).
 - The current `onchainos` CLI exposes `xlayer` as chain `196` by default.
-- So if the replay still runs on testnet, the safest claim is: Bazaar X has real X Layer testnet settlement and now supports true Onchain OS gateway execution on supported chains, but the recorded testnet evidence should not be labeled as gateway-broadcasted unless runtime metadata shows it.
+- So if the replay still runs on testnet, the safest claim is: Bazaar X has real X Layer testnet settlement and supports true Onchain OS gateway execution on supported chains, but the recorded testnet evidence should not be labeled as gateway-broadcasted or agentic-wallet-executed unless runtime metadata shows it.
 - Hosted/default x402 facilitator support should also not be implied for X Layer testnet unless you are actually using a supported hosted network.
 - The current Bazaar X paid delegation demo path is a local or self-hosted x402-aligned facilitator on X Layer testnet.
 

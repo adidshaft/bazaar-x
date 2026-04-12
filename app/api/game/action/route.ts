@@ -46,9 +46,21 @@ export async function POST(request: NextRequest) {
           : null;
 
       if (matchingSession?.fulfilledResponse) {
+        const recoveredExecution =
+          matchingSession.fulfilledResponse &&
+          typeof matchingSession.fulfilledResponse === "object" &&
+          "execution" in matchingSession.fulfilledResponse &&
+          typeof (matchingSession.fulfilledResponse as { execution?: unknown }).execution === "object"
+            ? {
+                ...((matchingSession.fulfilledResponse as { execution?: Record<string, unknown> }).execution ??
+                  {}),
+                recoveryKind: "payment-session",
+              }
+            : undefined;
         const recoveredResponse = {
           ...(matchingSession.fulfilledResponse as Record<string, unknown>),
           recovered: true,
+          execution: recoveredExecution,
           paymentReceipt: matchingSession.receipt
             ? {
                 ...matchingSession.receipt,
@@ -123,15 +135,24 @@ export async function POST(request: NextRequest) {
       executionKind:
         body.actionId === "initialize-town" || (body.actionId === "deploy-bazaar" && result.recovered)
           ? "system"
-          : "x402-agent",
+          : "paid-agent",
       recovered: result.recovered,
       stepKey: result.stepKey,
       txHash: result.txHash,
+      execution: result.execution
+        ? {
+            ...result.execution,
+            recoveryKind:
+              paymentReceipt?.recovered && result.execution.recoveryKind !== "runtime-replay"
+                ? "payment-session"
+                : result.execution.recoveryKind,
+          }
+        : undefined,
       message:
         controlMode === "agent"
           ? paymentReceipt?.recovered
-            ? "Paid delegation recovered and the district agent resumed the step."
-            : "Paid delegation settled and the district agent executed the step."
+            ? "Paid delegation recovered. The run resumed from the stored receipt and preserved the original execution labels."
+            : "Paid delegation settled. Ops shows whether the autonomous step ran through the requested OnchainOS path or the manifest-wallet fallback."
           : "Server-side village action completed.",
       paymentReceipt,
       status: sanitizeManifestPayload(result.status),

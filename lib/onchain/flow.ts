@@ -9,14 +9,22 @@ import {
 } from "./contract";
 import { executeContractWrite, executeNativeTransfer } from "./executor";
 import { ensureAddressFunding } from "./faucet";
-import { collectOnchainOsSnapshot, resolveOnchainOsExecution } from "./onchain-os";
+import { collectOnchainOsSnapshot } from "./onchain-os";
 import {
   ensureWalletManifest,
   getFundingSnapshot,
   loadLiveRuntime,
   saveLiveRuntime,
 } from "./runtime";
-import type { AgentWallet, DeploymentArtifact, LiveRuntimeArtifact, StepRecord, WalletManifest } from "./types";
+import type {
+  AgentWallet,
+  DeploymentArtifact,
+  ExecutionResolution,
+  LiveRuntimeArtifact,
+  OnchainOsSnapshot,
+  StepRecord,
+  WalletManifest,
+} from "./types";
 import { explorerTxUrl } from "../xlayer";
 import {
   computeSupplierTaxOkbEquivalent,
@@ -38,6 +46,7 @@ type StepResult = {
   detail?: string;
   meta?: Record<string, string | number | boolean | null>;
   executionMode?: "viem" | "onchainos-gateway";
+  execution?: ExecutionResolution;
   gatewayOrderId?: string;
   simulated?: boolean;
   simulationGasUsed?: string;
@@ -51,6 +60,37 @@ function withExecutionMeta(result: StepResult) {
   const meta = {
     ...(result.meta ?? {}),
   } as Record<string, string | number | boolean | null>;
+
+  if (result.execution) {
+    meta.requestedMode = result.execution.requestedMode;
+    meta.resolvedMode = result.execution.resolvedMode;
+    meta.requestedExecutor = result.execution.requestedExecutor;
+    meta.actualExecutor = result.execution.actualExecutor;
+    meta.supportsGatewayBroadcast = result.execution.supportsGatewayBroadcast;
+    meta.supportsAgenticWallet = result.execution.supportsAgenticWallet;
+    meta.walletLoggedIn = result.execution.walletLoggedIn;
+    meta.walletReady = result.execution.walletReady;
+
+    if (result.execution.chainAlias) {
+      meta.chainAlias = result.execution.chainAlias;
+    }
+
+    if (result.execution.walletAccountId) {
+      meta.walletAccountId = result.execution.walletAccountId;
+    }
+
+    if (result.execution.walletAccountName) {
+      meta.walletAccountName = result.execution.walletAccountName;
+    }
+
+    if (result.execution.note) {
+      meta.executionNote = result.execution.note;
+    }
+
+    if (result.execution.fallbackReason) {
+      meta.fallbackReason = result.execution.fallbackReason;
+    }
+  }
 
   if (result.executionMode) {
     meta.executionMode = result.executionMode;
@@ -71,14 +111,17 @@ function withExecutionMeta(result: StepResult) {
   return Object.keys(meta).length ? meta : undefined;
 }
 
-function buildExecutionSnapshot(chainId: number) {
-  const resolved = resolveOnchainOsExecution(chainId);
+function buildExecutionSnapshot(snapshot?: OnchainOsSnapshot | null) {
+  const resolved = snapshot?.execution;
+  if (!resolved) {
+    return undefined;
+  }
 
   return {
     ...resolved,
     simulateBeforeBroadcast: resolved.resolvedMode === "onchainos-gateway",
     usesOnchainOsGateway: resolved.resolvedMode === "onchainos-gateway",
-    usesAgenticWallet: false,
+    usesAgenticWallet: resolved.actualExecutor === "agentic-wallet",
   };
 }
 
@@ -264,6 +307,7 @@ async function ensureBootstrapTransfers(
           txHash: fundingTx.txHash,
           detail: `Transferred ${formatEther(delta)} OKB from deployer to ${agent.name}.`,
           executionMode: fundingTx.executionMode,
+          execution: fundingTx.execution,
           gatewayOrderId: fundingTx.gatewayOrderId,
           simulated: fundingTx.simulated,
           simulationGasUsed: fundingTx.simulationGasUsed,
@@ -284,7 +328,7 @@ export async function initializeBazaarLiveState() {
   const runtime = createRuntimeBase(existingRuntime);
   runtime.funding = funding;
   runtime.onchainOs = onchainOs;
-  runtime.execution = buildExecutionSnapshot(manifest.chainId);
+  runtime.execution = buildExecutionSnapshot(onchainOs);
 
   if (funding.readyForDeploy) {
     runtime.status = "ready";
@@ -312,7 +356,7 @@ export async function deployLiveBazaar() {
     runtime.deployment = existingDeployment;
     runtime.funding = await getFundingSnapshot(manifest);
     runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
-    runtime.execution = buildExecutionSnapshot(manifest.chainId);
+    runtime.execution = buildExecutionSnapshot(runtime.onchainOs);
     runtime.status = "ready";
     runtime.runId = runtime.runId ?? `run_${Date.now()}`;
     recordDeployStep(runtime, existingDeployment);
@@ -333,7 +377,7 @@ export async function deployLiveBazaar() {
   runtime.deployment = deployment;
   runtime.funding = funding;
   runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
-  runtime.execution = buildExecutionSnapshot(manifest.chainId);
+  runtime.execution = buildExecutionSnapshot(runtime.onchainOs);
   runtime.status = "ready";
   runtime.runId = runtime.runId ?? `run_${Date.now()}`;
   recordDeployStep(runtime, deployment);
@@ -350,12 +394,13 @@ export async function runBazaarLiveFlow() {
   runtime.status = "running";
   runtime.runId = runtime.runId ?? `run_${Date.now()}`;
   runtime.error = undefined;
-  runtime.execution = buildExecutionSnapshot(manifest.chainId);
+  runtime.execution = buildExecutionSnapshot(runtime.onchainOs);
   await persist(runtime);
 
   const funding = await getFundingSnapshot(manifest);
   runtime.funding = funding;
   runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
+  runtime.execution = buildExecutionSnapshot(runtime.onchainOs);
 
   if (!funding.readyForDeploy && !existingDeployment) {
     runtime.status = "failed";
@@ -393,6 +438,7 @@ export async function runBazaarLiveFlow() {
           txHash: registrationTx.txHash,
           detail: `Registered ${agent.handle} on Bazaar X.`,
           executionMode: registrationTx.executionMode,
+          execution: registrationTx.execution,
           gatewayOrderId: registrationTx.gatewayOrderId,
           simulated: registrationTx.simulated,
           simulationGasUsed: registrationTx.simulationGasUsed,
@@ -421,6 +467,7 @@ export async function runBazaarLiveFlow() {
       detail: `Created primary shop #${shopId}.`,
       meta: { shopId },
       executionMode: shopCreateTx.executionMode,
+      execution: shopCreateTx.execution,
       gatewayOrderId: shopCreateTx.gatewayOrderId,
       simulated: shopCreateTx.simulated,
       simulationGasUsed: shopCreateTx.simulationGasUsed,
@@ -446,6 +493,7 @@ export async function runBazaarLiveFlow() {
       detail: `Created supplier shop #${shopId}.`,
       meta: { shopId },
       executionMode: supplierShopTx.executionMode,
+      execution: supplierShopTx.execution,
       gatewayOrderId: supplierShopTx.gatewayOrderId,
       simulated: supplierShopTx.simulated,
       simulationGasUsed: supplierShopTx.simulationGasUsed,
@@ -471,6 +519,7 @@ export async function runBazaarLiveFlow() {
       detail: `Created worker shop #${shopId}.`,
       meta: { shopId },
       executionMode: workerShopTx.executionMode,
+      execution: workerShopTx.execution,
       gatewayOrderId: workerShopTx.gatewayOrderId,
       simulated: workerShopTx.simulated,
       simulationGasUsed: workerShopTx.simulationGasUsed,
@@ -517,6 +566,7 @@ export async function runBazaarLiveFlow() {
         paymentTokenAddress: uniswap.settlementTokenAddress,
       },
       executionMode: supplierServiceTx.executionMode,
+      execution: supplierServiceTx.execution,
       gatewayOrderId: supplierServiceTx.gatewayOrderId,
       simulated: supplierServiceTx.simulated,
       simulationGasUsed: supplierServiceTx.simulationGasUsed,
@@ -557,6 +607,7 @@ export async function runBazaarLiveFlow() {
       detail: `Listed worker service #${serviceId}.`,
       meta: { serviceId, priceOkb: formatEther(WORKER_SERVICE_PRICE) },
       executionMode: workerServiceTx.executionMode,
+      execution: workerServiceTx.execution,
       gatewayOrderId: workerServiceTx.gatewayOrderId,
       simulated: workerServiceTx.simulated,
       simulationGasUsed: workerServiceTx.simulationGasUsed,
@@ -594,6 +645,7 @@ export async function runBazaarLiveFlow() {
           jobId: Number(event?.args?.jobId ?? 0n),
         },
         executionMode: supplierHireTx.executionMode,
+        execution: supplierHireTx.execution,
         gatewayOrderId: supplierHireTx.gatewayOrderId,
         simulated: supplierHireTx.simulated,
         simulationGasUsed: supplierHireTx.simulationGasUsed,
@@ -627,6 +679,7 @@ export async function runBazaarLiveFlow() {
           transferTxHash: swap.transferTxHash,
         }),
         executionMode: swap.executionMode,
+        execution: swap.execution,
         gatewayOrderId: swap.gatewayOrderId,
         simulated: swap.simulated,
         simulationGasUsed: swap.simulationGasUsed,
@@ -672,6 +725,7 @@ export async function runBazaarLiveFlow() {
         jobId: Number(event?.args?.jobId ?? 0n),
       },
       executionMode: shopHireTx.executionMode,
+      execution: shopHireTx.execution,
       gatewayOrderId: shopHireTx.gatewayOrderId,
       simulated: shopHireTx.simulated,
       simulationGasUsed: shopHireTx.simulationGasUsed,
@@ -712,6 +766,7 @@ export async function runBazaarLiveFlow() {
       detail: `Created proposal #${proposalId} to raise tax from 5% to 8%.`,
       meta: { proposalId },
       executionMode: proposalTx.executionMode,
+      execution: proposalTx.execution,
       gatewayOrderId: proposalTx.gatewayOrderId,
       simulated: proposalTx.simulated,
       simulationGasUsed: proposalTx.simulationGasUsed,
@@ -737,6 +792,7 @@ export async function runBazaarLiveFlow() {
         detail: `${agent.name} voted in favor of the covenant update.`,
         meta: { proposalId: runtime.proposalId },
         executionMode: voteTx.executionMode,
+        execution: voteTx.execution,
         gatewayOrderId: voteTx.gatewayOrderId,
         simulated: voteTx.simulated,
         simulationGasUsed: voteTx.simulationGasUsed,
@@ -772,6 +828,7 @@ export async function runBazaarLiveFlow() {
       detail: `Executed proposal #${runtime.proposalId}. New tax is now 8%.`,
       meta: { proposalId: runtime.proposalId, nextTaxBps: 800 },
       executionMode: executeTx.executionMode,
+      execution: executeTx.execution,
       gatewayOrderId: executeTx.gatewayOrderId,
       simulated: executeTx.simulated,
       simulationGasUsed: executeTx.simulationGasUsed,
@@ -809,6 +866,7 @@ export async function runBazaarLiveFlow() {
           jobId: Number(event?.args?.jobId ?? 0n),
         },
         executionMode: postGovernanceTx.executionMode,
+        execution: postGovernanceTx.execution,
         gatewayOrderId: postGovernanceTx.gatewayOrderId,
         simulated: postGovernanceTx.simulated,
         simulationGasUsed: postGovernanceTx.simulationGasUsed,
@@ -828,6 +886,7 @@ export async function runBazaarLiveFlow() {
       txHash: treasuryTx.txHash,
       detail: `Treasury reinvested ${formatEther(TREASURY_REINVEST_GRANT)} OKB back into the shop wallet.`,
       executionMode: treasuryTx.executionMode,
+      execution: treasuryTx.execution,
       gatewayOrderId: treasuryTx.gatewayOrderId,
       simulated: treasuryTx.simulated,
       simulationGasUsed: treasuryTx.simulationGasUsed,
@@ -836,6 +895,7 @@ export async function runBazaarLiveFlow() {
 
   runtime.funding = await getFundingSnapshot(manifest);
   runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
+  runtime.execution = buildExecutionSnapshot(runtime.onchainOs);
   runtime.status = "completed";
   runtime.error = undefined;
   runtime.deployment = deployment;

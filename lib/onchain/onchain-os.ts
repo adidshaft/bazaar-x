@@ -1,8 +1,17 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { EXECUTION_MODE, ONCHAIN_OS_CHAIN_ALIAS } from "../server/config";
-import type { ExecutionMode, OnchainOsSnapshot } from "./types";
+import {
+  AUTONOMOUS_EXECUTOR_PREFERENCE,
+  EXECUTION_MODE,
+  ONCHAIN_OS_CHAIN_ALIAS,
+} from "../server/config";
+import type {
+  AutonomousExecutor,
+  ExecutionMode,
+  ExecutionResolution,
+  OnchainOsSnapshot,
+} from "./types";
 
 type OnchainOsEnvelope<T> = {
   ok: boolean;
@@ -57,6 +66,14 @@ type GatewayGasLimitRow = {
   gasLimit?: string;
 };
 
+type ChainDescriptor = {
+  alias?: string[];
+  chainIndex?: number;
+  chainName?: string;
+  realChainIndex?: number;
+  showName?: string;
+};
+
 function onchainosPath() {
   return resolve(process.env.HOME ?? "", ".local/bin/onchainos");
 }
@@ -101,29 +118,146 @@ function runOnchainos<T>(args: string[]) {
   }
 }
 
-export function resolveOnchainOsExecution(chainId: number) {
+function extractErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error && "error" in error) {
+    return String((error as { error?: unknown }).error ?? "Unknown onchainos error.");
+  }
+
+  return "Unknown onchainos error.";
+}
+
+function readOnchainOsSafe<T>(reader: () => T) {
+  try {
+    return {
+      value: reader(),
+      error: undefined,
+    };
+  } catch (error) {
+    return {
+      value: undefined,
+      error: extractErrorMessage(error),
+    };
+  }
+}
+
+function readEnvelopeData<T>(payload: unknown) {
+  if (!payload || typeof payload !== "object" || !("data" in payload)) {
+    return undefined;
+  }
+
+  return (payload as { data?: T }).data;
+}
+
+function readChainDescriptors(payload: unknown) {
+  const rows = readEnvelopeData<ChainDescriptor[]>(payload);
+  return Array.isArray(rows) ? rows : [];
+}
+
+function normalizeWalletStatus(payload: unknown): WalletStatusPayload {
+  const data = readEnvelopeData<WalletStatusPayload>(payload);
+  return data && typeof data === "object" ? data : {};
+}
+
+function matchesChainDescriptor(
+  descriptor: ChainDescriptor,
+  chainId: number,
+  chainAlias: string | null,
+) {
+  if (descriptor.chainIndex === chainId || descriptor.realChainIndex === chainId) {
+    return true;
+  }
+
+  if (!chainAlias) {
+    return false;
+  }
+
+  const alias = chainAlias.toLowerCase();
+  return (
+    descriptor.chainName?.toLowerCase() === alias ||
+    descriptor.showName?.toLowerCase() === alias ||
+    descriptor.alias?.some((entry) => entry.toLowerCase() === alias) === true
+  );
+}
+
+function supportsChain(payload: unknown, chainId: number, chainAlias: string | null) {
+  const descriptors = readChainDescriptors(payload);
+  if (!descriptors.length) {
+    return Boolean(chainAlias);
+  }
+
+  return descriptors.some((descriptor) => matchesChainDescriptor(descriptor, chainId, chainAlias));
+}
+
+export function resolveOnchainOsExecution(
+  chainId: number,
+  input?: {
+    gatewayChains?: unknown;
+    walletChains?: unknown;
+    walletStatus?: unknown;
+  },
+): ExecutionResolution {
   const requestedMode = EXECUTION_MODE;
   const chainAlias = ONCHAIN_OS_CHAIN_ALIAS || (chainId === 196 ? "xlayer" : null);
+  const requestedExecutor: AutonomousExecutor =
+    AUTONOMOUS_EXECUTOR_PREFERENCE === "manifest-wallet"
+      ? "manifest-wallet"
+      : "agentic-wallet";
   const requestedGateway = requestedMode === "onchainos-gateway";
-  const supportsGatewayBroadcast = Boolean(chainAlias);
+  const supportsGatewayBroadcast = supportsChain(input?.gatewayChains, chainId, chainAlias);
+  const supportsAgenticWallet = supportsChain(input?.walletChains, chainId, chainAlias);
+  const walletStatus = normalizeWalletStatus(input?.walletStatus);
+  const walletLoggedIn = Boolean(walletStatus.loggedIn);
+  const walletReady = supportsAgenticWallet && walletLoggedIn;
+  const actualExecutor: AutonomousExecutor = "manifest-wallet";
   const resolvedMode: ExecutionMode =
     requestedGateway && supportsGatewayBroadcast ? "onchainos-gateway" : "viem";
 
-  let note: string | undefined;
+  let fallbackReason: string | undefined;
+  if (requestedExecutor === "agentic-wallet") {
+    if (!supportsAgenticWallet) {
+      fallbackReason =
+        `Agentic Wallet does not currently expose chain ${chainId} in the installed OnchainOS CLI, ` +
+        `so autonomous Bazaar X steps stay on the manifest-wallet fallback.`;
+    } else if (!walletLoggedIn) {
+      fallbackReason =
+        "Agentic Wallet support is available on this chain, but no OnchainOS wallet account is logged in, so the manifest-wallet fallback stays active.";
+    } else {
+      fallbackReason =
+        "Agentic Wallet readiness is visible, but this shared village still executes role-specific autonomous steps from manifest wallets in the current build.";
+    }
+  }
+
+  const notes: string[] = [];
   if (requestedGateway && !supportsGatewayBroadcast) {
-    note =
+    notes.push(
       `Onchain OS gateway execution is not configured for chain ${chainId}. ` +
       `The current CLI only exposes X Layer mainnet by default. Set BAZAAR_X_ONCHAINOS_CHAIN_ALIAS ` +
-      `if your CLI build supports another alias, or switch back to viem for testnet runs.`;
+      `if your CLI build supports another alias, or switch back to viem for testnet runs.`,
+    );
+  }
+
+  if (fallbackReason) {
+    notes.push(fallbackReason);
   }
 
   return {
     requestedMode,
     resolvedMode,
+    requestedExecutor,
+    actualExecutor,
     chainAlias,
     supportsGatewayBroadcast,
-    supportsAgenticWallet: Boolean(chainAlias),
-    note,
+    supportsAgenticWallet,
+    walletLoggedIn,
+    walletReady,
+    walletAccountId: walletStatus.currentAccountId || null,
+    walletAccountName: walletStatus.currentAccountName || null,
+    note: notes.length ? notes.join(" ") : undefined,
+    fallbackReason,
   };
 }
 
@@ -245,6 +379,13 @@ export function getWalletStatus() {
   ]);
 }
 
+export function getWalletChains() {
+  return runOnchainos<OnchainOsEnvelope<ChainDescriptor[]>>([
+    "wallet",
+    "chains",
+  ]);
+}
+
 export function gatewayNormalGasPrice(chainAlias: string) {
   const response = getGatewayGas(chainAlias);
   const row = response.data?.[0];
@@ -270,28 +411,33 @@ export function firstGatewayOrder(
 }
 
 export async function collectOnchainOsSnapshot(chainId: number = 196): Promise<OnchainOsSnapshot> {
-  const execution = resolveOnchainOsExecution(chainId);
+  const gatewayChainsResult = readOnchainOsSafe(() => runOnchainos(["gateway", "chains"]));
+  const walletChainsResult = readOnchainOsSafe(() => getWalletChains());
+  const walletStatusResult = readOnchainOsSafe(() => getWalletStatus());
+  const execution = resolveOnchainOsExecution(chainId, {
+    gatewayChains: gatewayChainsResult.value,
+    walletChains: walletChainsResult.value,
+    walletStatus: walletStatusResult.value,
+  });
+  const gatewayGasResult =
+    execution.chainAlias && execution.supportsGatewayBroadcast
+      ? readOnchainOsSafe(() => runOnchainos(["gateway", "gas", "--chain", execution.chainAlias!]))
+      : { value: undefined, error: undefined };
 
-  try {
-    return {
-      collectedAt: new Date().toISOString(),
-      gatewayChains: runOnchainos(["gateway", "chains"]),
-      gatewayGas: execution.chainAlias
-        ? runOnchainos(["gateway", "gas", "--chain", execution.chainAlias])
-        : undefined,
-      walletStatus: getWalletStatus(),
-      execution,
-    };
-  } catch (error) {
-    return {
-      collectedAt: new Date().toISOString(),
-      execution,
-      error:
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error && "error" in error
-            ? String((error as { error?: unknown }).error)
-            : "Failed to collect Onchain OS data.",
-    };
-  }
+  const errors = [
+    gatewayChainsResult.error,
+    walletChainsResult.error,
+    walletStatusResult.error,
+    gatewayGasResult.error,
+  ].filter((value): value is string => Boolean(value));
+
+  return {
+    collectedAt: new Date().toISOString(),
+    gatewayChains: gatewayChainsResult.value,
+    gatewayGas: gatewayGasResult.value,
+    walletChains: walletChainsResult.value,
+    walletStatus: walletStatusResult.value,
+    execution,
+    error: errors.length ? errors.join(" | ") : undefined,
+  };
 }

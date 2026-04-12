@@ -2,6 +2,7 @@ import type { Address, Hex } from "viem";
 
 export type AgentRole = "shop" | "supplier" | "worker" | "governor";
 export type ExecutionMode = "viem" | "onchainos-gateway";
+export type AutonomousExecutor = "manifest-wallet" | "agentic-wallet";
 
 export interface AgentWallet {
   id: string;
@@ -116,26 +117,32 @@ export interface OnchainOsSnapshot {
   collectedAt: string;
   gatewayGas?: unknown;
   gatewayChains?: unknown;
+  walletChains?: unknown;
   walletStatus?: unknown;
-  execution?: {
-    requestedMode: string;
-    resolvedMode: ExecutionMode;
-    chainAlias: string | null;
-    supportsGatewayBroadcast: boolean;
-    supportsAgenticWallet: boolean;
-    note?: string;
-  };
+  execution?: ExecutionResolution;
   error?: string;
 }
 
-export interface ExecutionSnapshot {
+export interface ExecutionResolution {
   requestedMode: string;
   resolvedMode: ExecutionMode;
+  requestedExecutor: AutonomousExecutor;
+  actualExecutor: AutonomousExecutor;
   chainAlias: string | null;
+  supportsGatewayBroadcast: boolean;
+  supportsAgenticWallet: boolean;
+  walletLoggedIn: boolean;
+  walletReady: boolean;
+  walletAccountId?: string | null;
+  walletAccountName?: string | null;
+  note?: string;
+  fallbackReason?: string;
+}
+
+export interface ExecutionSnapshot extends ExecutionResolution {
   simulateBeforeBroadcast: boolean;
   usesOnchainOsGateway: boolean;
   usesAgenticWallet: boolean;
-  note?: string;
 }
 
 export interface LiveRuntimeArtifact {

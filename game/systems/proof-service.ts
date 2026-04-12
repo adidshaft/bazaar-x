@@ -39,6 +39,36 @@ function summarizeStep(step: NonNullable<LiveDashboardStatus["liveDashboard"]["r
   return "receipt";
 }
 
+function buildExecutionLabel(
+  step: NonNullable<LiveDashboardStatus["liveDashboard"]["runtime"]>["steps"][number],
+  status: LiveDashboardStatus,
+) {
+  if (step.meta?.proofKind === "payment" || step.key.startsWith("payment-")) {
+    return "Paid delegation receipt";
+  }
+
+  const snapshotExecution =
+    status.liveDashboard.onchainSnapshot?.execution ?? status.liveDashboard.runtime?.execution;
+  const executor = step.meta?.actualExecutor ?? snapshotExecution?.actualExecutor;
+  const executionMode = step.meta?.executionMode ?? snapshotExecution?.resolvedMode;
+  const transport =
+    executionMode === "onchainos-gateway" ? "OnchainOS gateway" : "Standard broadcast";
+
+  if (executor === "agentic-wallet") {
+    return `Agentic Wallet via ${transport}`;
+  }
+
+  if (executor === "manifest-wallet") {
+    return `Manifest fallback via ${transport}`;
+  }
+
+  if (step.key === "deploy" || step.key === "wait-voting") {
+    return "System recovery";
+  }
+
+  return undefined;
+}
+
 export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofArtifact[] {
   const runtime = status?.liveDashboard.runtime;
   if (!runtime) {
@@ -88,6 +118,7 @@ export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofAr
         body: step.detail ?? "Confirmed on X Layer.",
         statement: `${step.label}: ${step.detail ?? "Confirmed on X Layer."}`,
         label: summarizeStep(step) === "swap" ? swapLabel : taxLabel,
+        executionLabel: buildExecutionLabel(step, status),
         districtId,
         actionId,
         stepKey: step.key,

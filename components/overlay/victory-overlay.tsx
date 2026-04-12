@@ -56,6 +56,9 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
                 </div>
                 <div className="victory-proof-title">{proof.title}</div>
                 <div className="victory-proof-body">{proof.body}</div>
+                {proof.executionLabel ? (
+                  <div className="victory-proof-body">{proof.executionLabel}</div>
+                ) : null}
               </div>
               {proof.explorerUrl ? (
                 <a href={proof.explorerUrl} target="_blank" rel="noreferrer" className="px-link">

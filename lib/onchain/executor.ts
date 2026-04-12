@@ -10,12 +10,13 @@ import { privateKeyToAccount } from "viem/accounts";
 import { createXLayerPublicClient, createXLayerWallet } from "../xlayer";
 import type {
   DeploymentArtifact,
-  ExecutionMode,
+  ExecutionResolution,
   WalletManifest,
 } from "./types";
 import {
   assertOnchainOsGatewayChain,
   broadcastGatewayTransaction,
+  collectOnchainOsSnapshot,
   firstGatewayBroadcastRow,
   firstGatewayOrder,
   firstGatewaySimulationRow,
@@ -37,13 +38,17 @@ type ExecutionRequest = {
 export type ExecutedTransaction = {
   txHash: Hex;
   receipt: TransactionReceipt;
-  executionMode: ExecutionMode;
+  executionMode: ExecutionResolution["resolvedMode"];
+  execution: ExecutionResolution;
   gatewayOrderId?: string;
   simulated?: boolean;
   simulationGasUsed?: string;
 };
 
-async function executeViaViem(input: ExecutionRequest): Promise<ExecutedTransaction> {
+async function executeViaViem(
+  input: ExecutionRequest,
+  execution: ExecutionResolution,
+): Promise<ExecutedTransaction> {
   const publicClient = createXLayerPublicClient(
     input.manifest.chainId,
     input.manifest.rpcUrl,
@@ -68,6 +73,7 @@ async function executeViaViem(input: ExecutionRequest): Promise<ExecutedTransact
     txHash,
     receipt,
     executionMode: "viem",
+    execution,
   };
 }
 
@@ -168,6 +174,7 @@ async function waitForGatewaySettlement(input: {
 
 async function executeViaOnchainOsGateway(
   input: ExecutionRequest,
+  execution: ExecutionResolution,
 ): Promise<ExecutedTransaction> {
   const { account, publicClient, chainAlias, signedTx } = await signLocally(input);
 
@@ -221,24 +228,25 @@ async function executeViaOnchainOsGateway(
     txHash,
     receipt,
     executionMode: "onchainos-gateway",
+    execution,
     gatewayOrderId: orderId,
     simulated,
     simulationGasUsed,
   };
 }
 
-function shouldUseOnchainOsGateway(chainId: number) {
-  return resolveOnchainOsExecution(chainId).resolvedMode === "onchainos-gateway";
-}
-
 export async function executeRawTransaction(
   input: ExecutionRequest,
 ): Promise<ExecutedTransaction> {
-  if (shouldUseOnchainOsGateway(input.manifest.chainId)) {
-    return executeViaOnchainOsGateway(input);
+  const execution =
+    (await collectOnchainOsSnapshot(input.manifest.chainId).catch(() => null))?.execution ??
+    resolveOnchainOsExecution(input.manifest.chainId);
+
+  if (execution.resolvedMode === "onchainos-gateway") {
+    return executeViaOnchainOsGateway(input, execution);
   }
 
-  return executeViaViem(input);
+  return executeViaViem(input, execution);
 }
 
 export async function executeNativeTransfer(input: {

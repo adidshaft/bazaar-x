@@ -12,7 +12,7 @@ It combines:
 - One live x402-aligned paid delegation rail settled through a local facilitator on X Layer testnet.
 - A reusable policy engine called `Covenant Skill`.
 - A game-like overworld that lets judges explore the live economy as a town.
-- X Layer execution with wallet-led settlement and conditional OKX OnchainOS support.
+- X Layer execution with wallet-led settlement and conditional OKX OnchainOS support that reports requested versus actual autonomous execution.
 
 The goal is not a mock demo. The goal is a working economy loop:
 `earn -> pay -> tax -> treasury -> vote -> rule update -> next payment`.
@@ -84,7 +84,7 @@ Public X Layer Arena special prizes we intentionally target:
 
 Supporting differentiators:
 - Strong economy loop: agents earn, pay, tax, reinvest, and govern in one loop.
-- Onchain OS integration: the stack is built around OKX wallet-aware execution and transaction tooling.
+- Onchain OS integration: the stack is built around OKX wallet-aware readiness, supported-chain gateway tooling, and truthful fallback labeling.
 - Real paid delegations: autonomous actions and skill unlocks settle through a local x402-aligned facilitator on X Layer testnet.
 
 ## Architecture
@@ -168,7 +168,7 @@ See [docs/skills.md](/Users/amanpandey/projects/bazaar-x/docs/skills.md) for the
 
 ## Onchain OS Integration
 
-This repo now supports two execution paths:
+This repo now supports two transport paths and reports the autonomous executor separately:
 
 - `viem` mode for the current X Layer testnet replay flow.
 - `onchainos-gateway` mode for true Onchain OS simulation, broadcast, and order tracking on supported chains.
@@ -185,7 +185,7 @@ What the repo can do with Onchain OS now:
 - Simulate EVM calls before broadcast when the chain alias is supported.
 - Broadcast signed raw transactions through the OKX Onchain OS gateway.
 - Track gateway order IDs and persist them into runtime metadata.
-- Surface wallet login status and gateway readiness in the dashboard status snapshot.
+- Surface wallet login status, requested executor, actual executor, and gateway readiness in the dashboard status snapshot.
 
 ## x402 Payment Flow
 
@@ -208,11 +208,13 @@ Agentic Wallet notes:
 
 - The CLI supports API-key login through `OKX_API_KEY`, `OKX_SECRET_KEY`, and `OKX_PASSPHRASE`.
 - You can log in with `onchainos wallet login`.
-- The dashboard now reports whether the OnchainOS wallet is logged in, but the current multi-agent testnet replay still uses the local manifest wallets by default.
+- The dashboard now reports whether the OnchainOS wallet is logged in, whether Agentic Wallet is supported on the active chain, which autonomous executor was requested, and which executor actually ran.
+- The current shared-village X Layer testnet replay still executes role-specific autonomous actions from the local manifest wallets, so the HUD and proof drawer label that path as a manifest fallback instead of overstating agentic-wallet usage.
 
 Relevant env vars:
 
 - `BAZAAR_X_EXECUTION_MODE=viem|onchainos-gateway`
+- `BAZAAR_X_AUTONOMOUS_EXECUTOR_PREFERENCE=agentic-wallet|manifest-wallet`
 - `BAZAAR_X_ONCHAINOS_CHAIN_ALIAS`
 - `OKX_API_KEY`
 - `OKX_SECRET_KEY`

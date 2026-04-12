@@ -35,6 +35,8 @@ export const EXECUTION_MODE =
   process.env.BAZAAR_X_EXECUTION_MODE ?? "viem";
 export const ONCHAIN_OS_CHAIN_ALIAS =
   process.env.BAZAAR_X_ONCHAINOS_CHAIN_ALIAS ?? "";
+export const AUTONOMOUS_EXECUTOR_PREFERENCE =
+  process.env.BAZAAR_X_AUTONOMOUS_EXECUTOR_PREFERENCE ?? "agentic-wallet";
 export const UNISWAP_DEPLOYMENT_ARTIFACT_PATH =
   process.env.BAZAAR_X_UNISWAP_DEPLOYMENT_ARTIFACT ?? "defi/uniswap-v2/latest.json";
 export const UNISWAP_WRAPPED_NATIVE_ADDRESS =

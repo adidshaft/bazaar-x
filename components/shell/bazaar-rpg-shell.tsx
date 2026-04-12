@@ -29,6 +29,8 @@ import { GovernanceCountdown } from "@/components/shell/governance-countdown";
 import { STATUS_QUERY_KEY } from "@/game/config/constants";
 import { bazaarEventBridge } from "@/game/core/event-bridge";
 import type {
+  ActionExecutionDetail,
+  ActionExecutionKind,
   ActionControlMode,
   DistrictId,
   MapId,
@@ -100,13 +102,13 @@ const mapLabels: Record<MapId, string> = {
 const districtPurposeCopy: Record<DistrictId, string> = {
   "village-gate": "Citizenship, charter sync, and first-step orientation start here.",
   "market-row": "Claim a stall, open the shop, and create demand for the whole town.",
-  "supplier-lane": "Publish supplier work, stage routes, and keep the market stocked.",
+  "supplier-lane": "Publish supplier work, stage routes, and see whether automation used OnchainOS or the manifest fallback.",
   "worker-yard": "Make labor visible and replay the same wage after governance changes.",
-  "treasury-vault": "Watch tax accumulate, read reserves, and close the loop with reinvestment.",
+  "treasury-vault": "Watch tax accumulate, read reserves, and verify the execution path behind treasury actions.",
   "council-hall": "Propose, vote, execute, and then prove the rule change with a replay.",
 };
 
-const canonicalLoopSummary = "Wallet-linked citizens sync the charter, claim a stall, route supply and labor, collect tax, vote on rule changes, and replay the same wage under the new rule.";
+const canonicalLoopSummary = "Wallet-linked citizens sync the charter, claim a stall, route supply and labor, collect tax, vote on rule changes, and replay the same wage under the new rule while the HUD separates wallet-led, delegated, and recovered steps.";
 
 const interactionNavigation: Record<string, { mapId: MapId; x: number; y: number; spawnId?: string }> = {
   "keeper-gate":     { mapId: "village-exterior", x: 800,  y: 352,  spawnId: "gate-spawn"       },
@@ -194,8 +196,80 @@ function describeQuestSurface(step: QuestStepDefinition) {
 
   const policy = getActionControlPolicy(step.actionId);
   return policy.manualSupport === "agent_required"
-    ? "Agent-run step on the shared village contract"
-    : "Wallet-led onchain step, with optional agent mode";
+    ? "Paid delegation that exposes the actual autonomous execution path in Ops"
+    : "Wallet-led onchain step, with optional paid delegation";
+}
+
+function proofTypeLabel(proof: ProofArtifact) {
+  if (proof.kind === "swap") {
+    return "swap proof";
+  }
+
+  if (proof.kind === "payment") {
+    return "payment proof";
+  }
+
+  if (proof.kind === "receipt") {
+    return "settlement proof";
+  }
+
+  return proof.kind;
+}
+
+function actionKindLabel(kind?: ActionExecutionKind) {
+  if (kind === "paid-agent") {
+    return "Paid agent";
+  }
+
+  if (kind === "system") {
+    return "System recovery";
+  }
+
+  return "Wallet-led";
+}
+
+function executorLabel(execution?: ActionExecutionDetail | null) {
+  if (!execution?.actualExecutor) {
+    return null;
+  }
+
+  return execution.actualExecutor === "agentic-wallet" ? "Agentic Wallet" : "Manifest fallback";
+}
+
+function transportLabel(execution?: ActionExecutionDetail | null) {
+  if (!execution?.resolvedMode) {
+    return null;
+  }
+
+  return execution.resolvedMode === "onchainos-gateway" ? "OnchainOS gateway" : "Standard broadcast";
+}
+
+function executionSummary(execution?: ActionExecutionDetail | null) {
+  const executor = executorLabel(execution);
+  const transport = transportLabel(execution);
+  if (executor && transport) {
+    return `${executor} via ${transport}`;
+  }
+
+  return executor ?? transport ?? null;
+}
+
+function walletReadinessLabel(execution?: ActionExecutionDetail | null) {
+  if (!execution?.supportsAgenticWallet) {
+    return "Unsupported on this chain";
+  }
+
+  if (!execution.walletLoggedIn) {
+    return "Not logged in";
+  }
+
+  if (!execution.walletReady) {
+    return "Not ready";
+  }
+
+  return execution.walletAccountName
+    ? `Ready as ${execution.walletAccountName}`
+    : "Ready";
 }
 
 export function BazaarRpgShell({ initialScene }: { initialScene?: string | null }) {
@@ -274,6 +348,11 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     staleTime: 4_000,
     enabled: hasMounted && displayWalletIdentity.connected && displayWalletIdentity.validNetwork && Boolean(displayAddress),
   });
+  const currentExecutionSnapshot =
+    statusQuery.data?.liveDashboard.onchainSnapshot?.execution ??
+    liveStatus?.liveDashboard.onchainSnapshot?.execution ??
+    liveStatus?.liveDashboard.runtime?.execution ??
+    null;
 
   const actionMutation = useMutation({
     mutationFn: async (input: { actionId: QuestActionId; controlMode: ActionControlMode }) => {
@@ -298,7 +377,13 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               status: "pending",
               startedAt: Date.now(),
               controlMode: "agent",
-              executionKind: "x402-agent",
+              executionKind: "paid-agent",
+              execution: currentExecutionSnapshot
+                ? {
+                    ...currentExecutionSnapshot,
+                    recoveryKind: "none",
+                  }
+                : undefined,
               message: `Payment required: sign ${phase.paymentRequired.amountLabel} so the village agent can continue.`,
             });
             return;
@@ -311,7 +396,13 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               status: "submitted",
               startedAt: Date.now(),
               controlMode: "agent",
-              executionKind: "x402-agent",
+              executionKind: "paid-agent",
+              execution: currentExecutionSnapshot
+                ? {
+                    ...currentExecutionSnapshot,
+                    recoveryKind: "none",
+                  }
+                : undefined,
               message: "Confirm the x402 delegation signature in your wallet.",
             });
             return;
@@ -324,7 +415,13 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               status: "submitted",
               startedAt: Date.now(),
               controlMode: "agent",
-              executionKind: "x402-agent",
+              executionKind: "paid-agent",
+              execution: currentExecutionSnapshot
+                ? {
+                    ...currentExecutionSnapshot,
+                    recoveryKind: "none",
+                  }
+                : undefined,
               message: `Settling ${phase.paymentRequired.amountLabel} on X Layer testnet...`,
             });
             return;
@@ -336,7 +433,15 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             status: "recovered",
             startedAt: Date.now(),
             controlMode: "agent",
-            executionKind: "x402-agent",
+            executionKind: "paid-agent",
+            execution: currentExecutionSnapshot
+              ? {
+                  ...currentExecutionSnapshot,
+                  recoveryKind: "payment-session",
+                }
+              : {
+                  recoveryKind: "payment-session",
+                },
             txHash: phase.paymentReceipt.settlementTxHash,
             message: "Recovered a previously settled paid delegation receipt.",
           });
@@ -689,7 +794,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         : "Sign With Wallet"
       : actionPolicy?.agentPaymentOkb
         ? `Delegate Agent · ${actionPolicy.agentPaymentOkb} ${actionPolicy.agentPaymentAssetSymbol ?? "BXC"}`
-        : "Run Agent"
+        : "Run Delegation"
     : undefined;
   const questActionNode =
     interactionView?.actionId && actionPolicy ? (
@@ -711,7 +816,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             disabled={actionMutation.isPending}
             style={{ justifyContent: "center" }}
           >
-            Agent
+            Delegated
           </button>
         </div>
 
@@ -920,7 +1025,16 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       status: "pending",
       startedAt: Date.now(),
       controlMode: requestedMode,
-      executionKind: requestedMode === "manual" ? "player-wallet" : "x402-agent",
+      executionKind: requestedMode === "manual" ? "player-wallet" : "paid-agent",
+      execution:
+        requestedMode === "manual"
+          ? undefined
+          : currentExecutionSnapshot
+            ? {
+                ...currentExecutionSnapshot,
+                recoveryKind: "none",
+              }
+            : undefined,
     });
     if (requestedMode !== "manual") {
       bazaarEventBridge.emit("tx:submitted", { actionId, label: humanize(actionId) });
@@ -940,6 +1054,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         stepKey: payload.stepKey,
         controlMode: payload.controlMode,
         executionKind: payload.executionKind,
+        execution: payload.execution,
         message: payload.message,
       });
       if (requestedMode !== "manual") {
@@ -952,7 +1067,16 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         status: "failed",
         startedAt: Date.now(),
         controlMode: requestedMode,
-        executionKind: requestedMode === "manual" ? "player-wallet" : "x402-agent",
+        executionKind: requestedMode === "manual" ? "player-wallet" : "paid-agent",
+        execution:
+          requestedMode === "manual"
+            ? undefined
+            : currentExecutionSnapshot
+              ? {
+                  ...currentExecutionSnapshot,
+                  recoveryKind: "none",
+                }
+              : undefined,
         errorMessage: error instanceof Error ? error.message : "Unknown error",
       });
     }
@@ -1478,13 +1602,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                     <div className="px-quest-head">
                       <div>
                         <div className="px-quest-state">
-                          {proof.kind === "swap"
-                            ? "swap proof"
-                            : proof.kind === "receipt"
-                              ? "settlement proof"
-                              : proof.kind === "payment"
-                                ? "payment proof"
-                                : proof.kind}
+                          {proofTypeLabel(proof)}
                         </div>
                         <div className="px-quest-title">{proof.title}</div>
                       </div>
@@ -1497,6 +1615,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                     <div className="px-quest-desc">{proof.body}</div>
                     <div style={{ display: "flex", gap: 12, marginTop: 2 }}>
                       <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)" }}>{humanize(proof.districtId)}</span>
+                      {proof.executionLabel ? (
+                        <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)" }}>{proof.executionLabel}</span>
+                      ) : null}
                       <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)" }}>{formatTimeLabel(proof.createdAt, hasMounted)}</span>
                     </div>
                   </article>
@@ -1585,15 +1706,36 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                     disabled={actionMutation.isPending}
                     style={{ justifyContent: "center" }}
                   >
-                    Paid Agent
+                    Delegated Agent
                   </button>
                 </div>
                 <div className="px-body" style={{ fontSize: 12, marginTop: 6, color: "var(--text-muted)" }}>
                   {controlMode === "manual"
                     ? "Wallet-led mode. Your connected wallet signs the step it can legitimately perform."
-                    : "Paid delegation mode. Your wallet signs an x402 payment authorization, then the district agent resumes the step."}
+                    : "Delegated mode. Your wallet pays the x402 delegation, then Ops reports whether the autonomous step actually ran through OnchainOS or the manifest-wallet fallback."}
                 </div>
               </div>
+
+              {currentExecutionSnapshot ? (
+                <div className="px-card accent-ice">
+                  <div className="px-kicker k-ice">Autonomous Path</div>
+                  <div className="px-title" style={{ fontSize: 16 }}>
+                    {executorLabel(currentExecutionSnapshot) ?? "Awaiting runtime"}
+                  </div>
+                  <div className="px-body" style={{ fontSize: 12, marginTop: 4, color: "var(--text-muted)" }}>
+                    Requested {currentExecutionSnapshot.requestedExecutor === "agentic-wallet" ? "Agentic Wallet" : "manifest wallets"}.
+                    {transportLabel(currentExecutionSnapshot) ? ` ${transportLabel(currentExecutionSnapshot)} is the current transport.` : ""}
+                  </div>
+                  <div className="px-body" style={{ fontSize: 12, marginTop: 4, color: "var(--text-muted)" }}>
+                    Wallet readiness: {walletReadinessLabel(currentExecutionSnapshot)}
+                  </div>
+                  {currentExecutionSnapshot.fallbackReason || currentExecutionSnapshot.note ? (
+                    <div className="px-body" style={{ fontSize: 12, marginTop: 4, color: "var(--text-muted)" }}>
+                      {currentExecutionSnapshot.fallbackReason ?? currentExecutionSnapshot.note}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {displayWalletIdentity.connected && displayWalletIdentity.validNetwork ? (
                 <div className="px-card accent-purple">
@@ -1604,7 +1746,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                       : x402StatusQuery.data?.balanceLabel ?? "Unavailable"}
                   </div>
                   <div className="px-body" style={{ fontSize: 12, marginTop: 4, color: "var(--text-muted)" }}>
-                    Paid autonomous actions and skill unlocks settle through the local x402 facilitator on X Layer testnet.
+                    x402 pays for autonomous delegations and skill unlocks on X Layer testnet. The payment receipt is separate from the eventual execution path.
                   </div>
                   <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
                     <button
@@ -1649,6 +1791,12 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                   <div className="px-body" style={{ fontSize: 13 }}>
                     {liveError ?? pendingAction?.message ?? `${pendingAction?.label} is ${pendingAction?.status}.`}
                   </div>
+                  {pendingAction && !liveError ? (
+                    <div className="px-body" style={{ fontSize: 12, marginTop: 4, color: "var(--text-muted)" }}>
+                      {actionKindLabel(pendingAction.executionKind)}
+                      {executionSummary(pendingAction.execution) ? ` · ${executionSummary(pendingAction.execution)}` : ""}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -1704,6 +1852,17 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                       <div>
                         <div style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-green)", textTransform: "uppercase" }}>{step.status}</div>
                         <div style={{ fontFamily: "var(--font-pixel), monospace", fontSize: 13, color: "var(--text-primary)", marginTop: 1 }}>{step.label}</div>
+                        <div style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)", marginTop: 2, textTransform: "uppercase" }}>
+                          {(step.meta?.actualExecutor ?? currentExecutionSnapshot?.actualExecutor) === "agentic-wallet"
+                            ? "Agentic Wallet"
+                            : (step.meta?.actualExecutor ?? currentExecutionSnapshot?.actualExecutor) === "manifest-wallet"
+                              ? "Manifest fallback"
+                              : "System"}
+                          {" · "}
+                          {(step.meta?.executionMode ?? currentExecutionSnapshot?.resolvedMode) === "onchainos-gateway"
+                            ? "OnchainOS gateway"
+                            : "Standard broadcast"}
+                        </div>
                       </div>
                       {step.explorerUrl ? (
                         <a href={step.explorerUrl} target="_blank" rel="noreferrer" className="px-link">
@@ -1902,7 +2061,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <div className="onboarding-logo-kicker">X Layer World Economy</div>
               <div className="onboarding-logo">Bazaar<span>X</span></div>
               <div className="onboarding-copy">
-                Your wallet is your citizenship. Your handle is the name people see in the village. One rail opens the shop, routes labor, collects tax, replays the payment under new rules, and pays for autonomous delegations through x402 on X Layer testnet.
+                Your wallet is your citizenship. Your handle is the name people see in the village. Wallet-led steps sign directly, paid delegations use x402, and Ops tells you whether the autonomous replay actually ran through OnchainOS or the manifest fallback on this chain.
               </div>
             </div>
 
@@ -1920,7 +2079,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <div className="onboarding-step">
                 <div className="onboarding-step-kicker">Step 3</div>
                 <div className="onboarding-step-title">Choose Handle</div>
-                <div className="onboarding-step-desc">This name appears in the village. The wallet still signs every live action.</div>
+                <div className="onboarding-step-desc">This name appears in the village. Wallet-led actions sign directly; delegated actions stay separately labeled.</div>
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                   <input
                     value={playerNameDraft}
