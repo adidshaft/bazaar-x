@@ -58,8 +58,8 @@ export const goldenPathQuest = {
       id: "open-shop",
       title: "Open the forge",
       objectiveText: "Enter Bazaar Forge and open the first shop — 0.001 OKB creates demand that wakes the Uniswap X Layer signal.",
-      targetId: "forge-door",
-      targetMapId: "village-exterior",
+      targetId: "forge-board",
+      targetMapId: "forge-interior",
       requiredInteraction: "Talk to the Forge Master. Submit 0.001 OKB.",
       worldStateChange: "Uniswap X Layer pool gets a demand signal. Market Row activates.",
       rewardOutput: "Shop permit receipt + Uniswap pool event proof.",
@@ -71,8 +71,8 @@ export const goldenPathQuest = {
       id: "open-depot",
       title: "List the route",
       objectiveText: "Enter the depot and post the supplier service.",
-      targetId: "depot-door",
-      targetMapId: "village-exterior",
+      targetId: "supplier-desk",
+      targetMapId: "depot-interior",
       requiredInteraction: "Talk to Supply Coil.",
       worldStateChange: "Supplier lane becomes routable.",
       rewardOutput: "Service listing receipt.",
@@ -185,4 +185,3 @@ export const goldenPathQuest = {
     },
   ] satisfies QuestStepDefinition[],
 };
-

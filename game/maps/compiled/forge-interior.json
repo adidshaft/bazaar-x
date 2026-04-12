@@ -1473,9 +1473,14 @@
               "value": "shopkeeper"
             },
             {
+              "name": "districtId",
+              "type": "string",
+              "value": "market-row"
+            },
+            {
               "name": "label",
               "type": "string",
-              "value": "forge-board"
+              "value": "Forge Board"
             }
           ]
         }
@@ -1783,7 +1788,8 @@
           "point": false,
           "properties": {
             "npcId": "shopkeeper",
-            "label": "forge-board"
+            "districtId": "market-row",
+            "label": "Forge Board"
           }
         }
       ],

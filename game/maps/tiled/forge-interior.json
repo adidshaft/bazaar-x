@@ -1473,9 +1473,14 @@
               "value": "shopkeeper"
             },
             {
+              "name": "districtId",
+              "type": "string",
+              "value": "market-row"
+            },
+            {
               "name": "label",
               "type": "string",
-              "value": "forge-board"
+              "value": "Forge Board"
             }
           ]
         }

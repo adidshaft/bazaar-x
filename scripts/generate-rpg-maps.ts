@@ -445,7 +445,9 @@ function buildInteriorMap(config: {
   npcId: string;
   npcSpawn: [number, number];
   interactableName: string;
+  interactableLabel: string;
   interactableNpcId: string;
+  districtId: string;
   exitTo: string;
   props: Array<{ kind: string; x: number; y: number; scale?: number }>;
 }) {
@@ -472,7 +474,8 @@ function buildInteriorMap(config: {
   const interactables: MapObject[] = [
     createObject(objectId++, config.interactableName, "interactable", 12, 6, 2, 1, {
       npcId: config.interactableNpcId,
-      label: config.interactableName,
+      districtId: config.districtId,
+      label: config.interactableLabel,
     }),
   ];
   const npcSpawns: MapObject[] = [
@@ -555,7 +558,9 @@ async function main() {
       npcId: "shopkeeper",
       npcSpawn: [12.5, 10],
       interactableName: "forge-board",
+      interactableLabel: "Forge Board",
       interactableNpcId: "shopkeeper",
+      districtId: "market-row",
       exitTo: "forge-return",
       props: [
         { kind: "banner", x: 6, y: 4 },
@@ -572,7 +577,9 @@ async function main() {
       npcId: "supplier",
       npcSpawn: [12.5, 10],
       interactableName: "supplier-desk",
+      interactableLabel: "Supply Coil",
       interactableNpcId: "supplier",
+      districtId: "supplier-lane",
       exitTo: "depot-return",
       props: [
         { kind: "crate", x: 5, y: 5 },
@@ -589,7 +596,9 @@ async function main() {
       npcId: "treasurer",
       npcSpawn: [12.5, 10],
       interactableName: "treasury-board",
+      interactableLabel: "Treasury Board",
       interactableNpcId: "treasurer",
+      districtId: "treasury-vault",
       exitTo: "treasury-return",
       props: [
         { kind: "lamp", x: 6, y: 5 },
@@ -606,7 +615,9 @@ async function main() {
       npcId: "governor",
       npcSpawn: [12.5, 10],
       interactableName: "governor-dais",
+      interactableLabel: "Governor Dais",
       interactableNpcId: "governor",
+      districtId: "council-hall",
       exitTo: "council-return",
       props: [
         { kind: "banner", x: 7, y: 4 },

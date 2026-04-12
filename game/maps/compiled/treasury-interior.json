@@ -1473,9 +1473,14 @@
               "value": "treasurer"
             },
             {
+              "name": "districtId",
+              "type": "string",
+              "value": "treasury-vault"
+            },
+            {
               "name": "label",
               "type": "string",
-              "value": "treasury-board"
+              "value": "Treasury Board"
             }
           ]
         }
@@ -1783,7 +1788,8 @@
           "point": false,
           "properties": {
             "npcId": "treasurer",
-            "label": "treasury-board"
+            "districtId": "treasury-vault",
+            "label": "Treasury Board"
           }
         }
       ],

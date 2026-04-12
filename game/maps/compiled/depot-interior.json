@@ -1473,9 +1473,14 @@
               "value": "supplier"
             },
             {
+              "name": "districtId",
+              "type": "string",
+              "value": "supplier-lane"
+            },
+            {
               "name": "label",
               "type": "string",
-              "value": "supplier-desk"
+              "value": "Supply Coil"
             }
           ]
         }
@@ -1783,7 +1788,8 @@
           "point": false,
           "properties": {
             "npcId": "supplier",
-            "label": "supplier-desk"
+            "districtId": "supplier-lane",
+            "label": "Supply Coil"
           }
         }
       ],

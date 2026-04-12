@@ -1473,9 +1473,14 @@
               "value": "governor"
             },
             {
+              "name": "districtId",
+              "type": "string",
+              "value": "council-hall"
+            },
+            {
               "name": "label",
               "type": "string",
-              "value": "governor-dais"
+              "value": "Governor Dais"
             }
           ]
         }
@@ -1783,7 +1788,8 @@
           "point": false,
           "properties": {
             "npcId": "governor",
-            "label": "governor-dais"
+            "districtId": "council-hall",
+            "label": "Governor Dais"
           }
         }
       ],

@@ -1473,9 +1473,14 @@
               "value": "governor"
             },
             {
+              "name": "districtId",
+              "type": "string",
+              "value": "council-hall"
+            },
+            {
               "name": "label",
               "type": "string",
-              "value": "governor-dais"
+              "value": "Governor Dais"
             }
           ]
         }

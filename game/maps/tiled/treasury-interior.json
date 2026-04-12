@@ -1473,9 +1473,14 @@
               "value": "treasurer"
             },
             {
+              "name": "districtId",
+              "type": "string",
+              "value": "treasury-vault"
+            },
+            {
               "name": "label",
               "type": "string",
-              "value": "treasury-board"
+              "value": "Treasury Board"
             }
           ]
         }
