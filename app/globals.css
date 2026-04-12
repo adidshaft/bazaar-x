@@ -695,7 +695,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 0;
 }
 
 .px-quest-head {
@@ -703,12 +702,6 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
-}
-
-.px-quest-head > div:first-child {
-  min-width: 0;
-  flex: 1 1 180px;
 }
 
 .px-quest.state-active {
@@ -727,9 +720,8 @@ body {
 }
 
 .px-quest-state {
-  font-family: var(--font-pixel), monospace;
-  font-size: 12px;
-  line-height: 1.05;
+  font-family: var(--font-arcade), monospace;
+  font-size: 7px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -740,31 +732,26 @@ body {
 
 .px-quest-title {
   font-family: var(--font-display), sans-serif;
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-white);
-  line-height: 1.18;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
+  line-height: 1.1;
 }
 
 .px-quest-desc {
   font-family: var(--font-pixel), monospace;
-  font-size: 16px;
+  font-size: 13px;
   color: var(--text-muted);
-  line-height: 1.46;
-  overflow-wrap: anywhere;
-  text-wrap: pretty;
+  line-height: 1.4;
 }
 
 .px-detail-row {
   display: flex;
   gap: 4px;
-  flex-wrap: wrap;
   font-family: var(--font-pixel), monospace;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-muted);
-  line-height: 1.42;
+  line-height: 1.3;
 }
 
 .px-detail-row strong {
@@ -928,21 +915,14 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  width: fit-content;
-  max-width: 100%;
-  align-self: flex-start;
-  padding: 5px 9px;
+  padding: 4px 8px;
   background: transparent;
   border: 1px solid var(--border-dim);
   color: var(--text-muted);
-  font-family: var(--font-pixel), monospace;
-  font-size: 12px;
-  line-height: 1.15;
+  font-family: var(--font-arcade), monospace;
+  font-size: 7px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
   cursor: pointer;
   transition: color 100ms, border-color 100ms;
 }
@@ -1633,19 +1613,17 @@ body {
 .proof-meta-pill {
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 4px;
   padding: 5px 8px;
   border-radius: 999px;
   border: 1px solid rgba(114, 151, 176, 0.14);
   background: rgba(17, 24, 33, 0.78);
   color: #9ab7c7;
-  font-family: var(--font-pixel), monospace;
-  font-size: 12px;
-  line-height: 1.2;
+  font-family: var(--font-arcade), monospace;
+  font-size: 10px;
+  line-height: 1.35;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  overflow-wrap: anywhere;
 }
 
 /* ─── VICTORY OVERLAY ────────────────────────────────────────────────────── */
@@ -1666,7 +1644,7 @@ body {
 .victory-card {
   position: relative;
   width: min(920px, 100%);
-  max-height: min(88svh, 760px);
+  max-height: min(78svh, 760px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1706,7 +1684,6 @@ body {
 
 .victory-kicker {
   position: relative;
-  flex-shrink: 0;
   font-family: var(--font-arcade), monospace;
   font-size: clamp(12px, 2vw, 18px);
   letter-spacing: 0.12em;
@@ -1717,7 +1694,6 @@ body {
 
 .victory-summary {
   position: relative;
-  flex-shrink: 0;
   font-family: var(--font-pixel), monospace;
   font-size: 15px;
   line-height: 1.5;
@@ -1729,7 +1705,6 @@ body {
 
 .victory-headline {
   position: relative;
-  flex-shrink: 0;
   font-family: var(--font-display), sans-serif;
   font-size: clamp(20px, 3.2vw, 32px);
   line-height: 1.05;
@@ -1742,7 +1717,6 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  flex-shrink: 0;
 }
 
 .victory-chip {
@@ -1762,123 +1736,45 @@ body {
 .victory-proof-grid {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 12px;
-  flex: 1 1 auto;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
   overflow-y: auto;
-  min-height: 0;
   padding-right: 2px;
-  align-items: start;
 }
 
 .victory-proof-card {
-  min-height: 0;
+  min-height: 128px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 12px;
-  padding: 14px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
   background: rgba(17, 24, 32, 0.94);
   border: 2px solid rgba(0, 191, 255, 0.2);
   border-radius: 16px;
-  min-width: 0;
-}
-
-.victory-proof-content {
-  min-width: 0;
 }
 
 .victory-proof-kind {
-  font-family: var(--font-pixel), monospace;
-  font-size: 12px;
-  line-height: 1.05;
+  font-family: var(--font-arcade), monospace;
+  font-size: 7px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-ice);
-  overflow-wrap: anywhere;
 }
 
 .victory-proof-title {
   font-family: var(--font-display), sans-serif;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-white);
-  line-height: 1.18;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
 }
 
 .victory-proof-body {
   margin-top: 6px;
   font-family: var(--font-pixel), monospace;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--text-muted);
-  overflow-wrap: anywhere;
-  text-wrap: pretty;
-}
-
-.victory-proof-link {
-  margin-top: auto;
-}
-
-@media (max-width: 720px) {
-  .px-quest-title {
-    font-size: 16px;
-  }
-
-  .px-quest-desc {
-    font-size: 15px;
-  }
-
-  .victory-proof-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .victory-proof-title {
-    font-size: 17px;
-  }
-
-  .victory-proof-body {
-    font-size: 15px;
-  }
-}
-
-@media (max-height: 640px) {
-  .victory-card {
-    max-height: calc(100svh - 20px);
-    padding: 16px;
-    gap: 10px;
-  }
-
-  .victory-headline {
-    font-size: clamp(18px, 4.4vw, 28px);
-  }
-
-  .victory-summary {
-    font-size: 13px;
-    padding: 8px 0;
-  }
-
-  .victory-chip {
-    padding: 5px 8px;
-  }
-
-  .victory-proof-grid {
-    gap: 10px;
-  }
-
-  .victory-proof-card {
-    padding: 12px;
-  }
-
-  .victory-proof-title {
-    font-size: 17px;
-  }
-
-  .victory-proof-body {
-    font-size: 15px;
-  }
 }
 
 .victory-actions {
@@ -1887,7 +1783,6 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: space-between;
-  flex-shrink: 0;
 }
 
 /* ─── ANIMATIONS ──────────────────────────────────────────────────────────── */
