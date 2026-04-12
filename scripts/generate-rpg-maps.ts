@@ -262,6 +262,7 @@ function buildVillageMap() {
   paintRect(collision, 0, 0, 2, height, 16);
   paintRect(collision, width - 2, 0, 2, height, 16);
   paintRect(collision, 0, height - 2, width, 2, 16);
+  paintRect(collision, 27, 17, 4, 4, 0);
 
   const buildingRects = [
     [26, 4, 8, 5],
@@ -360,15 +361,11 @@ function buildVillageMap() {
       [5, 7],
       [8, 5],
       [14, 6],
-      [36, 6],
       [41, 8],
-      [52, 6],
       [6, 24],
-      [16, 24],
       [39, 25],
       [54, 25],
       [18, 33],
-      [40, 34],
       [51, 34],
     ].map(([x, y], index) =>
       createPoint(objectId + index, `pine-${index + 1}`, "ambient", x, y, {
@@ -377,13 +374,12 @@ function buildVillageMap() {
       }),
     ),
   ];
-  objectId += 13;
+  objectId += 9;
 
   ambientProps.push(
     ...[
       [9, 18],
       [18, 18],
-      [24, 18],
       [35, 18],
       [42, 18],
       [50, 18],
@@ -396,28 +392,21 @@ function buildVillageMap() {
       }),
     ),
   );
-  objectId += 9;
+  objectId += 8;
 
   ambientProps.push(
     createPoint(objectId++, "forge-stall", "ambient", 16, 15, { kind: "stall" }),
     createPoint(objectId++, "depot-stall", "ambient", 42, 15, { kind: "stall" }),
     createPoint(objectId++, "north-banner", "ambient", 29, 7, { kind: "banner" }),
-    createPoint(objectId++, "south-banner", "ambient", 31, 32, { kind: "banner" }),
     createPoint(objectId++, "plaza-statue", "ambient", 28.5, 19, { kind: "statue" }),
     createPoint(objectId++, "west-signpost", "ambient", 18, 18, { kind: "signpost" }),
     createPoint(objectId++, "east-signpost", "ambient", 40, 18, { kind: "signpost" }),
-    createPoint(objectId++, "crate-stack-1", "ambient", 44, 20, { kind: "crate" }),
-    createPoint(objectId++, "crate-stack-2", "ambient", 16, 20, { kind: "crate" }),
     createPoint(objectId++, "reed-bank-1", "ambient", 25, 8, { kind: "reed" }),
     createPoint(objectId++, "reed-bank-2", "ambient", 32, 28, { kind: "reed" }),
     createPoint(objectId++, "gate-banner-west", "ambient", 24, 9, { kind: "banner" }),
     createPoint(objectId++, "gate-banner-east", "ambient", 34, 9, { kind: "banner" }),
-    createPoint(objectId++, "gate-crate-west", "ambient", 22.5, 13.5, { kind: "crate" }),
-    createPoint(objectId++, "gate-crate-east", "ambient", 35.5, 13.5, { kind: "crate" }),
     createPoint(objectId++, "gate-lamp-west", "ambient", 23, 11.5, { kind: "lamp" }),
     createPoint(objectId++, "gate-lamp-east", "ambient", 34, 11.5, { kind: "lamp" }),
-    createPoint(objectId++, "gate-pine-west", "ambient", 20, 14, { kind: "pine", scale: 11 }),
-    createPoint(objectId++, "gate-pine-east", "ambient", 38, 14, { kind: "pine", scale: 11 }),
   );
 
   return {

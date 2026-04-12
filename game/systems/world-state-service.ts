@@ -4,8 +4,6 @@ import type {
   WorldReactionState,
 } from "@/game/core/live-types";
 
-export { LaborDispatcher, createEmptyLaborRoutingState } from "./labor-dispatcher";
-
 function hasStep(status: LiveDashboardStatus | null, key: string) {
   return Boolean(status?.liveDashboard.runtime?.steps.some((step) => step.key === key && step.status === "success"));
 }

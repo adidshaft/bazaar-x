@@ -17,6 +17,9 @@ export function createBazaarPhaserGame(parent: HTMLElement) {
     backgroundColor: "#081018",
     pixelArt: true,
     roundPixels: true,
+    audio: {
+      noAudio: true,
+    },
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,

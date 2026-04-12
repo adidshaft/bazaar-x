@@ -102,8 +102,8 @@ export function SkillGrimoire({
   }
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-[70] overflow-y-auto bg-[rgba(4,8,14,0.76)] px-4 py-5 backdrop-blur-md">
-      <div className="mx-auto w-full max-w-[1040px] rounded-[28px] border border-[rgba(125,230,255,0.18)] bg-[linear-gradient(180deg,rgba(8,16,24,0.97),rgba(5,10,18,0.98))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:p-7">
+    <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/60 px-4 py-5" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
+      <div className="mx-auto w-full max-w-[1040px] border-[4px] border-black bg-[#2b55b3] shadow-[8px_8px_0_rgba(0,0,0,0.5)] p-5 sm:p-7">
         <div className="mb-5 flex flex-col gap-4 border-b border-[rgba(125,230,255,0.12)] pb-5 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="arcade-face text-[0.36rem] tracking-[0.22em] text-[#7de6ff]">

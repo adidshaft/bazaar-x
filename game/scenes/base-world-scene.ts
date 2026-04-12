@@ -44,6 +44,14 @@ type GlowEntry = {
 
 type FootstepSurface = "grass" | "stone" | "plaza" | "wood";
 
+const mapLabelLookup: Record<MapId, string> = {
+  "village-exterior": "Village",
+  "forge-interior": "Forge",
+  "depot-interior": "Depot",
+  "treasury-interior": "Treasury",
+  "council-interior": "Council",
+};
+
 const buildingSpriteMap: Record<string, BuildingSpriteConfig> = {
   "settlement-keep": { texture: "building-keep", yOffset: 82 },
   "forge-door": { texture: "building-forge", yOffset: 82 },
@@ -98,6 +106,27 @@ const questActionTargetMap = new Map(
     .filter((step): step is (typeof goldenPathQuest.steps)[number] & { actionId: QuestActionId } => Boolean(step.actionId))
     .map((step) => [step.actionId, { targetId: step.targetId, mapId: step.targetMapId }] as const),
 );
+
+function createPortalFallbackInteractable(portal: CompiledMapObject) {
+  const targetMapId =
+    typeof portal.properties.targetMapId === "string"
+      ? (portal.properties.targetMapId as MapId)
+      : undefined;
+  const targetLabel = targetMapId ? mapLabelLookup[targetMapId] : "Path";
+
+  return createWorldInteractable({
+    ...portal,
+    properties: {
+      ...portal.properties,
+      label:
+        typeof portal.properties.label === "string"
+          ? portal.properties.label
+          : targetMapId === "village-exterior"
+            ? `Return To ${targetLabel}`
+            : `Enter ${targetLabel}`,
+    },
+  });
+}
 
 export abstract class BaseWorldScene extends Phaser.Scene {
   protected mapId!: MapId;
@@ -240,6 +269,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       align: "center",
     }).setOrigin(0.5, 1);
     this.playerNameLabel.setDepth(spawn.y + 200);
+    this.playerNameLabel.setVisible(false);
 
     this.cameras.main.startFollow(this.player.sprite, true, CAMERA_LERP, CAMERA_LERP);
     this.createFocusVignette();
@@ -247,13 +277,15 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     const portalLookup = new Map(
       (compiledMap.bazaarx.objectLayers.portals ?? []).map((portal) => [portal.name, portal] as const),
     );
-    this.interactables = (compiledMap.bazaarx.objectLayers.interactables ?? []).map((object) => {
+    const linkedPortalIds = new Set<string>();
+    const interactables = (compiledMap.bazaarx.objectLayers.interactables ?? []).map((object) => {
       const portalId =
         typeof object.properties.portalId === "string" ? object.properties.portalId : undefined;
       const interactable = createWorldInteractable(object);
       const portal = portalId ? portalLookup.get(portalId) : undefined;
 
       if (portal) {
+        linkedPortalIds.add(portal.name);
         interactable.targetMapId =
           typeof portal.properties.targetMapId === "string"
             ? (portal.properties.targetMapId as MapId)
@@ -264,6 +296,12 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
       return interactable;
     });
+
+    const synthesizedPortals = (compiledMap.bazaarx.objectLayers.portals ?? [])
+      .filter((portal) => !linkedPortalIds.has(portal.name))
+      .map((portal) => createPortalFallbackInteractable(portal));
+
+    this.interactables = [...interactables, ...synthesizedPortals];
     this.augmentInteractables();
 
     this.createNameplates();
@@ -305,6 +343,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   shutdown() {
+    bazaarAudioSystem.stopAmbient();
     this.activeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     this.activeUnsubscribers = [];
   }
@@ -336,7 +375,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.input.keyboard?.once("keydown", () => bazaarAudioSystem.unlock());
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      this.player.setPointerTarget(pointer.worldX, pointer.worldY);
+      const walkableTarget = this.resolveNearestWalkableWorldPoint(pointer.worldX, pointer.worldY);
+      this.player.setPointerTarget(walkableTarget.x, walkableTarget.y);
     });
 
     this.input.keyboard?.on("keydown-E", () => this.handleInteraction());
@@ -363,7 +403,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         }
 
         if (typeof x === "number" && typeof y === "number") {
-          this.player.teleport(x, y);
+          const walkableTarget = this.resolveNearestWalkableWorldPoint(x, y);
+          this.player.teleport(walkableTarget.x, walkableTarget.y);
           return;
         }
 
@@ -504,6 +545,41 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       npcId: next?.npcId ?? null,
       districtId: next?.districtId ?? this.districtFromInteraction(next?.id),
     });
+  }
+
+  private resolveNearestWalkableWorldPoint(x: number, y: number) {
+    const baseTileX = Math.floor(x / TILE_SIZE);
+    const baseTileY = Math.floor(y / TILE_SIZE);
+
+    for (let radius = 0; radius <= 8; radius += 1) {
+      for (let tileY = baseTileY - radius; tileY <= baseTileY + radius; tileY += 1) {
+        for (let tileX = baseTileX - radius; tileX <= baseTileX + radius; tileX += 1) {
+          if (!this.isWalkableTile(tileX, tileY)) {
+            continue;
+          }
+
+          return {
+            x: tileX * TILE_SIZE + TILE_SIZE / 2,
+            y: tileY * TILE_SIZE + TILE_SIZE / 2,
+          };
+        }
+      }
+    }
+
+    return { x, y };
+  }
+
+  private isWalkableTile(tileX: number, tileY: number) {
+    if (!this.tilemap) {
+      return true;
+    }
+
+    if (tileX < 0 || tileY < 0 || tileX >= this.tilemap.width || tileY >= this.tilemap.height) {
+      return false;
+    }
+
+    const collisionTile = this.collisionLayer?.getTileAt(tileX, tileY);
+    return !(collisionTile && collisionTile.index > 0);
   }
 
   private districtFromInteraction(interactionId?: string | null) {
@@ -718,7 +794,9 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.labelEntries.forEach((entry) => {
       const isFocused = entry.id === focusedInteractionId;
       const isObjective = entry.id === objectiveTargetId;
-      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.92 : 0.62);
+      const shouldShow = isFocused || isObjective;
+      entry.container.setVisible(shouldShow);
+      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.92 : 0);
       entry.container.setScale(isFocused ? 1.04 : isObjective ? 1.02 : 1);
       entry.text.setColor(isFocused || isObjective ? "#ffffff" : "#d6e9f2");
     });

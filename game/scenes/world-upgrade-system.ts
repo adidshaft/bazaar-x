@@ -13,13 +13,43 @@ function setLayerFromSnapshot(
   layer: Phaser.Tilemaps.TilemapLayer | undefined,
   snapshot: number[][],
 ) {
-  if (!layer) {
+  const targetData = layer?.layer?.data;
+  if (!layer || !targetData?.length) {
     return;
   }
 
-  snapshot.forEach((row, y) => {
-    row.forEach((index, x) => {
+  const height = Math.min(snapshot.length, targetData.length);
+  for (let y = 0; y < height; y += 1) {
+    const sourceRow = snapshot[y];
+    const targetRow = targetData[y];
+    if (!sourceRow || !targetRow?.length) {
+      continue;
+    }
+
+    const width = Math.min(sourceRow.length, targetRow.length);
+    for (let x = 0; x < width; x += 1) {
+      const index = sourceRow[x] ?? -1;
       layer.putTileAt(index <= 0 ? -1 : index, x, y);
+    }
+  }
+}
+
+function replaceLayerIndexes(
+  layer: Phaser.Tilemaps.TilemapLayer | undefined,
+  sourceIndexes: number[],
+  targetIndex: number,
+) {
+  const targetData = layer?.layer?.data;
+  if (!layer || !targetData?.length) {
+    return;
+  }
+
+  const sourceSet = new Set(sourceIndexes);
+  targetData.forEach((row, y) => {
+    row.forEach((tile, x) => {
+      if (sourceSet.has(tile.index)) {
+        layer.putTileAt(targetIndex, x, y);
+      }
     });
   });
 }
@@ -147,19 +177,11 @@ export class WorldUpgradeSystem {
   }
 
   private applyGrowingTier() {
-    const mapWidth = this.scene.getTilemap()?.width ?? 0;
-    const mapHeight = this.scene.getTilemap()?.height ?? 0;
-    pavedGroundTileSources.forEach((sourceIndex) => {
-      this.groundLayer?.replaceByIndex(sourceIndex, pavedGroundTileTarget, 0, 0, mapWidth, mapHeight);
-    });
+    replaceLayerIndexes(this.groundLayer, pavedGroundTileSources, pavedGroundTileTarget);
   }
 
   private applySovereignTier() {
-    const mapWidth = this.scene.getTilemap()?.width ?? 0;
-    const mapHeight = this.scene.getTilemap()?.height ?? 0;
-    sovereignGroundTileSources.forEach((sourceIndex) => {
-      this.detailsLayer?.replaceByIndex(sourceIndex, 19, 0, 0, mapWidth, mapHeight);
-    });
+    replaceLayerIndexes(this.detailsLayer, sovereignGroundTileSources, 19);
 
     this.scene.getBuildingSpriteLookup().forEach((sprites) => {
       sprites.forEach((sprite) => {

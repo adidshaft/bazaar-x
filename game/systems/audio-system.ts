@@ -57,6 +57,8 @@ class BazaarAudioSystem {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private ambientInterval: number | null = null;
+  private ambientRequested = false;
+  private gestureUnlocked = false;
   private muted = false;
   private lastFootstepAt = 0;
   private surfaceProfile: FootstepSurface = "grass";
@@ -67,9 +69,18 @@ class BazaarAudioSystem {
     worldTier: 0,
   };
 
+  private resetContext() {
+    this.context = null;
+    this.masterGain = null;
+  }
+
   private ensureContext() {
     if (typeof window === "undefined") {
       return null;
+    }
+
+    if (this.context?.state === "closed") {
+      this.resetContext();
     }
 
     if (!this.context) {
@@ -86,7 +97,11 @@ class BazaarAudioSystem {
     }
 
     if (this.context.state === "suspended") {
-      void this.context.resume();
+      void this.context.resume().catch(() => {
+        if (this.context?.state === "closed") {
+          this.resetContext();
+        }
+      });
     }
 
     return this.context;
@@ -94,13 +109,22 @@ class BazaarAudioSystem {
 
   setMuted(muted: boolean) {
     this.muted = muted;
+    if (this.context?.state === "closed") {
+      this.resetContext();
+      return;
+    }
+
     if (this.masterGain) {
       this.masterGain.gain.setValueAtTime(muted ? 0 : 0.12, this.context?.currentTime ?? 0);
     }
   }
 
   unlock() {
+    this.gestureUnlocked = true;
     this.ensureContext();
+    if (this.ambientRequested) {
+      this.startAmbient();
+    }
   }
 
   setEconomyTone(gdpScore: number, worldTier: number) {
@@ -257,6 +281,11 @@ class BazaarAudioSystem {
   }
 
   startAmbient() {
+    this.ambientRequested = true;
+    if (!this.gestureUnlocked) {
+      return;
+    }
+
     this.ensureContext();
     if (typeof window === "undefined" || this.ambientInterval !== null) {
       return;
@@ -269,10 +298,30 @@ class BazaarAudioSystem {
   }
 
   stopAmbient() {
+    this.ambientRequested = false;
     if (this.ambientInterval !== null && typeof window !== "undefined") {
       window.clearInterval(this.ambientInterval);
       this.ambientInterval = null;
     }
+  }
+
+  teardown() {
+    this.stopAmbient();
+    if (!this.context) {
+      this.resetContext();
+      return;
+    }
+
+    if (this.context.state === "closed") {
+      this.resetContext();
+      return;
+    }
+
+    void this.context.close().catch(() => {
+      // Ignore teardown races during fast refresh or Strict Mode remounts.
+    }).finally(() => {
+      this.resetContext();
+    });
   }
 
   play(cue: SoundCue, mix?: SpatialMix) {

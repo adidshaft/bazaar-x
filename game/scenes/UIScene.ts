@@ -9,7 +9,6 @@ function humanize(id: string | null) {
 export class UIScene extends Phaser.Scene {
   private promptPanel!: Phaser.GameObjects.Container;
   private promptText!: Phaser.GameObjects.Text;
-  private objectiveText!: Phaser.GameObjects.Text;
   private activeToasts: Phaser.GameObjects.Container[] = [];
   private unsubscribers: Array<() => void> = [];
 
@@ -20,23 +19,21 @@ export class UIScene extends Phaser.Scene {
   create() {
     const width = this.scale.width;
     const height = this.scale.height;
-    const panel = this.add.container(width / 2, height - 48);
+    const panel = this.add.container(width / 2, height - 20);
     panel.setScrollFactor(0);
     panel.setDepth(5000);
 
-    const background = this.add.rectangle(0, 0, 420, 60, 0x0f1821, 0.82).setStrokeStyle(2, 0x84ddff, 0.55);
-    this.promptText = this.add.text(-188, -10, "", {
+    const background = this.add
+      .rectangle(0, 0, 300, 24, 0x0f1821, 0.62)
+      .setStrokeStyle(1, 0x84ddff, 0.28);
+    this.promptText = this.add.text(-140, 0, "", {
       color: "#eef8ff",
       fontFamily: "\"Press Start 2P\", monospace",
-      fontSize: "14px",
+      fontSize: "7px",
     });
-    this.objectiveText = this.add.text(-188, 10, "", {
-      color: "#a9c0cf",
-      fontFamily: "\"Press Start 2P\", monospace",
-      fontSize: "11px",
-    });
+    this.promptText.setOrigin(0, 0.5);
 
-    panel.add([background, this.promptText, this.objectiveText]);
+    panel.add([background, this.promptText]);
     this.promptPanel = panel;
 
     this.unsubscribers.push(
@@ -53,13 +50,16 @@ export class UIScene extends Phaser.Scene {
 
   update() {
     const state = bazaarGameStore.getState();
+    const focusedLabel = humanize(state.focusedInteractionId);
+    const objectiveLabel = humanize(state.objectiveTargetId);
     const prompt = state.focusedInteractionId
-      ? `E  ${humanize(state.focusedInteractionId)}`
-      : "Walk to a lantern ring to interact";
+      ? `E inspect ${focusedLabel}`
+      : objectiveLabel
+        ? `Objective ${objectiveLabel}`
+        : "WASD move  E inspect";
 
     this.promptText.setText(prompt);
-    this.objectiveText.setText(`Objective: ${humanize(state.objectiveTargetId)}`);
-    this.promptPanel.setAlpha(state.settings.lowEffects ? 0.9 : 1);
+    this.promptPanel.setAlpha(state.focusedInteractionId ? 0.92 : 0.46);
   }
 
   private showToast(payload: {

@@ -22,7 +22,7 @@ export class NpcActor {
     this.id = id;
     this.patrolPath = (path.length ? path : [start]).map((point) => point.clone());
     this.routePath = this.patrolPath;
-    this.speed = 28;
+    this.speed = 18;
     this.sprite = scene.add.sprite(start.x, start.y, `${texturePrefix}-down-idle-0`);
     this.sprite.setOrigin(0.5, 0.78);
     this.sprite.setDepth(start.y);

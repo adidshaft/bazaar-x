@@ -8,14 +8,14 @@ type MovementIntent = {
 
 export class PlayerCharacter {
   sprite: Phaser.Physics.Arcade.Sprite;
-  private speed = 112;
+  private speed = 76;
   private pointerTarget: Phaser.Math.Vector2 | null = null;
   private direction: Direction = "down";
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.physics.add.sprite(x, y, "player-down-idle-0");
-    this.sprite.setSize(14, 10);
-    this.sprite.setOffset(5, 16);
+    this.sprite.setSize(12, 8);
+    this.sprite.setOffset(6, 18);
     this.sprite.setCollideWorldBounds(true);
     this.sprite.setDepth(y);
   }
