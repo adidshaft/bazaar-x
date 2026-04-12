@@ -171,10 +171,11 @@ export class CouncilHeroSystem {
     try {
       const payload = await transactionService.vote(support);
       if ("status" in payload) {
+        const worldState = deriveWorldState(payload.status);
         bazaarGameStore.getState().setLiveStatus(payload.status);
-        bazaarGameStore.getState().setWorldState(deriveWorldState(payload.status));
+        bazaarGameStore.getState().setWorldState(worldState);
         bazaarGameStore.getState().pushProofs(buildProofArtifacts(payload.status));
-        bazaarEventBridge.emit("economy:sync", { status: payload.status });
+        bazaarEventBridge.emit("economy:sync", { status: payload.status, world: worldState });
         bazaarEventBridge.emit("tx:confirmed", {
           actionId,
           stepKey: payload.stepKey ?? "vote-worker",

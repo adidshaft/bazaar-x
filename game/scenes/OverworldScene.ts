@@ -200,12 +200,34 @@ export class OverworldScene extends BaseWorldScene {
           coin.setAlpha(progress.value > 0.86 ? 1 - (progress.value - 0.86) / 0.14 : 0.92);
         },
         onComplete: () => {
+          if (index === count - 1) {
+            this.emitFlowArrival(target, tint);
+          }
           coin.setVisible(false);
           coin.setActive(false);
           coin.setPosition(-100, -100);
         },
       });
     }
+  }
+
+  private emitFlowArrival(target: Phaser.Math.Vector2, tint: number) {
+    const lowEffects = bazaarGameStore.getState().settings.lowEffects;
+    const glow = this.add.image(target.x, target.y - 16, "fx-glow");
+    glow.setTint(tint);
+    glow.setBlendMode(Phaser.BlendModes.ADD);
+    glow.setAlpha(lowEffects ? 0.16 : 0.28);
+    glow.setScale(lowEffects ? 0.42 : 0.66);
+    glow.setDepth(target.y + 96);
+
+    this.tweens.add({
+      targets: glow,
+      alpha: 0,
+      scale: lowEffects ? 0.86 : 1.24,
+      duration: lowEffects ? 320 : 480,
+      ease: "Sine.easeOut",
+      onComplete: () => glow.destroy(),
+    });
   }
 
   private resolveFlowSourceActor() {

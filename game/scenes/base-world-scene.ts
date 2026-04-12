@@ -35,7 +35,9 @@ type LabelEntry = {
   label: string;
   target: Phaser.Math.Vector2;
   container: Phaser.GameObjects.Container;
+  background: Phaser.GameObjects.Rectangle;
   text: Phaser.GameObjects.Text;
+  accentColor: number;
 };
 
 type GlowEntry = {
@@ -108,6 +110,52 @@ const questActionTargetMap = new Map(
     .map((step) => [step.actionId, { targetId: step.targetId, mapId: step.targetMapId }] as const),
 );
 
+function hexToColor(value: string | undefined, fallback: string) {
+  return Phaser.Display.Color.HexStringToColor(value ?? fallback).color;
+}
+
+function resolveMapAccent(mapId: MapId) {
+  const building =
+    buildingDefinitions.find((entry) => entry.portalMapId === mapId)
+    ?? buildingDefinitions.find((entry) => entry.mapId === mapId);
+
+  return hexToColor(
+    building?.roleAccent,
+    mapId === "treasury-interior"
+      ? "#8ff0d5"
+      : mapId === "council-interior"
+        ? "#d7b8ff"
+        : mapId === "forge-interior"
+          ? "#ff9a78"
+          : "#7de6ff",
+  );
+}
+
+function resolveInteractionAccent(interactionId: string | null | undefined, mapId: MapId) {
+  const building = buildingDefinitions.find((entry) => entry.id === interactionId);
+  return building ? hexToColor(building.roleAccent, "#7de6ff") : resolveMapAccent(mapId);
+}
+
+function resolveProofAccent(proof?: ProofArtifact) {
+  if (proof?.kind === "payment") {
+    return 0x8ff0d5;
+  }
+
+  if (proof?.kind === "swap") {
+    return 0xff68d4;
+  }
+
+  if (proof?.kind === "decree") {
+    return 0xffd36f;
+  }
+
+  if (proof?.kind === "unlock") {
+    return 0xb79bff;
+  }
+
+  return 0x7de6ff;
+}
+
 function createPortalFallbackInteractable(portal: CompiledMapObject) {
   const targetMapId =
     typeof portal.properties.targetMapId === "string"
@@ -143,6 +191,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   protected npcs: NpcActor[] = [];
   protected activeInteractable: WorldInteractable | null = null;
   protected objectiveMarker?: Phaser.GameObjects.Image;
+  protected objectiveHalo?: Phaser.GameObjects.Image;
 
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<string, Phaser.Input.Keyboard.Key>;
@@ -158,6 +207,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   private focusVignetteFx?: Phaser.FX.Vignette;
   private activeAuraSkillId: string | null = null;
   private focusMode = false;
+  private sceneTransitionLocked = false;
   private touchDir = { x: 0, y: 0 };
   private proofPickup?: {
     proof: ProofArtifact;
@@ -274,6 +324,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.playerNameLabel.setVisible(false);
 
     this.cameras.main.startFollow(this.player.sprite, true, CAMERA_LERP, CAMERA_LERP);
+    this.cameras.main.setDeadzone(112, 68);
     this.createFocusVignette();
 
     const portalLookup = new Map(
@@ -414,11 +465,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
           bazaarGameStore.getState().setQuestHighlight(targetId, mapId);
         }
       }),
-      bazaarEventBridge.on("economy:sync", ({ status }) => {
-        const world = bazaarGameStore.getState().world;
-        if (status) {
-          this.applyWorldState(world);
-        }
+      bazaarEventBridge.on("economy:sync", ({ world }) => {
+        this.applyWorldState(world);
       }),
       bazaarEventBridge.on("player:teleport", ({ mapId, spawnId, x, y }) => {
         if (mapId && mapId !== this.mapId) {
@@ -454,7 +502,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         this.handleFocusMode(active);
       }),
       bazaarEventBridge.on("proof:verified", ({ proof }) => {
-        this.realityPulse();
+        this.realityPulse(proof);
         this.spawnProofPickup(proof);
       }),
       bazaarEventBridge.on("skill:altar-close", ({ mapId }) => {
@@ -472,12 +520,25 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     const cue =
       actionId === "execute-rule-change"
         ? "rule-update"
-        : actionId === "hire-worker" || actionId === "hire-supplier" || actionId === "treasury-reinvest"
+        : actionId === "hire-supplier"
+          ? "swap-surge"
+          : actionId === "hire-worker" || actionId === "treasury-reinvest"
           ? "coin-transfer"
           : actionId === "vote-rule-change" || actionId === "propose-rule-change"
             ? "governance-vote"
             : "tax-collect";
     bazaarAudioSystem.play(cue);
+
+    const tint =
+      actionId === "hire-supplier"
+        ? 0xff68d4
+        : actionId === "execute-rule-change"
+          ? 0xffd36f
+          : actionId === "treasury-reinvest"
+            ? 0x8ff0d5
+            : actionId === "hire-worker"
+              ? 0x7de6ff
+              : 0xffd36f;
 
     const target = questActionTargetMap.get(actionId);
     if (!target || target.mapId !== this.mapId) {
@@ -489,10 +550,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       return;
     }
 
-    this.emitRewardBurst(interactable.center.x, interactable.center.y - 18);
+    this.emitRewardBurst(interactable.center.x, interactable.center.y - 18, tint);
   }
 
-  private emitRewardBurst(x: number, y: number) {
+  private emitRewardBurst(x: number, y: number, tint = 0xffd36f) {
     const lowEffects = bazaarGameStore.getState().settings.lowEffects;
     const particles = this.add.particles(x, y, "fx-coin", {
       speed: { min: 24, max: 72 },
@@ -501,9 +562,27 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       scale: { start: lowEffects ? 0.28 : 0.36, end: 0 },
       alpha: { start: lowEffects ? 0.7 : 0.9, end: 0 },
       gravityY: 120,
+      tint,
       blendMode: Phaser.BlendModes.ADD,
     });
     particles.setDepth(y + 120);
+
+    const halo = this.add.image(x, y - 2, "fx-glow");
+    halo.setDepth(y + 118);
+    halo.setTint(tint);
+    halo.setBlendMode(Phaser.BlendModes.ADD);
+    halo.setAlpha(lowEffects ? 0.2 : 0.34);
+    halo.setScale(lowEffects ? 0.42 : 0.58);
+
+    this.tweens.add({
+      targets: halo,
+      alpha: 0,
+      scale: lowEffects ? 1 : 1.24,
+      duration: lowEffects ? 360 : 520,
+      ease: "Sine.easeOut",
+      onComplete: () => halo.destroy(),
+    });
+
     this.time.delayedCall(lowEffects ? 460 : 700, () => particles.destroy());
   }
 
@@ -611,7 +690,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private handleInteraction() {
-    if (!this.activeInteractable) {
+    if (!this.activeInteractable || this.sceneTransitionLocked) {
       return;
     }
 
@@ -627,13 +706,15 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
     if (this.activeInteractable.targetMapId) {
       bazaarAudioSystem.play("door-open");
-      this.scene.start(
-        this.activeInteractable.targetMapId === "village-exterior" ? "OverworldScene" : "InteriorScene",
-        {
-          mapId: this.activeInteractable.targetMapId,
-          spawnId: this.activeInteractable.spawnId,
-        },
-      );
+      this.sceneTransitionLocked = true;
+      this.player.clearPointerTarget();
+      this.time.delayedCall(260, () => {
+        this.sceneTransitionLocked = false;
+      });
+      bazaarEventBridge.emit("scene:enter", {
+        mapId: this.activeInteractable.targetMapId,
+        spawnId: this.activeInteractable.spawnId,
+      });
       return;
     }
 
@@ -688,8 +769,16 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private createObjectiveMarker() {
+    this.objectiveHalo = this.add.image(0, 0, "fx-glow");
+    this.objectiveHalo.setDepth(1990);
+    this.objectiveHalo.setBlendMode(Phaser.BlendModes.ADD);
+    this.objectiveHalo.setVisible(false);
+    this.objectiveHalo.setAlpha(0.24);
+    this.objectiveHalo.setScale(0.72);
+
     this.objectiveMarker = this.add.image(0, 0, "fx-quest-marker");
     this.objectiveMarker.setDepth(2000);
+    this.objectiveMarker.setScale(0.92);
     this.objectiveMarker.setVisible(false);
     this.tweens.add({
       targets: this.objectiveMarker,
@@ -698,23 +787,41 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       repeat: -1,
       duration: 650,
     });
+    this.tweens.add({
+      targets: this.objectiveHalo,
+      alpha: { from: 0.18, to: 0.34 },
+      scale: { from: 0.62, to: 0.92 },
+      yoyo: true,
+      repeat: -1,
+      duration: 760,
+      ease: "Sine.easeInOut",
+    });
   }
 
   private updateObjectiveMarker() {
     const targetId = bazaarGameStore.getState().objectiveTargetId;
     if (!targetId || !this.objectiveMarker) {
       this.objectiveMarker?.setVisible(false);
+      this.objectiveHalo?.setVisible(false);
       return;
     }
 
     const target = this.interactables.find((entry) => entry.id === targetId);
     if (!target) {
       this.objectiveMarker.setVisible(false);
+      this.objectiveHalo?.setVisible(false);
       return;
     }
 
+    const accentColor = resolveInteractionAccent(target.id, this.mapId);
     this.objectiveMarker.setVisible(true);
     this.objectiveMarker.setPosition(target.center.x, target.center.y - 64);
+    this.objectiveMarker.setTint(accentColor);
+    this.objectiveMarker.setAlpha(target.id === this.activeInteractable?.id ? 1 : 0.9);
+
+    this.objectiveHalo?.setVisible(true);
+    this.objectiveHalo?.setPosition(target.center.x, target.center.y - 62);
+    this.objectiveHalo?.setTint(accentColor);
   }
 
   private createNpcs(objectLayers: Record<string, CompiledMapObject[]>) {
@@ -780,9 +887,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       }
 
       const width = Math.max(88, interactable.label.length * 8 + 18);
+      const accentColor = resolveInteractionAccent(interactable.id, this.mapId);
       const background = this.add
         .rectangle(0, 0, width, 18, 0x131821, 0.9)
-        .setStrokeStyle(2, 0x85d8ff, 0.35);
+        .setStrokeStyle(2, accentColor, 0.28);
       const text = this.add.text(0, 0, interactable.label.toUpperCase(), {
         color: "#edf8ff",
         fontFamily: "\"Press Start 2P\", monospace",
@@ -797,7 +905,9 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         label: interactable.label,
         target: interactable.center.clone(),
         container,
+        background,
         text,
+        accentColor,
       });
 
       this.tweens.add({
@@ -821,10 +931,18 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       const isObjective = entry.id === objectiveTargetId;
 
       entry.container.setVisible(true);
-      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.92 : 0.4);
-      entry.container.setScale(isFocused ? 1.04 : isObjective ? 1.02 : 1);
+      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.94 : 0.48);
+      entry.container.setScale(isFocused ? 1.05 : isObjective ? 1.03 : 0.98);
       entry.text.setColor(isFocused || isObjective ? "#ffffff" : "#d6e9f2");
-      entry.text.setText(isFocused ? `▸ E · ${entry.label.toUpperCase()}` : entry.label.toUpperCase());
+      entry.text.setText(
+        isFocused
+          ? `▸ E · ${entry.label.toUpperCase()}`
+          : isObjective
+            ? `NEXT · ${entry.label.toUpperCase()}`
+            : entry.label.toUpperCase(),
+      );
+      entry.background.setFillStyle(isFocused ? 0x172130 : isObjective ? 0x132332 : 0x131821, isFocused ? 0.98 : isObjective ? 0.95 : 0.82);
+      entry.background.setStrokeStyle(2, isFocused || isObjective ? entry.accentColor : 0x7fa3b8, isFocused ? 0.76 : isObjective ? 0.52 : 0.18);
     });
   }
 
@@ -931,24 +1049,32 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   protected applyWorldState(world: WorldReactionState) {
     this.glowEntries.forEach((entry) => {
       if (entry.group === "treasury") {
+        entry.sprite.setTint(0x8ff0d5);
         entry.sprite.setAlpha(0.18 + world.treasuryGlow * 0.32);
+        entry.sprite.setScale(0.82 + world.treasuryGlow * 0.18);
       } else if (entry.group === "governance") {
+        entry.sprite.setTint(0xd7b8ff);
         entry.sprite.setAlpha(0.18 + (world.governancePassed ? 0.3 : 0.08));
+        entry.sprite.setScale(world.governancePassed ? 0.94 : 0.82);
       } else {
+        entry.sprite.setTint(0xffd37c);
         entry.sprite.setAlpha(0.12 + world.lanternGlow * 0.26);
+        entry.sprite.setScale(0.78 + world.lanternGlow * 0.16);
       }
     });
     this.onWorldStateApplied(world);
   }
 
-  public realityPulse() {
+  public realityPulse(proof?: ProofArtifact) {
+    const color = resolveProofAccent(proof);
+    const rgb = Phaser.Display.Color.IntegerToRGB(color);
     const overlay = this.add
       .rectangle(
         this.cameras.main.midPoint.x,
         this.cameras.main.midPoint.y,
         this.cameras.main.width,
         this.cameras.main.height,
-        0xf4fbff,
+        color,
         0.18,
       )
       .setScrollFactor(0)
@@ -956,6 +1082,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       .setDepth(3900);
 
     this.cameras.main.shake(200, 0.0045);
+    this.cameras.main.flash(120, rgb.r, rgb.g, rgb.b, false);
+    bazaarAudioSystem.play("proof-bloom");
 
     const tintableChildren = this.children.list.filter(
       (child): child is Phaser.GameObjects.GameObject & {
@@ -965,7 +1093,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     );
 
     tintableChildren.forEach((child) => {
-      child.setTintFill(0xf0fbff);
+      child.setTintFill(color);
     });
 
     this.tweens.add({
@@ -1013,13 +1141,16 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.proofPickup?.sprite.destroy();
     this.proofPickup?.ring.destroy();
 
+    const color = resolveProofAccent(proof);
     const sprite = this.add.image(this.player.sprite.x, this.player.sprite.y + 6, "fx-veritas-scroll");
     sprite.setDepth(this.player.sprite.y + 32);
+    sprite.setTint(color);
     const ring = this.add.image(this.player.sprite.x, this.player.sprite.y + 8, "fx-glow");
     ring.setDepth(this.player.sprite.y + 28);
     ring.setScale(0.5);
     ring.setAlpha(0.28);
     ring.setBlendMode(Phaser.BlendModes.ADD);
+    ring.setTint(color);
 
     this.tweens.add({
       targets: [sprite, ring],
@@ -1053,11 +1184,14 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     }
 
     const collectedProof = this.proofPickup.proof;
+    const pickupX = this.proofPickup.sprite.x;
+    const pickupY = this.proofPickup.sprite.y;
     this.proofPickup.sprite.destroy();
     this.proofPickup.ring.destroy();
     this.proofPickup = undefined;
 
-    bazaarAudioSystem.play("ui-confirm");
+    bazaarAudioSystem.play("proof-bloom");
+    this.emitRewardBurst(pickupX, pickupY - 12, resolveProofAccent(collectedProof));
     bazaarEventBridge.emit("proof:scroll-picked", {
       proof: collectedProof,
     });
@@ -1076,11 +1210,16 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     const widthDelta = this.focusMode ? 0 : payload.rightWidth - payload.leftWidth;
     const worldOffset = Phaser.Math.Clamp(widthDelta * 0.11, -112, 112);
 
+    if (Math.abs(worldOffset) < 4) {
+      this.cameras.main.setFollowOffset(0, 0);
+      return;
+    }
+
     this.cameras.main.setFollowOffset(-worldOffset, 0);
     this.cameras.main.pan(
       this.player.sprite.x + worldOffset,
       this.player.sprite.y,
-      220,
+      280,
       "Sine.easeOut",
       false,
     );
@@ -1111,7 +1250,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
     this.focusMode = active;
     this.cameras.main.pan(this.player.sprite.x, this.player.sprite.y, 220, "Sine.easeOut", false);
-    this.cameras.main.zoomTo(active ? 1.2 : 1, 220, "Sine.easeOut");
+    this.cameras.main.zoomTo(active ? 1.14 : 1, 240, "Sine.easeOut");
 
     if (!this.focusVignette) {
       return;
@@ -1119,14 +1258,14 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
     if (this.focusVignetteFx) {
       this.focusVignetteFx.radius = active ? 0.48 : 0.6;
-      this.focusVignetteFx.strength = active ? 0.6 : 0.36;
+      this.focusVignetteFx.strength = active ? 0.58 : 0.3;
     }
 
     this.focusVignette.setVisible(true);
     this.tweens.add({
       targets: this.focusVignette,
-      alpha: active ? 0.22 : 0.01,
-      duration: 220,
+      alpha: active ? 0.18 : 0.01,
+      duration: 240,
       ease: "Sine.easeOut",
       onComplete: () => {
         if (!active) {

@@ -1,5 +1,12 @@
 import type { Hex } from "viem";
-import type { DistrictId, LiveDashboardStatus, MapId, ProofArtifact, QuestActionId } from "./live-types";
+import type {
+  DistrictId,
+  LiveDashboardStatus,
+  MapId,
+  ProofArtifact,
+  QuestActionId,
+  WorldReactionState,
+} from "./live-types";
 
 type BridgePayloads = {
   "district:selected": {
@@ -41,6 +48,7 @@ type BridgePayloads = {
   };
   "economy:sync": {
     status: LiveDashboardStatus | null;
+    world: WorldReactionState;
   };
   "scene:enter": {
     mapId: MapId;

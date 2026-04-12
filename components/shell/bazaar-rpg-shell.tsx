@@ -66,7 +66,6 @@ import { bazaarAudioSystem } from "@/game/systems/audio-system";
 import { deriveWorldState, EconomicMonitor } from "@/game/systems/world-state-service";
 import { getActionControlPolicy } from "@/lib/game/action-controls";
 import { aiSkillCatalog, defaultUnlockedSkillIds } from "@/lib/skills/ai-skills";
-import { getUniswapQuoteDisplay } from "@/lib/skills/uniswap-quote";
 import { defaultXLayerChain, explorerAddressUrl } from "@/lib/xlayer";
 import { PhaserGameClient } from "./phaser-game-client";
 
@@ -602,7 +601,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     bazaarGameStore.getState().setWorldState(worldState);
     bazaarGameStore.getState().pushProofs(proofSnapshot.proofs);
     bazaarGameStore.getState().setSkillCatalog(status?.aiSkills ?? aiSkillCatalog);
-    bazaarEventBridge.emit("economy:sync", { status });
+    bazaarEventBridge.emit("economy:sync", { status, world: worldState });
 
     const taxCollection = economicMonitorRef.current.detectTaxCollection(status);
     if (taxCollection) {
@@ -725,7 +724,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       (isObjective || selection.interactionId === "supplier-desk") &&
       activeQuest?.actionId === "hire-supplier" &&
       activeSkillId === "uniswap-xlayer-amm-v1"
-        ? `Route: ${getUniswapQuoteDisplay("0.031", "1.900")}`
+        ? "Route: Uniswap-backed supplier settlement arms a separate swap proof on confirmation."
         : null;
     const lines = [...baseLines, ...objectiveLines, ...(uniswapLine ? [uniswapLine] : [])].slice(0, 4);
     const isKeeperWithoutWallet = selection.npcId === "keeper" && (!displayWalletIdentity.connected || !displayWalletIdentity.validNetwork);
@@ -887,6 +886,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const recentSteps = useMemo(() => [...(liveStatus?.liveDashboard.runtime?.steps ?? [])].slice(-4).reverse(), [liveStatus]);
   const latestProof = deferredProofs[0] ?? null;
   const stageLabel  = currentDistrict?.name ?? mapLabels[currentMapId];
+  const villagePulseLabel = world.worldTier >= 2 ? "Sovereign" : world.worldTier === 1 ? "Growing" : "Founding";
   const votingMs = (liveStatus?.liveDashboard.runtime?.deployment?.initialRules.votingPeriodSeconds ?? 10) * 1_000;
   const votingSeconds = Math.ceil(votingMs / 1_000);
   const contractAddress =
@@ -905,10 +905,15 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const onboardingVisible  = !hydrated || !displayWalletIdentity.connected || !displayWalletIdentity.validNetwork || !hasEnteredVillage;
   const canEnterVillage    = hydrated && displayWalletIdentity.connected && displayWalletIdentity.validNetwork;
   const activeLaborCount   = useMemo(() => Object.values(laborRouting.npcStates).filter((s) => s.status === "walking").length, [laborRouting.npcStates]);
+  const cinematicFocusMode = Boolean(selection || mapOpen || skillHudMapId || proofOverlay || isComplete || onboardingVisible);
 
   const liveError = (statusQuery.error instanceof Error ? statusQuery.error.message : null)
     ?? (actionMutation.error instanceof Error ? actionMutation.error.message : null)
     ?? pendingAction?.errorMessage ?? null;
+
+  useEffect(() => {
+    bazaarEventBridge.emit("camera:focus-mode", { active: cinematicFocusMode });
+  }, [cinematicFocusMode]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -1307,89 +1312,87 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
       {/* ── HUD TOP BAR ─────────────────────────────────────────────────────── */}
       <header className="hud-topbar">
-        {/* Brand */}
-        <div className="hud-title">BazaarX</div>
-
-        {/* Location */}
-        <div className="hud-seg">
-          <MapPinned size={10} />
-          <span className="hud-seg-value">{stageLabel}</span>
+        <div className="hud-rail">
+          <div className="hud-title">BazaarX</div>
+          <div className="hud-top-card">
+            <MapPinned size={11} />
+            <div className="hud-top-copy">
+              <span className="hud-top-label">District</span>
+              <span className="hud-top-value">{stageLabel}</span>
+            </div>
+          </div>
+          {activeQuest ? (
+            <div className="hud-top-card hud-top-card-quest">
+              <Zap size={11} style={{ color: "var(--gold)", flexShrink: 0 }} />
+              <div className="hud-top-copy">
+                <span className="hud-top-label">Next Rail Step</span>
+                <span className="hud-top-value">{activeQuest.title}</span>
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        {/* GDP */}
-        <div className="hud-seg">
-          <span className="hud-seg-label">GDP</span>
-          <span className="hud-seg-value is-green">{world.gdpScore.toFixed(1)}</span>
-        </div>
-
-        {/* Proofs */}
-        <div className="hud-seg">
-          <Radio size={10} />
-          <span className="hud-seg-value is-ice">{deferredProofs.length}</span>
-        </div>
-
-        {activeArenaSkill ? (
-          <div className="hud-seg">
-            <div className="hud-dot is-gold" style={{ animation: "pulse 1.5s infinite" }} />
-            <span
-              className="hud-seg-value"
-              style={{ color: activeArenaSkill.execution.protocol.startsWith("Uniswap") ? "#ff007a" : "var(--gold)" }}
-            >
-              {activeArenaSkill.execution.protocol.startsWith("Uniswap") ? "UNI-X" : "OS-ORACLE"}
+        <div className="hud-pocket">
+          <span className="hud-pocket-item">
+            <span className="hud-pocket-label">Pulse</span>
+            <span className="hud-pocket-value">{villagePulseLabel}</span>
+          </span>
+          <span className="hud-pocket-item">
+            <span className="hud-pocket-label">GDP</span>
+            <span className="hud-pocket-value is-green">{world.gdpScore.toFixed(1)}</span>
+          </span>
+          <span className="hud-pocket-item">
+            <Radio size={10} />
+            <span className="hud-pocket-value is-ice">{deferredProofs.length}</span>
+          </span>
+          {activeArenaSkill ? (
+            <span className="hud-pocket-item">
+              <Sparkles size={10} style={{ color: activeArenaSkill.execution.protocol.startsWith("Uniswap") ? "#ff68d4" : "var(--gold)" }} />
+              <span
+                className="hud-pocket-value"
+                style={{ color: activeArenaSkill.execution.protocol.startsWith("Uniswap") ? "#ff68d4" : "var(--gold)" }}
+              >
+                {activeArenaSkill.execution.protocol.startsWith("Uniswap") ? "UNI-X" : "OS-ORACLE"}
+              </span>
             </span>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
-        {/* Active quest objective */}
-        {activeQuest ? (
-          <div className="hud-seg hud-quest-seg">
-            <Zap size={10} style={{ color: "var(--gold)", flexShrink: 0 }} />
-            <span className="hud-quest-text">Next: {activeQuest.title}</span>
-          </div>
-        ) : null}
-
-        <div className="hud-spacer" />
-
-        {/* Runtime status */}
-        <div className="hud-seg">
+        <div className="hud-top-status">
           <div className={`hud-dot ${isStatusSyncing ? "is-gold" : liveError ? "is-red" : "is-green"}`} />
-          <span className="hud-seg-value">{runtimeLabel}</span>
-        </div>
-
-        {/* Wallet */}
-        <div className="hud-seg">
+          <span className="hud-top-value">{runtimeLabel}</span>
+          <span className="hud-top-divider">•</span>
           <div className={`hud-dot ${connDot}`} />
-          <span className="hud-seg-label">Citizen</span>
-          <span className="hud-seg-value">{addressLabel}</span>
+          <span className="hud-top-label">Citizen</span>
+          <span className="hud-top-value">{addressLabel}</span>
         </div>
 
-        {/* Player name */}
-        <div className="hud-seg">
-          <Sparkles size={10} style={{ color: "var(--purple)" }} />
-          <span className="hud-seg-label">Handle</span>
-          <span className="hud-seg-value">{playerName}</span>
+        <div className="hud-actions">
+          <button type="button" className={`hud-btn ${mapOpen ? "is-active" : ""}`} onClick={() => { bazaarAudioSystem.play("ui-confirm"); setMapOpen((v) => !v); }} aria-label="Map">
+            <MapPinned size={11} />Map
+          </button>
+          <button type="button" className={`hud-btn ${briefOpen ? "is-active" : ""}`} onClick={toggleBrief} aria-label="Brief">
+            <BookOpen size={11} />Brief
+          </button>
+          <button type="button" className={`hud-btn ${drawerOpen ? "is-active" : ""}`} onClick={() => toggleDrawer("quests")} aria-label="Drawer">
+            <ScrollText size={11} />Panel
+          </button>
         </div>
-
-        {/* Panel toggles */}
-        <button type="button" className={`hud-btn ${mapOpen ? "is-active" : ""}`} onClick={() => { bazaarAudioSystem.play("ui-confirm"); setMapOpen((v) => !v); }} aria-label="Map">
-          <MapPinned size={11} />Map
-        </button>
-        <button type="button" className={`hud-btn ${briefOpen ? "is-active" : ""}`} onClick={toggleBrief} aria-label="Brief">
-          <BookOpen size={11} />Brief
-        </button>
-        <button type="button" className={`hud-btn ${drawerOpen ? "is-active" : ""}`} onClick={() => toggleDrawer("quests")} aria-label="Drawer">
-          <ScrollText size={11} />Panel
-        </button>
       </header>
 
       {/* ── HUD BOTTOM BAR ──────────────────────────────────────────────────── */}
       <footer className="hud-bottombar">
         <div className="hud-hints">
           <span className="hud-hint"><kbd>WASD</kbd>Move</span>
-          <span className="hud-hint"><kbd>E</kbd>Interact</span>
+          <span className="hud-hint"><kbd>E</kbd>Inspect</span>
+          <span className="hud-hint">{chainLabel}</span>
           {latestProof ? (
-            <span className="hud-hint" style={{ color: "var(--text-ice)", borderColor: "rgba(0,191,255,0.2)" }}>
+            <span className="hud-hint is-proof">
               ◆ {latestProof.title}
+            </span>
+          ) : activeQuest ? (
+            <span className="hud-hint is-objective">
+              ▸ {activeQuest.title}
             </span>
           ) : null}
         </div>
@@ -1415,7 +1418,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       <aside className={`overlay-panel overlay-panel-left ${briefOpen ? "" : "is-closed"}`}>
         <div className="panel-header">
           <div>
-            <div className="panel-header-title">Citizen Brief</div>
+            <div className="panel-header-title">Village Brief</div>
           </div>
           <button type="button" className="panel-close-btn" onClick={() => setBriefOpen(false)} aria-label="Close brief">
             <X size={12} />
@@ -1481,7 +1484,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
           {/* Live feed */}
           <div className="px-card accent-green">
-            <div className="px-kicker k-green">Settlement Rail</div>
+            <div className="px-kicker k-green">Live Rail</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 4 }}>
               {recentSteps.slice(0, 3).map((step) => (
                 <div key={`${step.key}:${step.startedAt}`} style={{ display: "flex", justifyContent: "space-between", gap: 6, padding: "4px 6px", background: "var(--bg-raised)", border: "1px solid var(--border-dim)" }}>
@@ -2061,7 +2064,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <div className="onboarding-logo-kicker">X Layer World Economy</div>
               <div className="onboarding-logo">Bazaar<span>X</span></div>
               <div className="onboarding-copy">
-                Your wallet is your citizenship. Your handle is the name people see in the village. Wallet-led steps sign directly, paid delegations use x402, and Ops tells you whether the autonomous replay actually ran through OnchainOS or the manifest fallback on this chain.
+                Wallet is citizenship. Wallet-led steps sign on X Layer testnet, paid delegations use x402, and Ops shows whether execution used the OnchainOS gateway or the manifest fallback on this chain.
               </div>
             </div>
 
@@ -2079,7 +2082,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <div className="onboarding-step">
                 <div className="onboarding-step-kicker">Step 3</div>
                 <div className="onboarding-step-title">Choose Handle</div>
-                <div className="onboarding-step-desc">This name appears in the village. Wallet-led actions sign directly; delegated actions stay separately labeled.</div>
+                <div className="onboarding-step-desc">This is the name people see in town. Payment proof and execution proof stay separately labeled.</div>
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                   <input
                     value={playerNameDraft}

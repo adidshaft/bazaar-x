@@ -8,6 +8,14 @@ const pavedGroundTileSources = [1, 3, 4, 5];
 const pavedGroundTileTarget = 5;
 const sovereignGroundTileSources = [6, 7, 8];
 const tierTransitionDurationMs = 420;
+const districtAccentMap = {
+  "settlement-keep": 0x7de6ff,
+  "forge-door": 0xff9a78,
+  "depot-door": 0x8db8ff,
+  "guild-yard": 0xffd36f,
+  "treasury-door": 0x8ff0d5,
+  "council-door": 0xd7b8ff,
+} as const;
 
 function setLayerFromSnapshot(
   layer: Phaser.Tilemaps.TilemapLayer | undefined,
@@ -130,6 +138,8 @@ export class WorldUpgradeSystem {
       segment.setVisible(world.worldTier >= 2);
       segment.setAlpha(world.worldTier >= 2 ? 0.08 + Math.min(0.12, world.gdpScore / 85000) : 0);
     });
+
+    this.applyDistrictAccents(world);
   }
 
   private transitionToTier(worldTier: number) {
@@ -195,6 +205,38 @@ export class WorldUpgradeSystem {
         }
 
         sprite.setTint(0xd6c27f, 0xd6c27f, 0x7b8796, 0x7b8796);
+      });
+    });
+  }
+
+  private applyDistrictAccents(world: WorldReactionState) {
+    const districtLiveState = {
+      "settlement-keep": true,
+      "forge-door": world.shopOpen,
+      "depot-door": world.supplierReady,
+      "guild-yard": world.workerReady,
+      "treasury-door": world.treasuryUnlocked,
+      "council-door": world.councilUnlocked,
+    } as const;
+
+    Object.entries(districtAccentMap).forEach(([buildingId, accent]) => {
+      const sprites = this.scene.getBuildingSpriteLookup().get(buildingId) ?? [];
+      const isLive = districtLiveState[buildingId as keyof typeof districtLiveState];
+
+      sprites.forEach((sprite) => {
+        if (world.worldTier >= 2) {
+          sprite.setTint(accent);
+          return;
+        }
+
+        if (isLive) {
+          sprite.setTint(accent);
+          sprite.setAlpha(0.98);
+          return;
+        }
+
+        sprite.clearTint();
+        sprite.setAlpha(0.88);
       });
     });
   }

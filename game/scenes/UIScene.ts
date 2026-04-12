@@ -24,6 +24,31 @@ function pendingActionSourceLabel() {
   return "Wallet-led";
 }
 
+function pendingActionPhaseLabel() {
+  const pendingAction = bazaarGameStore.getState().pendingAction;
+  if (!pendingAction) {
+    return "Ready";
+  }
+
+  if (pendingAction.status === "failed") {
+    return "Failed";
+  }
+
+  if (pendingAction.status === "submitted") {
+    return pendingAction.executionKind === "paid-agent" ? "Settling" : "Confirming";
+  }
+
+  if (pendingAction.status === "recovered") {
+    return "Recovered";
+  }
+
+  if (pendingAction.status === "confirmed") {
+    return "Confirmed";
+  }
+
+  return pendingAction.executionKind === "paid-agent" ? "Delegating" : "Preparing";
+}
+
 export class UIScene extends Phaser.Scene {
   private promptPanel!: Phaser.GameObjects.Container;
   private promptText!: Phaser.GameObjects.Text;
@@ -52,8 +77,8 @@ export class UIScene extends Phaser.Scene {
     panel.setDepth(5000);
 
     const background = this.add
-      .rectangle(0, 0, 300, 24, 0x0f1821, 0.62)
-      .setStrokeStyle(1, 0x84ddff, 0.28);
+      .rectangle(0, 0, 340, 28, 0x0f1821, 0.48)
+      .setStrokeStyle(1, 0x84ddff, 0.24);
     this.promptText = this.add.text(-140, 0, "", {
       color: "#eef8ff",
       fontFamily: "\"Press Start 2P\", monospace",
@@ -91,10 +116,10 @@ export class UIScene extends Phaser.Scene {
       ? `E inspect ${focusedLabel}`
       : objectiveLabel
         ? `Next: ${objectiveLabel}`
-        : "WASD move  E inspect";
+        : "WASD move · E inspect";
 
     this.promptText.setText(prompt);
-    this.promptPanel.setAlpha(state.focusedInteractionId ? 0.92 : 0.46);
+    this.promptPanel.setAlpha(state.focusedInteractionId ? 0.88 : 0.34);
 
     if (
       this.txPill &&
@@ -110,7 +135,19 @@ export class UIScene extends Phaser.Scene {
       state.pendingAction?.actionId === this.txPill.actionId &&
       this.txPill.status === "pending"
     ) {
-      this.txPill.label.setText(`${pendingActionSourceLabel()}: ${humanize(this.txPill.actionId)}`);
+      this.txPill.label.setText(
+        `${pendingActionPhaseLabel()} · ${pendingActionSourceLabel()} · ${humanize(this.txPill.actionId)}`,
+      );
+    }
+
+    if (
+      this.txPill &&
+      state.pendingAction?.actionId === this.txPill.actionId &&
+      state.pendingAction.status === "recovered" &&
+      this.txPill.status !== "confirmed"
+    ) {
+      this.updateTxPill(this.txPill.actionId, "confirmed");
+      this.txPill.label.setText("Recovered · Existing receipt reused");
     }
 
     if (this.txPill && !state.pendingAction && this.txPill.status === "pending") {
@@ -137,21 +174,22 @@ export class UIScene extends Phaser.Scene {
             : 0x7de6ff;
 
     const background = this.add
-      .rectangle(0, 0, 280, 48, 0x0c1520, 0.88)
-      .setStrokeStyle(2, toneColor, 0.55);
-    const title = this.add.text(-122, -10, payload.title.toUpperCase(), {
+      .rectangle(0, 0, 296, 52, 0x0c1520, 0.82)
+      .setStrokeStyle(2, toneColor, 0.42);
+    const title = this.add.text(-128, -12, payload.title.toUpperCase(), {
       color: "#eef9ff",
       fontFamily: "\"Press Start 2P\", monospace",
-      fontSize: "9px",
+      fontSize: "8px",
     });
-    const body = this.add.text(-122, 8, payload.body ?? "", {
+    const body = this.add.text(-128, 7, payload.body ?? "", {
       color: "#b8cfde",
       fontFamily: "\"Press Start 2P\", monospace",
       fontSize: "7px",
-      wordWrap: { width: 236 },
+      wordWrap: { width: 244 },
     });
 
-    const container = this.add.container(width - 168, y, [background, title, body]);
+    const glow = this.add.rectangle(0, 0, 304, 60, toneColor, 0.08).setBlendMode(Phaser.BlendModes.ADD);
+    const container = this.add.container(width - 176, y, [glow, background, title, body]);
     container.setScrollFactor(0);
     container.setDepth(5200);
     container.setAlpha(0);
@@ -189,16 +227,16 @@ export class UIScene extends Phaser.Scene {
 
     const width = this.scale.width;
     const background = this.add
-      .rectangle(0, 0, 340, 28, 0x0c1520, 0.94)
-      .setStrokeStyle(2, 0xffd700, 0.55);
-    const pillLabel = this.add.text(-150, 0, `Sending: ${label}`, {
+      .rectangle(0, 0, 392, 34, 0x0c1520, 0.84)
+      .setStrokeStyle(2, 0xffd700, 0.4);
+    const pillLabel = this.add.text(-172, 0, `Preparing · ${label}`, {
       color: "#f8f3cf",
       fontFamily: "\"Press Start 2P\", monospace",
       fontSize: "7px",
     });
     pillLabel.setOrigin(0, 0.5);
 
-    const link = this.add.text(150, 0, "", {
+    const link = this.add.text(172, 0, "", {
       color: "#7de6ff",
       fontFamily: "\"Press Start 2P\", monospace",
       fontSize: "7px",
@@ -206,7 +244,8 @@ export class UIScene extends Phaser.Scene {
     link.setOrigin(1, 0.5);
     link.setVisible(false);
 
-    const container = this.add.container(width / 2, 52, [background, pillLabel, link]);
+    const glow = this.add.rectangle(0, 0, 404, 42, 0xffd700, 0.08).setBlendMode(Phaser.BlendModes.ADD);
+    const container = this.add.container(width / 2, 52, [glow, background, pillLabel, link]);
     container.setScrollFactor(0);
     container.setDepth(5200);
     container.setAlpha(0);
@@ -240,7 +279,7 @@ export class UIScene extends Phaser.Scene {
     this.txPill.txHash = txHash;
     this.txPill.background.setStrokeStyle(2, status === "confirmed" ? 0x8ff0d5 : 0xff7474, 0.6);
     this.txPill.label.setColor(status === "confirmed" ? "#dffcf2" : "#ffd8d8");
-    this.txPill.label.setText(status === "confirmed" ? "Confirmed" : "Transaction Failed");
+    this.txPill.label.setText(status === "confirmed" ? "Confirmed · Proof ready" : "Failed · Try again");
     this.txPill.link.setText(txHash ? "View" : "");
     this.txPill.link.setVisible(Boolean(txHash));
 

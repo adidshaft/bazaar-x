@@ -41,11 +41,35 @@ export function createBazaarPhaserGame(parent: HTMLElement) {
     ],
   });
 
+  let transitionLocked = false;
+
+  function transitionToScene(mapId: "village-exterior" | "forge-interior" | "depot-interior" | "treasury-interior" | "council-interior", spawnId?: string) {
+    if (transitionLocked) {
+      return;
+    }
+
+    transitionLocked = true;
+    const sceneKey = mapId === "village-exterior" ? "OverworldScene" : "InteriorScene";
+    const activeWorldScene = game.scene
+      .getScenes(true)
+      .find((scene) => scene.scene.key === "OverworldScene" || scene.scene.key === "InteriorScene");
+
+    const startNextScene = () => {
+      game.scene.start(sceneKey, { mapId, spawnId });
+      transitionLocked = false;
+    };
+
+    if (!activeWorldScene) {
+      startNextScene();
+      return;
+    }
+
+    activeWorldScene.cameras.main.fadeOut(180, 7, 10, 16);
+    activeWorldScene.time.delayedCall(160, startNextScene);
+  }
+
   const offSceneEnter = bazaarEventBridge.on("scene:enter", ({ mapId, spawnId }) => {
-    game.scene.start(mapId === "village-exterior" ? "OverworldScene" : "InteriorScene", {
-      mapId,
-      spawnId,
-    });
+    transitionToScene(mapId, spawnId);
   });
 
   game.events.on(Phaser.Core.Events.DESTROY, () => {

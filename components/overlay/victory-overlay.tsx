@@ -29,6 +29,7 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
     500,
   );
   const txCount = liveStatus?.liveDashboard.runtime?.txHashes.length ?? 0;
+  const freshestProof = proofs[0] ?? null;
 
   function proofToneLabel(proof: ProofArtifact) {
     if (proof.kind === "payment") {
@@ -43,15 +44,24 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
       <div className="victory-card fade-in">
         <div className="victory-scanline" />
         <div className="victory-kicker">Village Loop Complete</div>
+        <div className="victory-headline">
+          The town now reads as a live economy, not a mock overlay.
+        </div>
         <div className="victory-summary">
           {proofs.length} Proofs Minted · {gdp.toFixed(1)} GDP · {(taxBps / 100).toFixed(2)}% Tax · {treasury.toFixed(3)} OKB Vault · {txCount} TXs
+        </div>
+        <div className="victory-chip-row">
+          <span className="victory-chip">Treasury {treasury.toFixed(3)} OKB</span>
+          <span className="victory-chip">Tax {(taxBps / 100).toFixed(2)}%</span>
+          <span className="victory-chip">Transactions {txCount}</span>
+          {freshestProof ? <span className="victory-chip">Latest {proofToneLabel(freshestProof)}</span> : null}
         </div>
 
         <div className="victory-proof-grid">
           {proofs.map((proof) => (
             <article key={proof.id} className="victory-proof-card">
               <div>
-                <div className="victory-proof-body" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                <div className="victory-proof-kind">
                   {proofToneLabel(proof)}
                 </div>
                 <div className="victory-proof-title">{proof.title}</div>

@@ -65,28 +65,18 @@ export function ProofRealityOverlay({ proof, onClose }: ProofRealityOverlayProps
 
         {/* Body */}
         <div className="proof-body">
-          {/* Statement */}
-          <div className="px-card accent-ice">
-            <div className="px-kicker k-ice">Statement</div>
-            <div className="px-body" style={{ fontSize: 14, marginTop: 4 }}>{proof.statement}</div>
+          <div className="proof-hero">
+            <div className="px-kicker k-ice">Proof Verified</div>
+            <div className="proof-statement">{proof.statement}</div>
+            <div className="proof-hero-copy">{proof.body}</div>
           </div>
 
-          {/* Notes */}
-          <div>
-            <div className="px-body" style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>{proof.body}</div>
-            <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
-              <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                District: {humanize(proof.districtId)}
-              </span>
-              {proof.executionLabel ? (
-                <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                  {proof.executionLabel}
-                </span>
-              ) : null}
-              <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                {proof.label}
-              </span>
-            </div>
+          <div className="proof-metadata">
+            <span className="proof-meta-pill">District · {humanize(proof.districtId)}</span>
+            <span className="proof-meta-pill">{proof.label}</span>
+            {proof.executionLabel ? (
+              <span className="proof-meta-pill">{proof.executionLabel}</span>
+            ) : null}
           </div>
         </div>
 

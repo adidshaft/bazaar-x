@@ -58,6 +58,7 @@ export function InteractionSheet({
           <div className="interaction-lines">
             {bannerText ? (
               <div
+                className="interaction-banner"
                 style={{
                   fontFamily: "var(--font-arcade), monospace",
                   fontSize: 7,
@@ -75,7 +76,7 @@ export function InteractionSheet({
             ))}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
+          <div className="interaction-actions" style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
             {actionNode ? (
               actionNode
             ) : actionLabel && onAction ? (

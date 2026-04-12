@@ -8,7 +8,9 @@ type SoundCue =
   | "governance-vote"
   | "rule-update"
   | "door-open"
+  | "proof-bloom"
   | "success-chime"
+  | "swap-surge"
   | "ambient";
 
 type FootstepSurface = "grass" | "stone" | "plaza" | "wood";
@@ -237,20 +239,20 @@ class BazaarAudioSystem {
         frequency: 196,
         duration: 0.72,
         type: "triangle" as OscillatorType,
-        volume: 0.025 + routingLift * 0.01,
+        volume: 0.022 + routingLift * 0.01 + this.economyTone.worldTier * 0.004,
       },
       {
         frequency: 293.66,
         duration: 0.48,
         type: "sine" as OscillatorType,
-        volume: 0.018 + chatterLift * 0.015,
+        volume: 0.016 + chatterLift * 0.015 + this.economyTone.worldTier * 0.003,
         detune: 7,
       },
       {
         frequency: 392,
         duration: 0.28,
         type: "triangle" as OscillatorType,
-        volume: 0.015 + routingLift * 0.006,
+        volume: 0.014 + routingLift * 0.006 + this.economyTone.worldTier * 0.002,
       },
     ];
 
@@ -383,10 +385,20 @@ class BazaarAudioSystem {
         this.playTone({ frequency: 196, duration: 0.08, type: "square", volume: 0.06 });
         this.playNoise({ duration: 0.05, volume: 0.015, highpass: 520 });
         break;
+      case "proof-bloom":
+        this.playTone({ frequency: 392, duration: 0.06, type: "triangle", volume: 0.045 });
+        this.playTone({ frequency: 587.33, duration: 0.12, type: "triangle", volume: 0.05 });
+        this.playTone({ frequency: 880, duration: 0.18, type: "sine", volume: 0.04 });
+        break;
       case "success-chime":
         this.playTone({ frequency: 523.25, duration: 0.08, type: "triangle", volume: 0.06 });
         this.playTone({ frequency: 783.99, duration: 0.12, type: "triangle", volume: 0.05 });
         this.playTone({ frequency: 1046.5, duration: 0.16, type: "sine", volume: 0.045 });
+        break;
+      case "swap-surge":
+        this.playTone({ frequency: 523.25, duration: 0.05, type: "square", volume: 0.055 });
+        this.playTone({ frequency: 830.61, duration: 0.08, type: "sawtooth", volume: 0.04 });
+        this.playTone({ frequency: 1244.51, duration: 0.12, type: "triangle", volume: 0.038 });
         break;
       case "ambient":
         this.scheduleAmbientPulse();
