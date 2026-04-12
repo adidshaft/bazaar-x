@@ -235,14 +235,23 @@ body {
   border-right: none;
   overflow: hidden;
   max-width: 400px;
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .hud-quest-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-gold);
   font-size: 9px;
+  display: inline-block;
+  animation: marquee 16s linear infinite;
+  padding-left: 100%;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
 }
 
 .hud-spacer { flex: 1; }
@@ -1554,3 +1563,62 @@ body {
 .action-button:hover:not(:disabled) { transform: translate(-1px, -1px); }
 .action-button:active:not(:disabled) { transform: translate(1px, 1px); }
 .action-button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── MAP INTERFACE ──────────────────────────────────────────────────────── */
+.map-hud-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 640px;
+  max-width: 90vw;
+  background: var(--bg-panel);
+  border: 4px solid var(--border-base);
+  box-shadow: 12px 12px 0 rgba(0,0,0,0.6);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-hud-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 20px;
+  background: var(--bg-deep);
+  background-image: 
+    linear-gradient(rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.map-hud-node {
+  background: var(--bg-raised);
+  border: 2px solid var(--border-dim);
+  padding: 16px 12px;
+  text-align: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.map-hud-node.is-active {
+  border-color: var(--border-glow);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.2);
+  background: rgba(0, 255, 65, 0.05);
+}
+
+.map-hud-node.is-active::before {
+  content: 'YOU ARE HERE';
+  position: absolute;
+  top: -8px;
+  background: var(--green);
+  color: var(--bg-deep);
+  font-family: var(--font-arcade), monospace;
+  font-size: 7px;
+  padding: 2px 6px;
+  box-shadow: 2px 2px 0 var(--bg-deep);
+}

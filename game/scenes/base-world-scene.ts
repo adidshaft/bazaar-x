@@ -346,6 +346,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     bazaarAudioSystem.stopAmbient();
     this.activeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     this.activeUnsubscribers = [];
+    this.labelEntries = [];
   }
 
   protected resolveSpawn(mapId: MapId, spawnId?: string) {
@@ -792,11 +793,12 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     const focusedInteractionId = bazaarGameStore.getState().focusedInteractionId;
 
     this.labelEntries.forEach((entry) => {
+      if (!entry.container.active || !entry.text.active) return;
       const isFocused = entry.id === focusedInteractionId;
       const isObjective = entry.id === objectiveTargetId;
-      const shouldShow = isFocused || isObjective;
-      entry.container.setVisible(shouldShow);
-      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.92 : 0);
+      
+      entry.container.setVisible(true);
+      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.92 : 0.4);
       entry.container.setScale(isFocused ? 1.04 : isObjective ? 1.02 : 1);
       entry.text.setColor(isFocused || isObjective ? "#ffffff" : "#d6e9f2");
     });

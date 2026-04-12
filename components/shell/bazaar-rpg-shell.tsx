@@ -141,6 +141,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const proofListenerRef   = useRef(new ProofListener());
 
   const [selection, setSelection]                   = useState<InteractionSelection | null>(null);
+  const [mapOpen, setMapOpen]                       = useState(false);
   const [briefOpen, setBriefOpen]                   = useState(false);
   const [drawerOpen, setDrawerOpen]                 = useState(Boolean(initialScene));
   const [drawerTab, setDrawerTab]                   = useState<DrawerTab>(resolveInitialDrawerTab(initialScene));
@@ -345,6 +346,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     const baseLines     = npc ? dialogueEntries[npc.dialogueId]?.[0]?.lines ?? [] : building ? [building.description] : [];
     const objectiveLines = isObjective ? [activeQuest?.requiredInteraction, activeQuest?.worldStateChange, activeQuest?.rewardOutput].filter((v): v is string => Boolean(v)) : [];
     const lines = [...baseLines, ...objectiveLines].slice(0, 3);
+    
+    // Inject ConnectWallet for the Keeper
+    const isKeeperWithoutWallet = selection.npcId === "keeper" && (!displayWalletIdentity.connected || !displayWalletIdentity.validNetwork);
 
     return {
       title:         npc?.name ?? building?.name ?? humanize(selection.interactionId),
@@ -353,8 +357,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       actionLabel:   isObjective && activeQuest?.actionId ? activeQuest.title : undefined,
       actionId:      isObjective ? activeQuest?.actionId : undefined,
       objectiveLabel: isObjective ? "Objective" : "Inspect",
+      actionNode:    isKeeperWithoutWallet ? <ConnectWalletButton /> : undefined,
     };
-  }, [activeQuest, selection]);
+  }, [activeQuest, selection, displayWalletIdentity.connected, displayWalletIdentity.validNetwork]);
 
   const completedSteps = deferredRail.filter((s) => s.state === "complete").length;
   const questProgress  = Math.round((completedSteps / Math.max(1, goldenPathQuest.steps.length)) * 100);
@@ -569,6 +574,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         </div>
 
         {/* Panel toggles */}
+        <button type="button" className={`hud-btn ${mapOpen ? "is-active" : ""}`} onClick={() => { bazaarAudioSystem.play("ui-confirm"); setMapOpen((v) => !v); }} aria-label="Map">
+          <MapPinned size={11} />Map
+        </button>
         <button type="button" className={`hud-btn ${briefOpen ? "is-active" : ""}`} onClick={toggleBrief} aria-label="Brief">
           <BookOpen size={11} />Brief
         </button>
@@ -959,7 +967,34 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         </div>
       </aside>
 
-      {/* ── INTERACTION SHEET ────────────────────────────────────────────────── */}
+      {/* ── MAP OVERLAY (Centered) ─────────────────────────────────────────────── */}
+      {mapOpen ? (
+        <div className="map-hud-overlay fade-in">
+          <div className="panel-header">
+            <div>
+              <div className="panel-header-title">Village Map</div>
+              <div className="panel-header-sub">Current Sector: {stageLabel}</div>
+            </div>
+            <button type="button" className="panel-close-btn" onClick={() => { bazaarAudioSystem.play("ui-confirm"); setMapOpen(false); }} aria-label="Close map">
+              <X size={12} />
+            </button>
+          </div>
+          <div className="map-hud-grid">
+            {districtDefinitions.map((district) => {
+              const isActive = currentDistrict?.id === district.id || (!currentDistrict && currentMapId === "village-exterior" && district.id === "village-gate");
+              return (
+                <div key={district.id} className={`map-hud-node ${isActive ? "is-active" : ""}`}>
+                  <div style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 8, color: "var(--text-green)", marginBottom: 4 }}>{district.id.split("-")[0].toUpperCase()}</div>
+                  <div style={{ fontFamily: "var(--font-display), sans-serif", fontSize: 13, fontWeight: "bold", color: "var(--text-white)", textAlign: "center", lineHeight: 1.1, marginBottom: 2 }}>{district.name}</div>
+                  <div style={{ fontFamily: "var(--font-pixel), monospace", fontSize: 11, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.2 }}>{district.subtitle}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── OVERLAYS & MODALS ──────────────────────────────────────────────── */}
       {interactionView ? (
         <InteractionSheet
           title={interactionView.title}
@@ -967,6 +1002,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
           lines={interactionView.lines}
           objectiveLabel={interactionView.objectiveLabel}
           actionLabel={interactionView.actionLabel}
+          actionNode={interactionView.actionNode}
           actionDisabled={Boolean(!interactionView.actionId || actionMutation.isPending || !displayWalletIdentity.validNetwork)}
           actionPending={actionMutation.isPending}
           disabledReason={

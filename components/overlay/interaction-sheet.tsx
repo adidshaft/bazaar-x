@@ -6,6 +6,7 @@ type InteractionSheetProps = {
   actionLabel?: string;
   actionDisabled?: boolean;
   actionPending?: boolean;
+  actionNode?: React.ReactNode;
   disabledReason?: string | null;
   onAction?: () => void;
   onClose: () => void;
@@ -19,6 +20,7 @@ export function InteractionSheet({
   actionLabel,
   actionDisabled,
   actionPending,
+  actionNode,
   disabledReason,
   onAction,
   onClose,
@@ -55,7 +57,9 @@ export function InteractionSheet({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
-            {actionLabel && onAction ? (
+            {actionNode ? (
+              actionNode
+            ) : actionLabel && onAction ? (
               <button
                 type="button"
                 onClick={onAction}
