@@ -193,7 +193,7 @@ export function SkillGrimoire({
                 </div>
               ) : (
                 <div style={{ fontFamily: "var(--font-pixel), monospace", fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                  Slot a skill to activate its aura and unlock delegation.
+                  Slot a skill to activate its aura and unlock its control surface.
                 </div>
               )}
             </div>

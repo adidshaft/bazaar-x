@@ -32,7 +32,7 @@ export const ACTION_CONTROL_POLICY: Record<QuestActionId, ActionControlPolicy> =
   },
   "open-depot": {
     manualSupport: "wallet",
-    manualSummary: "Your wallet creates the depot and lists the supplier service directly.",
+    manualSummary: "Your wallet creates the depot and lists the supplier service in supplier-credit tokens.",
     agentSummary: "Delegate the supplier lane setup to an autonomous village agent.",
     agentPaymentOkb: "0.010",
   },
@@ -49,9 +49,11 @@ export const ACTION_CONTROL_POLICY: Record<QuestActionId, ActionControlPolicy> =
     agentPaymentOkb: "0.007",
   },
   "hire-supplier": {
-    manualSupport: "wallet",
-    manualSummary: "Your wallet can hire a supplier service directly from the live contract.",
-    agentSummary: "Pay x402 to let the shop agent route the supplier hire for you.",
+    manualSupport: "agent_required",
+    manualSummary:
+      "This live supplier route runs through the agent rail in Phase 2 so the Uniswap pool swap, approval, and Bazaar settlement stay in sync.",
+    agentSummary:
+      "Authorize the shop agent through the x402 challenge, then let it run the live Uniswap-backed supplier settlement for you.",
     agentPaymentOkb: "0.008",
   },
   "propose-rule-change": {

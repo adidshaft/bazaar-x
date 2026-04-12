@@ -49,9 +49,9 @@ export const districtDefinitions: DistrictDefinition[] = [
   {
     id: "supplier-lane",
     name: "Supply Coil Lane",
-    subtitle: "Routes and fulfillment",
+    subtitle: "Routes, pool, and fulfillment",
     theme: "canal edge, hoists, stacked cargo",
-    landmarkSet: ["depot shutters", "cargo crane", "route board"],
+    landmarkSet: ["depot shutters", "cargo crane", "route board", "pool board"],
     interactPoints: ["depot-door", "supplier-desk"],
     npcRoster: ["supplier"],
     music: "bazaar-exploration",
@@ -119,7 +119,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "depot-interior",
     landmark: "cargo depot",
-    description: "List routes, stage fulfillment, and dispatch labor against live orders.",
+    description: "List routes, watch the supplier-credit pool, and dispatch fulfillment against live shop orders.",
     roleAccent: "#8db8ff",
   },
   {

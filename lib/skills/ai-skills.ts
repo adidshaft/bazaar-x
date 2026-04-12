@@ -194,17 +194,17 @@ export const aiSkillCatalog: AISkillDefinition[] = [
     identity: {
       name: "Uniswap X Layer AMM",
       description:
-        "Surfaces Uniswap V3 route quotes and pool context for supplier legs on X Layer. In this phase it informs the route; live swap settlement lands later.",
+        "Surfaces the live supplier route against the active Bazaar X Uniswap V2 testnet pool on X Layer. In this phase the wallet signs the swap and the final Bazaar settlement separately.",
       owner_requirement: "EIP-8004 Agent Identity",
     },
     execution: {
-      protocol: "Uniswap-V3-XLayer",
-      target_contract: "0xUniswap_V3_XLayer_Pool_Address",
-      logic_hash: "ipfs://QmBazaarXUniswapXLayerSkill",
+      protocol: "Uniswap-V2-XLayer-Testnet",
+      target_contract: "runtime://bazaar-x/defi/uniswap-v2/pair",
+      logic_hash: "bazaarx://skills/uniswap-xlayer-amm-v1",
       permission_scope: ["read:pool_state", "read:route_quote", "write:swap_route"],
-      delegation_protocol: "okx-agentic-wallet",
+      delegation_protocol: "manual-wallet",
       monetization_protocol: "okx-x402-payment",
-      delegated_action: "Route",
+      delegated_action: "Quote",
       unlock_price_okb: "0.010",
     },
     visual_metadata: {

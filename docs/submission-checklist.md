@@ -44,10 +44,11 @@ Use this as the final gate before submitting the Google Form.
 
 - [ ] Live app URL
 - [x] Deployed contract address: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
-- [x] Real X Layer tx hash for payment flow: `0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2`
-- [x] Real X Layer tx hash for governance execution: `0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f`
-- [x] Treasury movement tx hash: `0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793`
-- [x] Covenant Skill policy update proof: proposal `0xd19a907461c8475451d2b53047b32ca3db46a91d6b2005084f67518a576af4e7` + execution `0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f`
+- [x] Real X Layer tx hash for Uniswap-backed supplier swap: `0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da`
+- [x] Real X Layer tx hash for supplier settlement after swap: `0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67`
+- [x] Real X Layer tx hash for governance execution: `0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6`
+- [x] Treasury movement tx hash: `0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42`
+- [x] Covenant Skill policy update proof: proposal `0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0` + execution `0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6`
 - [ ] Final README with architecture, setup, and demo walkthrough
 - [ ] Public X post URL
 

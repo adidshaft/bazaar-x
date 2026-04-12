@@ -30,11 +30,11 @@ export const dialogueSets: Record<string, DialogueSet> = {
     pre: [
       "I only move routes when a shop exists to pull against them.",
       "That keeps the village honest: demand first, fulfillment second.",
-      "Bring me the order and I will stage the labor.",
+      "Bring me the order and the shop will clear supplier credit through the Uniswap pool before I release the route.",
     ],
     post: [
-      "The route is live.",
-      "Now the worker yard can show how payment and tax flow through the village.",
+      "The route is live and the supplier credit cleared onchain.",
+      "Now the worker yard can compare native wages against the new routed supplier leg.",
     ],
   },
   worker: {
@@ -50,7 +50,7 @@ export const dialogueSets: Record<string, DialogueSet> = {
   treasurer: {
     pre: [
       "The vault trusts receipts, not stories.",
-      "Bring me a confirmed tax notice and I will read the reserve board.",
+      "Bring me a confirmed tax notice and I will read both the native reserve and the supplier-credit spillover.",
     ],
     post: [
       "The reserve is live.",

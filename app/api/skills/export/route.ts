@@ -11,6 +11,12 @@ import { explorerAddressUrl } from "@/lib/xlayer";
 
 export const runtime = "nodejs";
 
+function resolveExplorerUrl(targetContract: string) {
+  return /^0x[a-fA-F0-9]{40}$/.test(targetContract)
+    ? explorerAddressUrl(targetContract, EXPLORER_BASE_URL)
+    : undefined;
+}
+
 function resolveOkxConfig() {
   const projectId =
     process.env.OKX_PROJECT_ID ??
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
     });
     const proofValue = `okx-${signature}`;
     const exportId = `skill-export-${skill.skill_id}-${Date.now()}`;
-    const explorerUrl = explorerAddressUrl(skill.execution.target_contract, EXPLORER_BASE_URL);
+    const explorerUrl = resolveExplorerUrl(skill.execution.target_contract);
 
     return jsonResponse(
       {

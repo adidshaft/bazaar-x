@@ -442,7 +442,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   );
   const activeArenaSkill = useMemo(() => {
     const protocol = activeSkill?.execution.protocol;
-    if (protocol !== "OnchainOS" && protocol !== "Uniswap-V3-XLayer") {
+    if (protocol !== "OnchainOS" && !protocol?.startsWith("Uniswap")) {
       return null;
     }
     return activeSkill;
@@ -499,16 +499,20 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         ].filter((value): value is string => Boolean(value))
       : [];
     const uniswapLine =
-      isObjective &&
+      (isObjective || selection.interactionId === "supplier-desk") &&
       activeQuest?.actionId === "hire-supplier" &&
       activeSkillId === "uniswap-xlayer-amm-v1"
-        ? `Route: ${getUniswapQuoteDisplay("0.030")}`
+        ? `Route: ${getUniswapQuoteDisplay("0.031", "1.900")}`
         : null;
     const lines = [...baseLines, ...objectiveLines, ...(uniswapLine ? [uniswapLine] : [])].slice(0, 4);
     const isKeeperWithoutWallet = selection.npcId === "keeper" && (!displayWalletIdentity.connected || !displayWalletIdentity.validNetwork);
     const showSkillBanner =
       activeArenaSkill &&
-      (selection.interactionId === "forge-board" || selection.interactionId === "treasury-board");
+      (
+        selection.interactionId === "forge-board" ||
+        selection.interactionId === "supplier-desk" ||
+        selection.interactionId === "treasury-board"
+      );
 
     return {
       title:         npc?.name ?? building?.name ?? humanize(selection.interactionId),
@@ -519,7 +523,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       objectiveLabel: isObjective ? "Next step" : "Inspect",
       bannerText: showSkillBanner ? `▸ ${activeArenaSkill.identity.name} · ACTIVE` : undefined,
       bannerColor:
-        activeArenaSkill?.execution.protocol === "Uniswap-V3-XLayer" ? "#ff007a" : "var(--gold)",
+        activeArenaSkill?.execution.protocol?.startsWith("Uniswap") ? "#ff007a" : "var(--gold)",
       actionNode:    isKeeperWithoutWallet ? <ConnectWalletButton /> : undefined,
     };
   }, [
@@ -1008,9 +1012,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             <div className="hud-dot is-gold" style={{ animation: "pulse 1.5s infinite" }} />
             <span
               className="hud-seg-value"
-              style={{ color: activeArenaSkill.execution.protocol === "Uniswap-V3-XLayer" ? "#ff007a" : "var(--gold)" }}
+              style={{ color: activeArenaSkill.execution.protocol.startsWith("Uniswap") ? "#ff007a" : "var(--gold)" }}
             >
-              {activeArenaSkill.execution.protocol === "Uniswap-V3-XLayer" ? "UNI-X" : "OS-ORACLE"}
+              {activeArenaSkill.execution.protocol.startsWith("Uniswap") ? "UNI-X" : "OS-ORACLE"}
             </span>
           </div>
         ) : null}
@@ -1276,7 +1280,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                   <article key={proof.id} className="px-quest state-complete">
                     <div className="px-quest-head">
                       <div>
-                        <div className="px-quest-state">{proof.kind}</div>
+                        <div className="px-quest-state">
+                          {proof.kind === "swap" ? "swap proof" : proof.kind === "receipt" ? "settlement proof" : proof.kind}
+                        </div>
                         <div className="px-quest-title">{proof.title}</div>
                       </div>
                       {proof.explorerUrl ? (

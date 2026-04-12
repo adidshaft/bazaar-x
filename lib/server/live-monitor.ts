@@ -186,17 +186,26 @@ function defaultSnapshot(): LiveMonitorSnapshot {
   });
 }
 
-function extractOkbAmount(detail?: string | null) {
-  if (!detail) {
+function extractOkbAmount(step: NonNullable<LiveRuntimeStatus>["steps"][number]) {
+  const explicitAmount = step.meta?.okbEquivalent ?? step.meta?.quoteAmountOkb;
+  if (typeof explicitAmount === "string") {
+    return Number(explicitAmount);
+  }
+
+  if (typeof explicitAmount === "number") {
+    return explicitAmount;
+  }
+
+  if (!step.detail) {
     return 0;
   }
 
-  const match = detail.match(/paid\s+([0-9]+(?:\.[0-9]+)?)\s+OKB/i);
+  const match = step.detail.match(/paid\s+([0-9]+(?:\.[0-9]+)?)\s+OKB/i);
   return match ? Number(match[1]) : 0;
 }
 
 function extractTaxAmount(step: NonNullable<LiveRuntimeStatus>["steps"][number]) {
-  const rawTax = step.meta?.taxOkb;
+  const rawTax = step.meta?.taxOkbEquivalent ?? step.meta?.taxOkb;
   if (typeof rawTax === "string") {
     return Number(rawTax);
   }
@@ -219,7 +228,7 @@ function getRecentEconomicSteps(runtime: LiveRuntimeStatus | null) {
         Boolean(step.txHash) &&
         new Date(step.completedAt as string).getTime() >= cutoff,
     )
-    .filter((step) => extractOkbAmount(step.detail) > 0 || extractTaxAmount(step) > 0);
+    .filter((step) => extractOkbAmount(step) > 0 || extractTaxAmount(step) > 0);
 }
 
 function buildEconomicState(
@@ -233,7 +242,7 @@ function buildEconomicState(
     .reverse()
     .find((step) => extractTaxAmount(step) > 0);
   const dailyVolumeOkb = recentEconomicSteps.reduce(
-    (total, step) => total + extractOkbAmount(step.detail),
+    (total, step) => total + extractOkbAmount(step),
     0,
   );
   const treasuryInflowOkb = recentEconomicSteps.reduce(

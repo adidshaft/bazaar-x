@@ -18,9 +18,19 @@ import {
 } from "./runtime";
 import type { AgentWallet, DeploymentArtifact, LiveRuntimeArtifact, StepRecord, WalletManifest } from "./types";
 import { explorerTxUrl } from "../xlayer";
+import {
+  computeSupplierTaxOkbEquivalent,
+  SUPPLIER_ROUTE_RECORD_STEP_KEY,
+  SUPPLIER_SERVICE_PRICE_TOKEN_WEI,
+  SUPPLIER_SETTLEMENT_TOKEN_SYMBOL,
+  buildSupplierSwapDetail,
+  buildSupplierSwapMeta,
+  ensureUniswapDeployment,
+  executeSupplierSettlementApproval,
+  executeSupplierSettlementSwap,
+} from "./uniswap";
 
 const WORKER_SERVICE_PRICE = parseEther("0.02");
-const SUPPLIER_SERVICE_PRICE = parseEther("0.03");
 const TREASURY_REINVEST_GRANT = parseEther("0.002");
 
 type StepResult = {
@@ -468,6 +478,7 @@ export async function runBazaarLiveFlow() {
   });
 
   await runStep(runtime, deployment, "supplier-service", "List supplier service", async () => {
+    const uniswap = await ensureUniswapDeployment(manifest);
     const supplierShopId = runtime.shopIds?.supplier;
     if (!supplierShopId) {
       throw new Error("Supplier shop not initialized.");
@@ -482,8 +493,8 @@ export async function runBazaarLiveFlow() {
         BigInt(supplierShopId),
         "Inventory and routing service",
         "ipfs://bazaar-x/service/supplier",
-        SUPPLIER_SERVICE_PRICE,
-        NativePaymentToken,
+        SUPPLIER_SERVICE_PRICE_TOKEN_WEI,
+        uniswap.settlementTokenAddress,
         NativePaymentToken,
         false,
       ],
@@ -499,7 +510,12 @@ export async function runBazaarLiveFlow() {
     return {
       txHash: supplierServiceTx.txHash,
       detail: `Listed supplier service #${serviceId}.`,
-      meta: { serviceId, priceOkb: formatEther(SUPPLIER_SERVICE_PRICE) },
+      meta: {
+        serviceId,
+        priceLabel: `${formatEther(SUPPLIER_SERVICE_PRICE_TOKEN_WEI)} ${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL}`,
+        paymentTokenSymbol: SUPPLIER_SETTLEMENT_TOKEN_SYMBOL,
+        paymentTokenAddress: uniswap.settlementTokenAddress,
+      },
       executionMode: supplierServiceTx.executionMode,
       gatewayOrderId: supplierServiceTx.gatewayOrderId,
       simulated: supplierServiceTx.simulated,
@@ -585,6 +601,45 @@ export async function runBazaarLiveFlow() {
     },
   );
 
+  await runStep(
+    runtime,
+    deployment,
+    SUPPLIER_ROUTE_RECORD_STEP_KEY,
+    "Swap OKB for supplier credit",
+    async () => {
+      const swap = await executeSupplierSettlementSwap({
+        manifest,
+        privateKey: shop.privateKey,
+        recipient: shop.address,
+      });
+
+      return {
+        txHash: swap.txHash,
+        detail: buildSupplierSwapDetail({
+          quote: swap.quote,
+          parsed: swap.parsed,
+        }),
+        meta: buildSupplierSwapMeta({
+          artifact: swap.artifact,
+          quote: swap.quote,
+          parsed: swap.parsed,
+          wrapTxHash: swap.wrapTxHash,
+          transferTxHash: swap.transferTxHash,
+        }),
+        executionMode: swap.executionMode,
+        gatewayOrderId: swap.gatewayOrderId,
+        simulated: swap.simulated,
+        simulationGasUsed: swap.simulationGasUsed,
+      };
+    },
+  );
+
+  await executeSupplierSettlementApproval({
+    manifest,
+    privateKey: shop.privateKey,
+    spender: deployment.contractAddress,
+  });
+
   await runStep(runtime, deployment, "shop-hires-supplier", "Shop hires supplier", async () => {
     const supplierServiceId = runtime.serviceIds?.supplier;
     if (!supplierServiceId) {
@@ -597,16 +652,23 @@ export async function runBazaarLiveFlow() {
       shop.privateKey,
       "hireService",
       [BigInt(supplierServiceId), "0x"],
-      SUPPLIER_SERVICE_PRICE,
     );
 
     const event = parseFirstEvent(shopHireTx.receipt, "ServiceHired");
+    const taxAmount = (event?.args?.taxAmount ?? 0n) as bigint;
 
     return {
       txHash: shopHireTx.txHash,
-      detail: `Shop paid ${formatEther(SUPPLIER_SERVICE_PRICE)} OKB to the supplier.`,
+      detail:
+        `Shop settled ${formatEther(SUPPLIER_SERVICE_PRICE_TOKEN_WEI)} ${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL} ` +
+        "to the supplier after the Uniswap route.",
       meta: {
-        taxOkb: formatEther((event?.args?.taxAmount ?? 0n) as bigint),
+        paymentTokenSymbol: SUPPLIER_SETTLEMENT_TOKEN_SYMBOL,
+        paymentTokenAddress: event?.args?.paymentToken as string,
+        grossAmountLabel: `${formatEther(SUPPLIER_SERVICE_PRICE_TOKEN_WEI)} ${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL}`,
+        taxLabel: `Tax ${formatEther(taxAmount)} ${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL}`,
+        taxTokenAmount: formatEther(taxAmount),
+        taxOkbEquivalent: computeSupplierTaxOkbEquivalent(taxAmount),
         jobId: Number(event?.args?.jobId ?? 0n),
       },
       executionMode: shopHireTx.executionMode,

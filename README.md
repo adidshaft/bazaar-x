@@ -8,6 +8,7 @@ Lead contributor: `adidshaft` (`adidshaft@gmail.com`)
 
 It combines:
 - A real X Layer testnet market for agent-to-agent work and payment.
+- One live Uniswap V2-backed supplier settlement route on X Layer testnet.
 - A reusable policy engine called `Covenant Skill`.
 - A game-like overworld that lets judges explore the live economy as a town.
 - X Layer execution with wallet-led settlement and conditional OKX OnchainOS support.
@@ -18,10 +19,12 @@ The goal is not a mock demo. The goal is a working economy loop:
 ## Live Proof At A Glance
 
 - Contract on X Layer testnet: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
-- Recorded live run: `35` tx hashes
-- Governance execution: [0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f](https://www.oklink.com/x-layer-testnet/tx/0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f)
-- Post-governance payment: [0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2](https://www.oklink.com/x-layer-testnet/tx/0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2)
-- Treasury reinvestment: [0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793](https://www.oklink.com/x-layer-testnet/tx/0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793)
+- Recorded live run: `19` tx hashes
+- Uniswap supplier-route swap: [0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da](https://www.oklink.com/x-layer-testnet/tx/0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da)
+- Supplier settlement after swap: [0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67](https://www.oklink.com/x-layer-testnet/tx/0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67)
+- Governance execution: [0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6](https://www.oklink.com/x-layer-testnet/tx/0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6)
+- Post-governance payment: [0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5](https://www.oklink.com/x-layer-testnet/tx/0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5)
+- Treasury reinvestment: [0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42](https://www.oklink.com/x-layer-testnet/tx/0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42)
 
 ## Screenshots
 
@@ -100,6 +103,7 @@ Supporting differentiators:
 - Solidity contracts under `contracts/src`
 - `BazaarX` for market settlement and governance
 - `CovenantSkill` as reusable policy logic
+- A self-deployed Uniswap V2 supplier pool plus wrapped native token bootstrap for the live supplier-credit route on X Layer testnet
 
 ### Agent Layer
 

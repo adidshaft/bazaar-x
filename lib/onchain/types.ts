@@ -52,6 +52,35 @@ export interface DeploymentArtifact {
   initialRules: InitialRules;
 }
 
+export interface UniswapDeploymentArtifact {
+  chainId: number;
+  rpcUrl: string;
+  explorerBaseUrl: string;
+  factoryAddress: Address;
+  wethAddress: Address;
+  settlementTokenAddress: Address;
+  settlementTokenSymbol: string;
+  settlementTokenDecimals: number;
+  pairAddress: Address;
+  liquidityProvider: Address;
+  seedLiquidityOkb: string;
+  seedLiquidityToken: string;
+  supplierSwapInputOkb: string;
+  supplierServicePriceToken: string;
+  slippageBps: number;
+  deploymentTxHashes: {
+    weth?: Hex | null;
+    settlementToken: Hex;
+    factory: Hex;
+    pairCreate: Hex;
+    seedWrap: Hex;
+    seedTokenTransfer: Hex;
+    seedWethTransfer: Hex;
+    seedMint: Hex;
+  };
+  deployedAt: string;
+}
+
 export type StepStatus = "pending" | "success" | "failed";
 
 export interface StepRecord {

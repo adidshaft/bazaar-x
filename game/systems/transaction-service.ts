@@ -119,6 +119,10 @@ function createSkillProof(
     return null;
   }
 
+  const explorerUrl = /^0x[a-fA-F0-9]{40}$/.test(skill.execution.target_contract)
+    ? explorerAddressUrl(skill.execution.target_contract)
+    : undefined;
+
   return {
     id: `${kind}:${skillId}:${createdAt}`,
     kind,
@@ -129,7 +133,7 @@ function createSkillProof(
     districtId: "council-hall",
     actionId: "open-guild",
     createdAt,
-    explorerUrl: explorerAddressUrl(skill.execution.target_contract),
+    explorerUrl,
   };
 }
 

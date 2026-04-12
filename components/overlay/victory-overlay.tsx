@@ -30,6 +30,10 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
   );
   const txCount = liveStatus?.liveDashboard.runtime?.txHashes.length ?? 0;
 
+  function proofToneLabel(proof: ProofArtifact) {
+    return proof.kind === "swap" ? "Swap Proof" : proof.kind === "receipt" ? "Settlement Proof" : proof.kind;
+  }
+
   return (
     <div className="victory-overlay">
       <div className="victory-card fade-in">
@@ -43,6 +47,9 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
           {proofs.map((proof) => (
             <article key={proof.id} className="victory-proof-card">
               <div>
+                <div className="victory-proof-body" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  {proofToneLabel(proof)}
+                </div>
                 <div className="victory-proof-title">{proof.title}</div>
                 <div className="victory-proof-body">{proof.body}</div>
               </div>

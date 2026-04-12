@@ -66,6 +66,13 @@ export async function POST(request: NextRequest) {
     if (!skill) {
       throw new ApiError("Unknown skill delegation request.", 404, "SKILL_NOT_FOUND");
     }
+    if (skill.execution.delegation_protocol === "manual-wallet") {
+      throw new ApiError(
+        "This skill is manual-first in the current phase. Use the live wallet route instead of delegation.",
+        409,
+        "SKILL_MANUAL_ONLY",
+      );
+    }
 
     const okx = resolveOkxConfig();
     const resolvedCommand = (body.command ?? body.action ?? skill.execution.delegated_action ?? "Trade").trim();

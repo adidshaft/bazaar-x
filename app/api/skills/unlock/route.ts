@@ -11,6 +11,12 @@ import { explorerAddressUrl } from "@/lib/xlayer";
 
 export const runtime = "nodejs";
 
+function resolveExplorerUrl(targetContract: string) {
+  return /^0x[a-fA-F0-9]{40}$/.test(targetContract)
+    ? explorerAddressUrl(targetContract, EXPLORER_BASE_URL)
+    : undefined;
+}
+
 type PaymentChallenge = {
   version: "2026.1.0";
   protocol: "okx-x402-payment";
@@ -172,7 +178,7 @@ export async function POST(request: NextRequest) {
     const manifestJsonLd = buildSkillManifestJsonLd(skill);
     const paidAt = new Date().toISOString();
     const receiptId = `x402_${skill.skill_id}_${Date.now()}`;
-    const explorerUrl = explorerAddressUrl(skill.execution.target_contract, EXPLORER_BASE_URL);
+    const explorerUrl = resolveExplorerUrl(skill.execution.target_contract);
 
     return jsonResponse(
       {

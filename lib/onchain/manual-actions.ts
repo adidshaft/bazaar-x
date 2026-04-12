@@ -2,6 +2,7 @@ import {
   encodeFunctionData,
   formatEther,
   parseEther,
+  zeroAddress,
   type Address,
   type Hex,
 } from "viem";
@@ -31,6 +32,19 @@ import type {
   StepRecord,
 } from "./types";
 import { createXLayerPublicClient, explorerTxUrl } from "../xlayer";
+import {
+  computeSupplierTaxOkbEquivalent,
+  SUPPLIER_ROUTE_RECORD_STEP_KEY,
+  SUPPLIER_SERVICE_PRICE_TOKEN_WEI,
+  SUPPLIER_SETTLEMENT_TOKEN_SYMBOL,
+  buildSupplierApprovalPreparedStep,
+  buildSupplierPairTransferPreparedStep,
+  buildSupplierSwapPreparedStep,
+  buildSupplierWrapPreparedStep,
+  ensureUniswapDeployment,
+  parseSupplierSwapReceipt,
+  quoteSupplierSettlement,
+} from "./uniswap";
 
 const WORKER_SERVICE_PRICE = parseEther("0.02");
 const SUPPLIER_SERVICE_PRICE = parseEther("0.03");
@@ -302,6 +316,7 @@ export async function prepareManualGameAction(
   }
 
   if (actionId === "open-depot") {
+    const uniswap = await ensureUniswapDeployment();
     const shopStep = latestSuccessfulStep(runtime, "supplier-shop");
     if (!shopStep) {
       return preparedManualResponse(actionId, policy.manualSummary, [
@@ -337,8 +352,8 @@ export async function prepareManualGameAction(
           BigInt(supplierShopId),
           "Inventory and routing service",
           "ipfs://bazaar-x/service/supplier",
-          SUPPLIER_SERVICE_PRICE,
-          "0x0000000000000000000000000000000000000000",
+          SUPPLIER_SERVICE_PRICE_TOKEN_WEI,
+          uniswap.settlementTokenAddress,
           "0x0000000000000000000000000000000000000000",
           false,
         ],
@@ -421,13 +436,19 @@ export async function prepareManualGameAction(
       throw new Error("Open the supplier depot first so the service can be hired manually.");
     }
 
+    const quote = await quoteSupplierSettlement();
+    const approvalStep = await buildSupplierApprovalPreparedStep(deployment.contractAddress);
+
     return preparedManualResponse(actionId, policy.manualSummary, [
       ...registrationSteps,
+      buildSupplierWrapPreparedStep(quote),
+      buildSupplierPairTransferPreparedStep(quote),
+      buildSupplierSwapPreparedStep(quote, playerAddress),
+      approvalStep,
       buildContractStep(deployment, {
         label: "Hire the supplier service",
         functionName: "hireService",
         args: [BigInt(supplierServiceId), "0x"],
-        value: SUPPLIER_SERVICE_PRICE,
         recordStepKey: "shop-hires-supplier",
       }),
     ]);
@@ -487,7 +508,7 @@ export async function prepareManualGameAction(
   );
 }
 
-function buildRecordedStep(
+async function buildRecordedStep(
   runtime: LiveRuntimeArtifact,
   deployment: DeploymentArtifact,
   stepKey: string,
@@ -533,8 +554,18 @@ function buildRecordedStep(
   } else if (stepKey === "supplier-service" || stepKey === "worker-service") {
     const event = parseFirstEvent(receipt, "ServiceListed");
     const serviceId = Number(event?.args?.serviceId ?? 0n);
+    const paymentToken = ((event?.args?.paymentToken ?? zeroAddress) as Address).toLowerCase();
     meta.serviceId = serviceId;
-    meta.priceOkb = stepKey === "supplier-service" ? formatEther(SUPPLIER_SERVICE_PRICE) : formatEther(WORKER_SERVICE_PRICE);
+    if (stepKey === "supplier-service" && paymentToken !== zeroAddress) {
+      meta.priceLabel = `${formatEther(SUPPLIER_SERVICE_PRICE_TOKEN_WEI)} ${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL}`;
+      meta.paymentTokenSymbol = SUPPLIER_SETTLEMENT_TOKEN_SYMBOL;
+      meta.paymentTokenAddress = event?.args?.paymentToken as Address;
+    } else {
+      meta.priceOkb =
+        stepKey === "supplier-service"
+          ? formatEther(SUPPLIER_SERVICE_PRICE)
+          : formatEther(WORKER_SERVICE_PRICE);
+    }
     label = stepKey === "supplier-service" ? "List supplier service" : "List worker service";
     detail =
       stepKey === "supplier-service"
@@ -554,7 +585,7 @@ function buildRecordedStep(
   ) {
     const event = parseFirstEvent(receipt, "ServiceHired");
     const taxAmount = (event?.args?.taxAmount ?? 0n) as bigint;
-    meta.taxOkb = formatEther(taxAmount);
+    const paymentToken = (event?.args?.paymentToken ?? zeroAddress) as Address;
     meta.jobId = Number(event?.args?.jobId ?? 0n);
     label =
       stepKey === "supplier-hires-worker"
@@ -562,12 +593,26 @@ function buildRecordedStep(
         : stepKey === "shop-hires-supplier"
           ? "Shop hires supplier"
           : "Post-governance payment";
-    detail =
-      stepKey === "supplier-hires-worker"
-        ? `Supplier paid ${formatEther(WORKER_SERVICE_PRICE)} OKB to hire the worker.`
-        : stepKey === "shop-hires-supplier"
-          ? `Shop paid ${formatEther(SUPPLIER_SERVICE_PRICE)} OKB to the supplier.`
-          : "Repeated the worker payment after the governance update.";
+
+    if (stepKey === "shop-hires-supplier" && paymentToken.toLowerCase() !== zeroAddress) {
+      meta.taxLabel = `Tax ${formatEther(taxAmount)} ${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL}`;
+      meta.taxTokenAmount = formatEther(taxAmount);
+      meta.taxOkbEquivalent = computeSupplierTaxOkbEquivalent(taxAmount);
+      meta.paymentTokenSymbol = SUPPLIER_SETTLEMENT_TOKEN_SYMBOL;
+      meta.paymentTokenAddress = paymentToken;
+      meta.grossAmountLabel = `${formatEther(SUPPLIER_SERVICE_PRICE_TOKEN_WEI)} ${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL}`;
+      detail =
+        `Shop settled ${formatEther(SUPPLIER_SERVICE_PRICE_TOKEN_WEI)} ${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL} ` +
+        "to the supplier after the Uniswap route.";
+    } else {
+      meta.taxOkb = formatEther(taxAmount);
+      detail =
+        stepKey === "supplier-hires-worker"
+          ? `Supplier paid ${formatEther(WORKER_SERVICE_PRICE)} OKB to hire the worker.`
+          : stepKey === "shop-hires-supplier"
+            ? `Shop paid ${formatEther(SUPPLIER_SERVICE_PRICE)} OKB to the supplier.`
+            : "Repeated the worker payment after the governance update.";
+    }
 
     if (stepKey === "supplier-hires-worker") {
       runtime.firstTaxWei = taxAmount.toString();
@@ -575,6 +620,26 @@ function buildRecordedStep(
     if (stepKey === "post-governance-hire") {
       runtime.secondTaxWei = taxAmount.toString();
     }
+  } else if (stepKey === SUPPLIER_ROUTE_RECORD_STEP_KEY) {
+    const uniswap = await ensureUniswapDeployment();
+    const parsed = parseSupplierSwapReceipt(receipt, playerAddress, uniswap);
+    meta.proofKind = "swap";
+    meta.routeProtocol = "Uniswap V2";
+    meta.tokenIn = "OKB";
+    meta.tokenOut = SUPPLIER_SETTLEMENT_TOKEN_SYMBOL;
+    meta.tokenInAddress = uniswap.wethAddress;
+    meta.tokenOutAddress = uniswap.settlementTokenAddress;
+    meta.poolAddress = parsed.pairAddress;
+    meta.quoteAmountOkb = uniswap.supplierSwapInputOkb;
+    meta.amountOutToken = parsed.amountOutToken;
+    meta.minOutToken = uniswap.supplierServicePriceToken;
+    meta.slippageBps = uniswap.slippageBps;
+    meta.settlementState = "settled";
+    meta.okbEquivalent = uniswap.supplierSwapInputOkb;
+    label = "Swap OKB for supplier credit";
+    detail =
+      `Swapped ${uniswap.supplierSwapInputOkb} OKB for ${parsed.amountOutToken} ` +
+      `${SUPPLIER_SETTLEMENT_TOKEN_SYMBOL} through the Uniswap pool before supplier settlement.`;
   } else if (stepKey === "proposal") {
     const event = parseFirstEvent(receipt, "ProposalCreated");
     const proposalId = Number(event?.args?.proposalId ?? 0n);
@@ -654,7 +719,12 @@ export async function recordManualGameAction(
       throw new Error("The confirmed transaction was not signed by the connected wallet.");
     }
 
-    if (!receipt.to || receipt.to.toLowerCase() !== deployment.contractAddress.toLowerCase()) {
+    if (record.stepKey === SUPPLIER_ROUTE_RECORD_STEP_KEY) {
+      const uniswap = await ensureUniswapDeployment();
+      if (!receipt.to || receipt.to.toLowerCase() !== uniswap.pairAddress.toLowerCase()) {
+        throw new Error("The confirmed transaction did not target the active Uniswap pair.");
+      }
+    } else if (!receipt.to || receipt.to.toLowerCase() !== deployment.contractAddress.toLowerCase()) {
       throw new Error("The confirmed transaction did not target the active BazaarX contract.");
     }
 
@@ -662,7 +732,7 @@ export async function recordManualGameAction(
       (step) => !(step.key === record.stepKey && step.status === "failed"),
     );
     runtime.steps.push(
-      buildRecordedStep(runtime, deployment, record.stepKey, record.txHash, playerAddress, receipt),
+      await buildRecordedStep(runtime, deployment, record.stepKey, record.txHash, playerAddress, receipt),
     );
 
     if (!runtime.txHashes.includes(record.txHash)) {

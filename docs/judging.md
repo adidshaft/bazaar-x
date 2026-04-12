@@ -29,6 +29,7 @@ Bazaar X is shaped to amplify those signals:
 
 Additional differentiators that strengthen the main judging story:
 - A strong economy loop of earn, pay, tax, treasury, vote, and update.
+- One live Uniswap V2 supplier route on X Layer testnet with separate swap and settlement proof.
 - Clear OnchainOS usage through wallet-aware execution and supported-chain simulation or broadcast when configured.
 - A reusable Covenant layer that can extend to paid agent resources.
 
@@ -133,7 +134,8 @@ Recommended 1-3 minute demo order:
 
 Include these artifacts in the submission and README:
 - Contract deployment tx hash
-- One payment tx hash
+- One Uniswap-backed swap tx hash
+- One supplier settlement tx hash
 - One treasury-related tx hash
 - One governance proposal tx hash
 - One governance execution tx hash

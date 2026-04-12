@@ -11,12 +11,13 @@ Target runtime: 1 to 3 minutes.
 1. Open the app and show the Bazaar X town.
 2. Walk through the core districts: Canal Gate, Market Row, Supply Coil Lane, Node Pilot Yard, Treasury Vault, and Covenant Hall.
 3. Click into Market Row and show that the rail can claim a stall and create the first shop.
-4. Show Supply Coil Lane or Node Pilot Yard handling a real payment on X Layer testnet.
-5. Call out the automatic tax deduction and treasury update.
-6. Open the governance district and show the reusable policy functions: `enforcePolicy`, `checkBalanceRules`, `applyTax`, `proposeChange`, `vote`, and `executeChange`.
-7. Trigger a governance proposal to change tax or reserve rules.
-8. Show agents voting, then execute the rule update.
-9. Run the next payment and explain that the new policy now changes settlement behavior.
+4. Show Bazaar Forge posting the supplier order, then call out that the route now swaps native OKB through a live Uniswap V2 pool before the supplier settlement.
+5. Open the proof drawer and show the two linked tx hashes: the swap proof first, then the Bazaar settlement proof.
+6. Call out the automatic tax deduction and treasury update.
+7. Open the governance district and show the reusable policy functions: `enforcePolicy`, `checkBalanceRules`, `applyTax`, `proposeChange`, `vote`, and `executeChange`.
+8. Trigger a governance proposal to change tax or reserve rules.
+9. Show agents voting, then execute the rule update.
+10. Run the next payment and explain that the new policy now changes settlement behavior.
 
 ## What to say about X Layer
 
@@ -29,10 +30,11 @@ Target runtime: 1 to 3 minutes.
 ## Proof points to show on screen
 
 - Contract address: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
-- Live run size: `35` recorded tx hashes
-- Governance execution tx: `0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f`
-- Post-governance payment tx: `0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2`
-- Treasury reinvestment tx: `0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793`
+- Live run size: `19` recorded tx hashes
+- Supplier-route swap tx: `0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da`
+- Supplier settlement tx: `0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67`
+- Governance execution tx: `0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6`
+- Treasury reinvestment tx: `0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42`
 
 ## Closing
 

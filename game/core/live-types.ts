@@ -350,7 +350,7 @@ export type PreparedGameActionResponse = {
 
 export type ProofArtifact = {
   id: string;
-  kind: "receipt" | "journal" | "unlock" | "decree";
+  kind: "receipt" | "journal" | "unlock" | "decree" | "swap";
   title: string;
   body: string;
   statement: string;

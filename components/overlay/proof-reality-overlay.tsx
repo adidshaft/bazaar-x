@@ -10,6 +10,18 @@ function humanize(value: string) {
   return value.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function proofToneClass(kind: ProofArtifact["kind"]) {
+  if (kind === "swap") {
+    return "p-purple";
+  }
+
+  if (kind === "decree") {
+    return "p-gold";
+  }
+
+  return "p-ice";
+}
+
 export function ProofRealityOverlay({ proof, onClose }: ProofRealityOverlayProps) {
   return (
     <div className="proof-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -19,7 +31,7 @@ export function ProofRealityOverlay({ proof, onClose }: ProofRealityOverlayProps
         <div className="proof-header">
           <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-              <span className="px-pill p-ice">{proof.kind}</span>
+              <span className={`px-pill ${proofToneClass(proof.kind)}`}>{proof.kind}</span>
               <span className="px-pill">{humanize(proof.districtId)}</span>
             </div>
             <div style={{ fontFamily: "var(--font-display), sans-serif", fontSize: 17, fontWeight: 700, color: "var(--text-white)", lineHeight: 1.1 }}>

@@ -51,6 +51,12 @@ const stepBlueprints: Record<string, LaborBlueprint> = {
     targetBuildingId: "depot-door",
     targetMapId: "village-exterior",
   },
+  "supplier-route-swap": {
+    pool: "depot",
+    kind: "value-flow",
+    targetBuildingId: "depot-door",
+    targetMapId: "village-exterior",
+  },
   "worker-shop": {
     pool: "depot",
     kind: "job-assigned",
@@ -165,6 +171,15 @@ function resolveStepKind(step: LaborStep, blueprint: LaborBlueprint): LaborJobSt
   }
 
   return "queued";
+}
+
+function resolveStepAmountOkb(step: LaborStep) {
+  const rawAmount = step.meta?.taxOkbEquivalent ?? step.meta?.taxOkb ?? step.meta?.okbEquivalent;
+  if (typeof rawAmount === "string" || typeof rawAmount === "number") {
+    return String(rawAmount);
+  }
+
+  return undefined;
 }
 
 function snapshotFromActors(
@@ -396,7 +411,7 @@ export class LaborDispatcher {
       createdAt: step.startedAt,
       updatedAt: step.completedAt ?? step.startedAt,
       txHash: step.txHash,
-      amountOkb: step.meta?.taxOkb ? String(step.meta.taxOkb) : undefined,
+      amountOkb: resolveStepAmountOkb(step),
     });
   }
 
@@ -524,7 +539,7 @@ export class LaborDispatcher {
       this.jobsById.set(job.id, {
         ...job,
         txHash: step.txHash ?? job.txHash,
-        amountOkb: step.meta?.taxOkb ? String(step.meta.taxOkb) : job.amountOkb,
+        amountOkb: resolveStepAmountOkb(step) ?? job.amountOkb,
         status:
           job.status === "walking" || job.status === "working"
             ? job.status

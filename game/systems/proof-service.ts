@@ -20,6 +20,10 @@ const actionDistrictMap: Partial<Record<QuestActionId, DistrictId>> = {
 };
 
 function summarizeStep(step: NonNullable<LiveDashboardStatus["liveDashboard"]["runtime"]>["steps"][number]) {
+  if (step.meta?.proofKind === "swap" || step.key === "supplier-route-swap") {
+    return "swap";
+  }
+
   if (step.label.toLowerCase().includes("proposal") || step.label.toLowerCase().includes("execute")) {
     return "decree";
   }
@@ -46,7 +50,7 @@ export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofAr
         "open-depot": ["supplier-shop", "supplier-service"],
         "open-guild": ["worker-shop", "worker-service"],
         "hire-worker": ["supplier-hires-worker"],
-        "hire-supplier": ["shop-hires-supplier"],
+        "hire-supplier": ["supplier-route-swap", "shop-hires-supplier"],
         "propose-rule-change": ["proposal"],
         "vote-rule-change": ["vote-shop", "vote-supplier", "vote-worker"],
         "execute-rule-change": ["execute"],
@@ -54,7 +58,22 @@ export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofAr
         "treasury-reinvest": ["treasury-reinvests"],
       }).find(([, keys]) => keys.includes(step.key))?.[0] as QuestActionId | undefined;
 
-      const districtId = actionDistrictMap[actionId ?? "deploy-bazaar"] ?? "village-gate";
+      const districtId =
+        step.key === "supplier-route-swap"
+          ? "supplier-lane"
+          : actionDistrictMap[actionId ?? "deploy-bazaar"] ?? "village-gate";
+      const swapLabel =
+        typeof step.meta?.amountOutToken === "string" && typeof step.meta?.tokenOut === "string"
+          ? `${step.meta.amountOutToken} ${step.meta.tokenOut}`
+          : "Swap confirmed";
+      const taxLabel =
+        typeof step.meta?.taxLabel === "string"
+          ? step.meta.taxLabel
+          : typeof step.meta?.taxOkb === "string"
+            ? `Tax ${step.meta.taxOkb} OKB`
+            : step.txHash
+              ? "Confirmed"
+              : "Recovered";
 
       return {
         id: step.txHash ?? `${step.key}:${step.completedAt ?? step.startedAt}`,
@@ -62,7 +81,7 @@ export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofAr
         title: step.label,
         body: step.detail ?? "Confirmed on X Layer.",
         statement: `${step.label}: ${step.detail ?? "Confirmed on X Layer."}`,
-        label: step.meta?.taxOkb ? `Tax ${step.meta.taxOkb} OKB` : step.txHash ? "Confirmed" : "Recovered",
+        label: summarizeStep(step) === "swap" ? swapLabel : taxLabel,
         districtId,
         actionId,
         stepKey: step.key,
