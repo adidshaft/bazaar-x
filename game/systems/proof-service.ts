@@ -20,6 +20,10 @@ const actionDistrictMap: Partial<Record<QuestActionId, DistrictId>> = {
 };
 
 function summarizeStep(step: NonNullable<LiveDashboardStatus["liveDashboard"]["runtime"]>["steps"][number]) {
+  if (step.meta?.proofKind === "payment" || step.key.startsWith("payment-")) {
+    return "payment";
+  }
+
   if (step.meta?.proofKind === "swap" || step.key === "supplier-route-swap") {
     return "swap";
   }
@@ -45,17 +49,17 @@ export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofAr
     .filter((step) => step.status === "success")
     .map((step) => {
       const actionId = Object.entries({
+        "open-shop": ["payment-open-shop", "shop-create"],
+        "open-depot": ["payment-open-depot", "supplier-shop", "supplier-service"],
+        "open-guild": ["payment-open-guild", "worker-shop", "worker-service"],
+        "hire-worker": ["payment-hire-worker", "supplier-hires-worker"],
+        "hire-supplier": ["payment-hire-supplier", "supplier-route-swap", "shop-hires-supplier"],
+        "propose-rule-change": ["payment-propose-rule-change", "proposal"],
+        "vote-rule-change": ["payment-vote-rule-change", "vote-shop", "vote-supplier", "vote-worker"],
+        "execute-rule-change": ["payment-execute-rule-change", "execute"],
+        "replay-worker-payment": ["payment-replay-worker-payment", "post-governance-hire"],
+        "treasury-reinvest": ["payment-treasury-reinvest", "treasury-reinvests"],
         "deploy-bazaar": ["deploy"],
-        "open-shop": ["shop-create"],
-        "open-depot": ["supplier-shop", "supplier-service"],
-        "open-guild": ["worker-shop", "worker-service"],
-        "hire-worker": ["supplier-hires-worker"],
-        "hire-supplier": ["supplier-route-swap", "shop-hires-supplier"],
-        "propose-rule-change": ["proposal"],
-        "vote-rule-change": ["vote-shop", "vote-supplier", "vote-worker"],
-        "execute-rule-change": ["execute"],
-        "replay-worker-payment": ["post-governance-hire"],
-        "treasury-reinvest": ["treasury-reinvests"],
       }).find(([, keys]) => keys.includes(step.key))?.[0] as QuestActionId | undefined;
 
       const districtId =
@@ -69,6 +73,8 @@ export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofAr
       const taxLabel =
         typeof step.meta?.taxLabel === "string"
           ? step.meta.taxLabel
+          : typeof step.meta?.paymentAmountLabel === "string"
+            ? step.meta.paymentAmountLabel
           : typeof step.meta?.taxOkb === "string"
             ? `Tax ${step.meta.taxOkb} OKB`
             : step.txHash

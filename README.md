@@ -9,6 +9,7 @@ Lead contributor: `adidshaft` (`adidshaft@gmail.com`)
 It combines:
 - A real X Layer testnet market for agent-to-agent work and payment.
 - One live Uniswap V2-backed supplier settlement route on X Layer testnet.
+- One live x402-aligned paid delegation rail settled through a local facilitator on X Layer testnet.
 - A reusable policy engine called `Covenant Skill`.
 - A game-like overworld that lets judges explore the live economy as a town.
 - X Layer execution with wallet-led settlement and conditional OKX OnchainOS support.
@@ -19,12 +20,15 @@ The goal is not a mock demo. The goal is a working economy loop:
 ## Live Proof At A Glance
 
 - Contract on X Layer testnet: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
-- Recorded live run: `19` tx hashes
+- Recorded live runtime: `20` tx hashes
 - Uniswap supplier-route swap: [0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da](https://www.oklink.com/x-layer-testnet/tx/0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da)
 - Supplier settlement after swap: [0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67](https://www.oklink.com/x-layer-testnet/tx/0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67)
 - Governance execution: [0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6](https://www.oklink.com/x-layer-testnet/tx/0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6)
 - Post-governance payment: [0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5](https://www.oklink.com/x-layer-testnet/tx/0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5)
 - Treasury reinvestment: [0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42](https://www.oklink.com/x-layer-testnet/tx/0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42)
+- x402 payment asset deployment: [0xab97a48badf5aeeb2586375341e216ebb7db3778f65a2b7675c652512af39de2](https://www.oklink.com/x-layer-testnet/tx/0xab97a48badf5aeeb2586375341e216ebb7db3778f65a2b7675c652512af39de2)
+- x402 skill unlock settlement: [0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6](https://www.oklink.com/x-layer-testnet/tx/0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6)
+- x402 paid agent settlement: [0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a](https://www.oklink.com/x-layer-testnet/tx/0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a)
 
 ## Screenshots
 
@@ -81,7 +85,7 @@ Public X Layer Arena special prizes we intentionally target:
 Supporting differentiators:
 - Strong economy loop: agents earn, pay, tax, reinvest, and govern in one loop.
 - Onchain OS integration: the stack is built around OKX wallet-aware execution and transaction tooling.
-- Challenge-gated payment hooks: the same policy layer can gate paid agent resources or API access if extended.
+- Real paid delegations: autonomous actions and skill unlocks settle through a local x402-aligned facilitator on X Layer testnet.
 
 ## Architecture
 
@@ -104,6 +108,7 @@ Supporting differentiators:
 - `BazaarX` for market settlement and governance
 - `CovenantSkill` as reusable policy logic
 - A self-deployed Uniswap V2 supplier pool plus wrapped native token bootstrap for the live supplier-credit route on X Layer testnet
+- `BazaarX402Token` as the testnet payment asset used by the local x402 facilitator
 
 ### Agent Layer
 
@@ -181,6 +186,23 @@ What the repo can do with Onchain OS now:
 - Broadcast signed raw transactions through the OKX Onchain OS gateway.
 - Track gateway order IDs and persist them into runtime metadata.
 - Surface wallet login status and gateway readiness in the dashboard status snapshot.
+
+## x402 Payment Flow
+
+Bazaar X now uses a real x402-aligned exact-EVM payment flow for paid autonomous actions and skill unlocks.
+
+Current reality:
+
+- The demo path settles on X Layer testnet (`1952`).
+- The payment asset is a local testnet ERC-20 called `Bazaar Delegation Credit` (`BXC`).
+- The facilitator is local and self-hosted inside this repo.
+- Payment proof is visible separately from settlement proof in the game UI.
+
+Important honesty rule:
+
+- Hosted or default x402 facilitator support does not currently cover X Layer testnet in the same way as the supported hosted networks.
+- Because of that, Bazaar X should be described as using a local/self-hosted x402-aligned facilitator on X Layer testnet, not a hosted facilitator product claim.
+- `BAZAAR_X_X402_DEV_MOCK_MODE=1` exists only as an explicit dev fallback and should stay off for demo or submission runs.
 
 Agentic Wallet notes:
 

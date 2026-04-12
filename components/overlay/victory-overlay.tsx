@@ -31,6 +31,10 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
   const txCount = liveStatus?.liveDashboard.runtime?.txHashes.length ?? 0;
 
   function proofToneLabel(proof: ProofArtifact) {
+    if (proof.kind === "payment") {
+      return "Payment Proof";
+    }
+
     return proof.kind === "swap" ? "Swap Proof" : proof.kind === "receipt" ? "Settlement Proof" : proof.kind;
   }
 

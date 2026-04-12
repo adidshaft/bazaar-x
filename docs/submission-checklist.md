@@ -27,6 +27,8 @@ Use this as the final gate before submitting the Google Form.
   - Current public proof in this repo is X Layer testnet
   - Current `onchainos` CLI exposes `xlayer` as mainnet chain `196` by default
   - Do not claim gateway-broadcasted testnet txs unless your CLI build supports that alias and the runtime metadata proves it
+  - Do not claim hosted/default x402 facilitator support for X Layer testnet unless you actually used it
+  - Current paid delegation proof uses a local/self-hosted x402-aligned facilitator on X Layer testnet
 - [ ] `Demo Video Link`
   - Use a public Loom or YouTube link.
 - [ ] `X (Twitter) Post Link`
@@ -49,6 +51,8 @@ Use this as the final gate before submitting the Google Form.
 - [x] Real X Layer tx hash for governance execution: `0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6`
 - [x] Treasury movement tx hash: `0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42`
 - [x] Covenant Skill policy update proof: proposal `0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0` + execution `0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6`
+- [x] x402 skill unlock settlement tx: `0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6`
+- [x] x402 paid autonomous action settlement tx: `0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a`
 - [ ] Final README with architecture, setup, and demo walkthrough
 - [ ] Public X post URL
 

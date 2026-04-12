@@ -5,10 +5,18 @@ import type {
   PreparedGameActionResponse,
   ProofArtifact,
   QuestActionId,
+  WalletIdentity,
+  X402PaymentReceipt,
 } from "@/game/core/live-types";
 import { bazaarEventBridge } from "@/game/core/event-bridge";
 import { findSkillById } from "@/lib/skills/ai-skills";
 import { explorerAddressUrl } from "@/lib/xlayer";
+import {
+  claimX402StipendRequest,
+  fetchX402Status,
+  postWithX402Retry,
+  type X402ClientPhase,
+} from "./x402-client";
 
 async function parseJson<T>(response: Response) {
   return (await response.json().catch(() => null)) as T | null;
@@ -26,37 +34,18 @@ function extractError(payload: unknown, fallback: string) {
   return maybeMessage ?? fallback;
 }
 
-type SkillPaymentChallenge = {
-  version: string;
-  protocol: "okx-x402-payment";
-  projectId: string;
-  apiKeyId: string;
-  chainId: number;
-  skillId: string;
-  payTo: string;
-  amountOkb: string;
-  issuedAt: string;
-  expiresAt: string;
-  nonce: string;
-  statement: string;
-  signature: string;
-};
-
 type SkillUnlockResponse = {
   ok: true;
   skillId: string;
   protocol: string;
   amountOkb: string;
+  amountLabel?: string;
+  assetSymbol?: string;
   paidAt: string;
   receiptId: string;
-  projectId?: string;
-  paymentReceipt?: {
-    id: string;
-    mode: string;
-    challenge?: SkillPaymentChallenge | null;
-    settlementHeader?: string;
-  };
+  paymentReceipt?: X402PaymentReceipt;
   manifestJsonLd?: unknown;
+  proofs?: ProofArtifact[];
   proof?: ProofArtifact;
 };
 
@@ -66,12 +55,6 @@ type SkillUnlockErrorResponse = {
     code?: string;
     message?: string;
     details?: unknown;
-  };
-  paymentRequired?: {
-    protocol?: string;
-    header?: string;
-    challenge?: SkillPaymentChallenge;
-    settlementMode?: string;
   };
 };
 
@@ -105,6 +88,30 @@ type SkillExportResponse = {
   proof?: ProofArtifact;
 };
 
+type X402ClientContext = {
+  wallet: WalletIdentity;
+  payerAddress: `0x${string}`;
+  walletClient: Parameters<typeof postWithX402Retry>[0]["walletClient"];
+};
+
+let activeX402ClientContext: X402ClientContext | null = null;
+
+function resolveX402ClientContext(input?: Partial<X402ClientContext>) {
+  const wallet = input?.wallet ?? activeX402ClientContext?.wallet;
+  const payerAddress = input?.payerAddress ?? activeX402ClientContext?.payerAddress;
+  const walletClient = input?.walletClient ?? activeX402ClientContext?.walletClient;
+
+  if (!wallet || !payerAddress || !walletClient) {
+    throw new Error("Connect a wallet on X Layer before using paid agent actions.");
+  }
+
+  return {
+    wallet,
+    payerAddress,
+    walletClient,
+  } satisfies X402ClientContext;
+}
+
 function createSkillProof(
   skillId: string,
   kind: ProofArtifact["kind"],
@@ -137,46 +144,6 @@ function createSkillProof(
   };
 }
 
-function resolvePaymentChallenge(response: Response, payload: SkillUnlockErrorResponse | null) {
-  const headerChallenge = response.headers.get("x-payment-request");
-  if (headerChallenge) {
-    return headerChallenge;
-  }
-
-  return payload?.paymentRequired?.challenge ? JSON.stringify(payload.paymentRequired.challenge) : null;
-}
-
-async function postWithPaymentRetry<TBody extends Record<string, unknown>>(url: string, body: TBody) {
-  const firstResponse = await fetch(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-
-  if (firstResponse.status !== 402) {
-    return firstResponse;
-  }
-
-  const challengePayload = await parseJson<SkillUnlockErrorResponse>(firstResponse);
-  const paymentChallenge = resolvePaymentChallenge(firstResponse, challengePayload);
-  if (!paymentChallenge) {
-    throw new Error("The skill server requested x402 payment but did not return a challenge.");
-  }
-
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "X-PAYMENT": paymentChallenge,
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-}
-
 export async function fetchDashboardStatus() {
   const response = await fetch("/api/status", {
     cache: "no-store",
@@ -190,10 +157,28 @@ export async function fetchDashboardStatus() {
   return payload.status;
 }
 
-export async function executeAgentQuestAction(actionId: QuestActionId) {
-  const response = await postWithPaymentRetry("/api/game/action", {
-    actionId,
-    controlMode: "agent" satisfies ActionControlMode,
+export async function executeAgentQuestAction(
+  actionId: QuestActionId,
+  input: {
+    wallet?: WalletIdentity;
+    payerAddress?: `0x${string}`;
+    walletClient?: Parameters<typeof postWithX402Retry>[0]["walletClient"];
+    onPhaseChange?: (phase: X402ClientPhase) => void;
+  } = {},
+) {
+  const clientContext = resolveX402ClientContext(input);
+  const response = await postWithX402Retry({
+    url: "/api/game/action",
+    body: {
+      actionId,
+      controlMode: "agent" satisfies ActionControlMode,
+    },
+    wallet: clientContext.wallet,
+    payerAddress: clientContext.payerAddress,
+    walletClient: clientContext.walletClient,
+    kind: "agent-action",
+    resourceId: actionId,
+    onPhaseChange: input.onPhaseChange,
   });
 
   const payload = await parseJson<GameActionResponse>(response);
@@ -259,8 +244,26 @@ export async function vote(support: boolean) {
   };
 }
 
-export async function unlockSkill(skillId: string): Promise<SkillUnlockResponse> {
-  const response = await postWithPaymentRetry("/api/skills/unlock", { skillId });
+export async function unlockSkill(
+  skillId: string,
+  input: {
+    wallet?: WalletIdentity;
+    payerAddress?: `0x${string}`;
+    walletClient?: Parameters<typeof postWithX402Retry>[0]["walletClient"];
+    onPhaseChange?: (phase: X402ClientPhase) => void;
+  } = {},
+): Promise<SkillUnlockResponse> {
+  const clientContext = resolveX402ClientContext(input);
+  const response = await postWithX402Retry({
+    url: "/api/skills/unlock",
+    body: { skillId },
+    wallet: clientContext.wallet,
+    payerAddress: clientContext.payerAddress,
+    walletClient: clientContext.walletClient,
+    kind: "skill-unlock",
+    resourceId: skillId,
+    onPhaseChange: input.onPhaseChange,
+  });
   const payload = await parseJson<SkillUnlockResponse | SkillUnlockErrorResponse>(response);
 
   if (!response.ok || !payload) {
@@ -269,7 +272,14 @@ export async function unlockSkill(skillId: string): Promise<SkillUnlockResponse>
 
   const successPayload = payload as SkillUnlockResponse;
 
-  if (successPayload.proof) {
+  if (successPayload.proofs?.length) {
+    successPayload.proofs.forEach((proof) => {
+      bazaarEventBridge.emit("proof:verified", { proof });
+    });
+    bazaarEventBridge.emit("proof:scroll-picked", {
+      proof: successPayload.proofs[successPayload.proofs.length - 1]!,
+    });
+  } else if (successPayload.proof) {
     bazaarEventBridge.emit("proof:verified", { proof: successPayload.proof });
     bazaarEventBridge.emit("proof:scroll-picked", { proof: successPayload.proof });
   } else {
@@ -278,9 +288,9 @@ export async function unlockSkill(skillId: string): Promise<SkillUnlockResponse>
       skillId,
       "unlock",
       `${skillId} Unlocked`,
-      `${skillId} unlock was confirmed through the x402 challenge flow and is now active in the grimoire.`,
-      `${skillId} unlock was confirmed through the x402 challenge flow and activated in the village.`,
-      successPayload.amountOkb ? `${successPayload.amountOkb} OKB` : "Confirmed",
+      `${skillId} unlock payment settled and the skill is now active in the grimoire.`,
+      `${skillId} unlock payment settled through x402 exact EVM on X Layer testnet.`,
+      successPayload.amountLabel ?? (successPayload.amountOkb ? `${successPayload.amountOkb} BXC` : "Confirmed"),
       createdAt,
     );
 
@@ -357,7 +367,14 @@ export async function exportSkillManifest(skillId: string): Promise<SkillExportR
   return payload;
 }
 
+export function configureX402ClientContext(context: X402ClientContext | null) {
+  activeX402ClientContext = context;
+}
+
+export { claimX402StipendRequest, fetchX402Status };
+
 export const transactionService = {
+  configureX402ClientContext,
   executeAgentQuestAction,
   prepareManualQuestAction,
   recordManualQuestAction,
@@ -366,4 +383,6 @@ export const transactionService = {
   unlockSkill,
   delegateTradeSkill,
   exportSkillManifest,
+  fetchX402Status,
+  claimX402StipendRequest,
 };

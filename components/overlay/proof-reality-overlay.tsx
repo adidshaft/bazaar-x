@@ -11,6 +11,10 @@ function humanize(value: string) {
 }
 
 function proofToneClass(kind: ProofArtifact["kind"]) {
+  if (kind === "payment") {
+    return "p-green";
+  }
+
   if (kind === "swap") {
     return "p-purple";
   }

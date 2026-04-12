@@ -1,13 +1,18 @@
-import { createHmac, randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import {
   buildSkillManifestJsonLd,
   findSkillById,
-  stableStringify,
 } from "@/lib/skills/ai-skills";
-import { DEFAULT_CHAIN_ID, EXPLORER_BASE_URL } from "@/lib/server/config";
 import { ApiError, errorResponse, jsonResponse, readJsonBody } from "@/lib/server/http";
+import {
+  buildPaymentRequiredEnvelope,
+  buildSkillPaymentProof,
+  getX402Session,
+  markX402SessionFulfilled,
+  settleX402PaymentSession,
+} from "@/lib/onchain/x402";
 import { explorerAddressUrl } from "@/lib/xlayer";
+import { EXPLORER_BASE_URL } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 
@@ -17,200 +22,126 @@ function resolveExplorerUrl(targetContract: string) {
     : undefined;
 }
 
-type PaymentChallenge = {
-  version: "2026.1.0";
-  protocol: "okx-x402-payment";
-  projectId: string;
-  apiKeyId: string;
-  chainId: number;
-  skillId: string;
-  payTo: string;
-  amountOkb: string;
-  issuedAt: string;
-  expiresAt: string;
-  nonce: string;
-  statement: string;
-  signature: string;
-};
-
-function resolveOkxConfig() {
-  const projectId =
-    process.env.OKX_PROJECT_ID ??
-    process.env.BAZAAR_X_OKX_PROJECT_ID ??
-    "bazaar-x-skill-grimoire";
-  const apiKey = process.env.OKX_API_KEY ?? process.env.BAZAAR_X_OKX_API_KEY ?? "";
-  const secretKey = process.env.OKX_SECRET_KEY ?? process.env.BAZAAR_X_OKX_SECRET_KEY ?? "";
-  const passphrase = process.env.OKX_PASSPHRASE ?? process.env.BAZAAR_X_OKX_PASSPHRASE ?? "";
-
-  return {
-    projectId,
-    apiKey,
-    passphrase,
-    signingKey: `${secretKey}:${passphrase}`,
-    hasCredentials: Boolean(secretKey && apiKey && passphrase),
-  };
-}
-
-function signChallenge(challenge: Omit<PaymentChallenge, "signature">, signingKey: string) {
-  return createHmac("sha256", signingKey).update(stableStringify(challenge) ?? "{}").digest("base64url");
-}
-
-function buildChallenge(skillId: string, okx: ReturnType<typeof resolveOkxConfig>): PaymentChallenge {
-  const skill = findSkillById(skillId);
-  if (!skill) {
-    throw new ApiError("Unknown skill unlock request.", 404, "SKILL_NOT_FOUND");
-  }
-
-  const issuedAt = new Date();
-  const expiresAt = new Date(issuedAt.getTime() + 2 * 60 * 1000);
-  const challengeBase = {
-    version: "2026.1.0" as const,
-    protocol: "okx-x402-payment" as const,
-    projectId: okx.projectId,
-    apiKeyId: okx.apiKey.slice(0, 8) || "anonymous",
-    chainId: DEFAULT_CHAIN_ID,
-    skillId: skill.skill_id,
-    payTo: skill.execution.target_contract,
-    amountOkb: skill.execution.unlock_price_okb ?? "0.000",
-    issuedAt: issuedAt.toISOString(),
-    expiresAt: expiresAt.toISOString(),
-    nonce: randomUUID(),
-    statement: `Unlock ${skill.identity.name} using x402 settlement on X Layer.`,
-  };
-
-  return {
-    ...challengeBase,
-    signature: signChallenge(challengeBase, okx.signingKey),
-  };
-}
-
-function parsePaymentHeader(rawHeader: string | null) {
-  if (!rawHeader) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawHeader) as Partial<PaymentChallenge>;
-  } catch {
-    return null;
-  }
-}
-
-function isChallengeValid(challenge: Partial<PaymentChallenge>, okx: ReturnType<typeof resolveOkxConfig>) {
-  if (!challenge || challenge.protocol !== "okx-x402-payment") {
-    return false;
-  }
-
-  if (challenge.projectId !== okx.projectId || !challenge.signature) {
-    return false;
-  }
-
-  const expiresAt = challenge.expiresAt ? new Date(challenge.expiresAt) : null;
-  if (!expiresAt || Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
-    return false;
-  }
-
-  const unsigned: Omit<PaymentChallenge, "signature"> = {
-    version: challenge.version ?? "2026.1.0",
-    protocol: "okx-x402-payment",
-    projectId: challenge.projectId,
-    apiKeyId: challenge.apiKeyId ?? "anonymous",
-    chainId: challenge.chainId ?? DEFAULT_CHAIN_ID,
-    skillId: challenge.skillId ?? "",
-    payTo: challenge.payTo ?? "",
-    amountOkb: challenge.amountOkb ?? "0.000",
-    issuedAt: challenge.issuedAt ?? "",
-    expiresAt: challenge.expiresAt ?? "",
-    nonce: challenge.nonce ?? "",
-    statement: challenge.statement ?? "",
-  };
-
-  const expected = signChallenge(unsigned, okx.signingKey);
-  return expected === challenge.signature;
+function readPaymentHeader(request: NextRequest) {
+  return request.headers.get("payment-signature") ?? request.headers.get("x-payment");
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await readJsonBody(request)) as { skillId?: string };
+    const body = (await readJsonBody(request)) as {
+      skillId?: string;
+      paymentSessionId?: string;
+    };
     const skill = findSkillById(body.skillId ?? "");
     if (!skill) {
       throw new ApiError("Unknown skill unlock request.", 404, "SKILL_NOT_FOUND");
     }
 
-    const okx = resolveOkxConfig();
-    const existingChallenge = parsePaymentHeader(request.headers.get("x-payment"));
-    const paymentChallenge = buildChallenge(skill.skill_id, okx);
+    const existingSession = await getX402Session(body.paymentSessionId);
+    const matchingSession =
+      existingSession?.kind === "skill-unlock" && existingSession.resourceId === skill.skill_id
+        ? existingSession
+        : null;
 
-    if (!existingChallenge) {
-      const paymentRequest = JSON.stringify(paymentChallenge);
+    if (matchingSession?.fulfilledResponse) {
+      const recoveredResponse = {
+        ...(matchingSession.fulfilledResponse as Record<string, unknown>),
+        recovered: true,
+        paymentReceipt: matchingSession.receipt
+          ? {
+              ...matchingSession.receipt,
+              status: "recovered" as const,
+              recovered: true,
+            }
+          : null,
+      };
+      return jsonResponse(recoveredResponse);
+    }
+
+    const paymentHeader = readPaymentHeader(request);
+    if (!matchingSession?.receipt && !paymentHeader) {
+      const { paymentRequired, paymentRequiredHeader } = await buildPaymentRequiredEnvelope({
+        kind: "skill-unlock",
+        resourceId: skill.skill_id,
+        requestUrl: request.nextUrl.href,
+        description: `Unlock ${skill.identity.name} in the Bazaar X grimoire.`,
+        amountDisplay: skill.execution.unlock_price_okb ?? "0.000",
+        existingSessionId: matchingSession?.id,
+      });
+
       return jsonResponse(
         {
           ok: false,
           error: {
             code: "PAYMENT_REQUIRED",
             message: "x402 payment required to unlock the skill.",
-            details: {
-              skillId: skill.skill_id,
-              amountOkb: skill.execution.unlock_price_okb ?? "0.000",
-            },
           },
-          paymentRequired: {
-            protocol: paymentChallenge.protocol,
-            header: "X-PAYMENT",
-            challenge: paymentChallenge,
-            settlementMode: okx.hasCredentials ? "okx-x402" : "mock-x402",
-          },
+          paymentRequired,
         },
         {
           status: 402,
           headers: {
-            "X-PAYMENT-REQUEST": paymentRequest,
-            "X-OKX-PROJECT-ID": okx.projectId,
+            "PAYMENT-REQUIRED": paymentRequiredHeader,
+            "X-PAYMENT-SESSION-ID": paymentRequired.sessionId,
+            "Cache-Control": "no-store",
           },
         },
       );
     }
 
-    if (!isChallengeValid(existingChallenge, okx)) {
-      throw new ApiError("The supplied x402 payment header is invalid or expired.", 403, "INVALID_PAYMENT");
-    }
+    const settled = matchingSession?.receipt
+      ? {
+          receipt: {
+            ...matchingSession.receipt,
+            status: "recovered" as const,
+            recovered: true,
+          },
+        }
+      : await settleX402PaymentSession({
+          sessionId: body.paymentSessionId ?? "",
+          paymentHeader: paymentHeader ?? "",
+        });
 
+    const paymentReceipt = settled.receipt;
     const manifestJsonLd = buildSkillManifestJsonLd(skill);
-    const paidAt = new Date().toISOString();
-    const receiptId = `x402_${skill.skill_id}_${Date.now()}`;
+    const paidAt = paymentReceipt.settledAt;
     const explorerUrl = resolveExplorerUrl(skill.execution.target_contract);
+    const paymentProof = buildSkillPaymentProof({
+      skillId: skill.skill_id,
+      skillName: skill.identity.name,
+      receipt: paymentReceipt,
+    });
+    const unlockProof = {
+      id: `${paymentReceipt.id}:unlock`,
+      kind: "unlock" as const,
+      title: `${skill.identity.name} Unlocked`,
+      body: `${skill.identity.name} is now slotted into the grimoire.`,
+      statement: `${skill.skill_id} unlock receipt cleared and the skill is now active in the village.`,
+      label: paymentReceipt.amountLabel,
+      districtId: "council-hall" as const,
+      actionId: "open-guild" as const,
+      createdAt: paidAt,
+      explorerUrl,
+    };
 
-    return jsonResponse(
-      {
-        ok: true,
-        skillId: skill.skill_id,
-        protocol: skill.execution.monetization_protocol ?? "okx-x402-payment",
-        amountOkb: skill.execution.unlock_price_okb ?? "0.000",
-        paidAt,
-        receiptId,
-        projectId: okx.projectId,
-        paymentReceipt: {
-          id: receiptId,
-          mode: okx.hasCredentials ? "okx-x402" : "mock-x402",
-          challenge: existingChallenge,
-          settlementHeader: "X-PAYMENT",
-        },
-        manifestJsonLd,
-        proof: {
-          id: receiptId,
-          kind: "unlock",
-          title: `${skill.identity.name} Unlocked`,
-          body: `${skill.identity.name} is now slotted into the grimoire.`,
-          statement: `${skill.skill_id} settled through x402 and activated in the village.`,
-          label: `${skill.execution.unlock_price_okb ?? "0.000"} OKB`,
-          districtId: "council-hall",
-          actionId: "open-guild",
-          createdAt: paidAt,
-          explorerUrl,
-        },
-      },
-      { status: 200 },
-    );
+    const responsePayload = {
+      ok: true as const,
+      skillId: skill.skill_id,
+      protocol: skill.execution.monetization_protocol ?? "x402-exact-evm",
+      amountOkb: skill.execution.unlock_price_okb ?? "0.000",
+      amountLabel: paymentReceipt.amountLabel,
+      assetSymbol: paymentReceipt.assetSymbol,
+      paidAt,
+      receiptId: paymentReceipt.id,
+      paymentReceipt,
+      manifestJsonLd,
+      proofs: [paymentProof, unlockProof],
+      proof: unlockProof,
+    };
+
+    await markX402SessionFulfilled(paymentReceipt.sessionId, responsePayload);
+
+    return jsonResponse(responsePayload, { status: 200 });
   } catch (error) {
     return errorResponse(error);
   }

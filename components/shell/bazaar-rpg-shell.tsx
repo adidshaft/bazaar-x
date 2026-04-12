@@ -50,8 +50,11 @@ import { deriveQuestRail, getActiveQuestStep } from "@/game/systems/quest-servic
 import { loadPersistedPlayerState, savePersistedPlayerState } from "@/game/systems/persistence-service";
 import { ProofListener } from "@/game/systems/proof-service";
 import {
+  claimX402StipendRequest,
+  configureX402ClientContext,
   delegateTradeSkill,
   executeAgentQuestAction,
+  fetchX402Status,
   fetchDashboardStatus,
   prepareManualQuestAction,
   recordManualQuestAction,
@@ -260,18 +263,120 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     enabled:   hasMounted && walletIdentity.connected,
   });
 
+  const x402StatusQuery = useQuery({
+    queryKey: ["x402-status", displayAddress],
+    queryFn: async () => {
+      if (!displayAddress) {
+        throw new Error("Missing wallet address.");
+      }
+      return fetchX402Status(displayAddress);
+    },
+    staleTime: 4_000,
+    enabled: hasMounted && displayWalletIdentity.connected && displayWalletIdentity.validNetwork && Boolean(displayAddress),
+  });
+
   const actionMutation = useMutation({
     mutationFn: async (input: { actionId: QuestActionId; controlMode: ActionControlMode }) => {
       if (input.controlMode === "manual") {
         return executeManualQuestAction(input.actionId);
       }
 
-      return executeAgentQuestAction(input.actionId);
+      if (!displayAddress || !walletClient) {
+        throw new Error("Connect a wallet on X Layer before running paid agent actions.");
+      }
+
+      return executeAgentQuestAction(input.actionId, {
+        wallet: walletIdentity,
+        payerAddress: displayAddress,
+        walletClient,
+        onPhaseChange: (phase) => {
+          const label = humanize(input.actionId);
+          if (phase.phase === "payment-required") {
+            bazaarGameStore.getState().setPendingAction({
+              actionId: input.actionId,
+              label,
+              status: "pending",
+              startedAt: Date.now(),
+              controlMode: "agent",
+              executionKind: "x402-agent",
+              message: `Payment required: sign ${phase.paymentRequired.amountLabel} so the village agent can continue.`,
+            });
+            return;
+          }
+
+          if (phase.phase === "signing") {
+            bazaarGameStore.getState().setPendingAction({
+              actionId: input.actionId,
+              label,
+              status: "submitted",
+              startedAt: Date.now(),
+              controlMode: "agent",
+              executionKind: "x402-agent",
+              message: "Confirm the x402 delegation signature in your wallet.",
+            });
+            return;
+          }
+
+          if (phase.phase === "settling") {
+            bazaarGameStore.getState().setPendingAction({
+              actionId: input.actionId,
+              label,
+              status: "submitted",
+              startedAt: Date.now(),
+              controlMode: "agent",
+              executionKind: "x402-agent",
+              message: `Settling ${phase.paymentRequired.amountLabel} on X Layer testnet...`,
+            });
+            return;
+          }
+
+          bazaarGameStore.getState().setPendingAction({
+            actionId: input.actionId,
+            label,
+            status: "recovered",
+            startedAt: Date.now(),
+            controlMode: "agent",
+            executionKind: "x402-agent",
+            txHash: phase.paymentReceipt.settlementTxHash,
+            message: "Recovered a previously settled paid delegation receipt.",
+          });
+        },
+      });
     },
     onSuccess:  (payload) => {
       queryClient.setQueryData(STATUS_QUERY_KEY, payload.status);
+      if (payload.paymentReceipt) {
+        void x402StatusQuery.refetch();
+      }
       setDrawerOpen(true);
       setDrawerTab(payload.stepKey ? "proof" : "ops");
+    },
+  });
+
+  const claimX402Mutation = useMutation({
+    mutationFn: async () => {
+      if (!displayAddress) {
+        throw new Error("Connect wallet before claiming delegation credit.");
+      }
+
+      return claimX402StipendRequest(displayAddress);
+    },
+    onSuccess: (stipend) => {
+      bazaarEventBridge.emit("toast:show", {
+        id: `x402:stipend:${stipend.txHash}`,
+        title: "Citizen Stipend Minted",
+        body: `${stipend.amountLabel} is ready for paid delegations on X Layer testnet.`,
+        tone: "success",
+      });
+      void x402StatusQuery.refetch();
+    },
+    onError: (error) => {
+      bazaarEventBridge.emit("toast:show", {
+        id: "x402:stipend:error",
+        title: "Stipend Failed",
+        body: error instanceof Error ? error.message : "Unable to mint delegation credit.",
+        tone: "proof",
+      });
     },
   });
 
@@ -317,6 +422,19 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   }, [controlMode, controlModeKey]);
 
   useEffect(() => { bazaarGameStore.getState().setWallet(walletIdentity); }, [walletIdentity]);
+
+  useEffect(() => {
+    if (displayWalletIdentity.connected && displayWalletIdentity.validNetwork && displayAddress && walletClient) {
+      configureX402ClientContext({
+        wallet: walletIdentity,
+        payerAddress: displayAddress,
+        walletClient,
+      });
+      return;
+    }
+
+    configureX402ClientContext(null);
+  }, [displayAddress, displayWalletIdentity.connected, displayWalletIdentity.validNetwork, walletClient, walletIdentity]);
 
   useEffect(() => {
     bazaarGameStore.getState().setSkillCatalog(aiSkillCatalog);
@@ -543,11 +661,18 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
   const actionRequiresAgent = controlMode === "manual" && actionPolicy?.manualSupport === "agent_required";
   const selectedActionMode: ActionControlMode = actionRequiresAgent ? "agent" : controlMode;
+  const needsX402Credit =
+    selectedActionMode === "agent" &&
+    displayWalletIdentity.connected &&
+    displayWalletIdentity.validNetwork &&
+    Boolean(x402StatusQuery.data?.canClaimStipend);
   const interactionDisabledReason = interactionView?.actionId
     ? !displayWalletIdentity.connected
       ? "Connect wallet to act."
       : !displayWalletIdentity.validNetwork
         ? `Switch to X Layer (chain ${defaultXLayerChain.id}).`
+        : needsX402Credit
+          ? "Claim your citizen stipend before running a paid delegation."
         : actionMutation.isPending
           ? "Transaction in progress..."
           : null
@@ -563,7 +688,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         ? "Sync Live Proof"
         : "Sign With Wallet"
       : actionPolicy?.agentPaymentOkb
-        ? `Run Agent · ${actionPolicy.agentPaymentOkb} OKB`
+        ? `Delegate Agent · ${actionPolicy.agentPaymentOkb} ${actionPolicy.agentPaymentAssetSymbol ?? "BXC"}`
         : "Run Agent"
     : undefined;
   const questActionNode =
@@ -611,6 +736,20 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         >
           {actionMutation.isPending ? "Submitting…" : actionPrimaryLabel}
         </button>
+
+        {needsX402Credit ? (
+          <button
+            type="button"
+            onClick={() => claimX402Mutation.mutate()}
+            disabled={claimX402Mutation.isPending}
+            className="px-btn ghost"
+            style={{ justifyContent: "center", whiteSpace: "nowrap" }}
+          >
+            {claimX402Mutation.isPending
+              ? "Minting Stipend…"
+              : `Claim ${x402StatusQuery.data?.stipendAmountLabel ?? "Testnet Credit"}`}
+          </button>
+        ) : null}
 
         {interactionDisabledReason ? (
           <div
@@ -933,15 +1072,73 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   }
 
   async function handleUnlockSkill(skillId: string) {
+    if (!displayAddress || !walletClient) {
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:unlock:wallet:${skillId}`,
+        title: "Wallet Required",
+        body: "Connect a wallet on X Layer before paying to unlock skills.",
+        tone: "skill",
+      });
+      return;
+    }
+
     setUnlockPendingSkillId(skillId);
     try {
-      const receipt = await unlockSkill(skillId);
+      const receipt = await unlockSkill(skillId, {
+        wallet: walletIdentity,
+        payerAddress: displayAddress,
+        walletClient,
+        onPhaseChange: (phase) => {
+          if (phase.phase === "payment-required") {
+            bazaarEventBridge.emit("toast:show", {
+              id: `skill:unlock:payment-required:${skillId}`,
+              title: "Payment Required",
+              body: `Sign ${phase.paymentRequired.amountLabel} to unlock this skill.`,
+              tone: "skill",
+            });
+            return;
+          }
+
+          if (phase.phase === "signing") {
+            bazaarEventBridge.emit("toast:show", {
+              id: `skill:unlock:signing:${skillId}`,
+              title: "Awaiting Signature",
+              body: "Confirm the x402 unlock signature in your wallet.",
+              tone: "skill",
+            });
+            return;
+          }
+
+          if (phase.phase === "settling") {
+            bazaarEventBridge.emit("toast:show", {
+              id: `skill:unlock:settling:${skillId}`,
+              title: "Settling Payment",
+              body: `Settling ${phase.paymentRequired.amountLabel} on X Layer testnet...`,
+              tone: "skill",
+            });
+            return;
+          }
+
+          bazaarEventBridge.emit("toast:show", {
+            id: `skill:unlock:recovered:${skillId}`,
+            title: "Receipt Recovered",
+            body: "A previously settled skill payment was restored after refresh.",
+            tone: "skill",
+          });
+        },
+      });
       const nextUnlocked = Array.from(new Set([...unlockedSkillIds, skillId]));
       bazaarGameStore.getState().setSkillLoadout({ unlockedSkillIds: nextUnlocked, activeSkillId: activeSkillId ?? skillId });
       if (!activeSkillId) bazaarEventBridge.emit("skill:activated", { skillId });
       bazaarEventBridge.emit("camera:flash", { duration: 500, red: 0, green: 255, blue: 65 });
       bazaarEventBridge.emit("skill:unlock-success", { skillId });
-      bazaarEventBridge.emit("toast:show", { id: `skill:unlock:${skillId}`, title: "Skill Unlocked", body: `${receipt.amountOkb} OKB unlock confirmed via ${receipt.protocol}.`, tone: "success" });
+      void x402StatusQuery.refetch();
+      bazaarEventBridge.emit("toast:show", {
+        id: `skill:unlock:${skillId}`,
+        title: "Skill Unlocked",
+        body: `${receipt.amountLabel ?? `${receipt.amountOkb} ${receipt.assetSymbol ?? "BXC"}`} settled via ${receipt.protocol}.`,
+        tone: "success",
+      });
       bazaarAudioSystem.play("success-chime");
     } catch (error) {
       bazaarEventBridge.emit("toast:show", { id: `skill:unlock:error:${skillId}`, title: "Unlock Failed", body: error instanceof Error ? error.message : "Unable to unlock.", tone: "skill" });
@@ -1281,7 +1478,13 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                     <div className="px-quest-head">
                       <div>
                         <div className="px-quest-state">
-                          {proof.kind === "swap" ? "swap proof" : proof.kind === "receipt" ? "settlement proof" : proof.kind}
+                          {proof.kind === "swap"
+                            ? "swap proof"
+                            : proof.kind === "receipt"
+                              ? "settlement proof"
+                              : proof.kind === "payment"
+                                ? "payment proof"
+                                : proof.kind}
                         </div>
                         <div className="px-quest-title">{proof.title}</div>
                       </div>
@@ -1382,15 +1585,52 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                     disabled={actionMutation.isPending}
                     style={{ justifyContent: "center" }}
                   >
-                    Agent x402
+                    Paid Agent
                   </button>
                 </div>
                 <div className="px-body" style={{ fontSize: 12, marginTop: 6, color: "var(--text-muted)" }}>
                   {controlMode === "manual"
                     ? "Wallet-led mode. Your connected wallet signs the step it can legitimately perform."
-                    : "Challenge-gated agent mode. An agent can run the step after the signed challenge clears."}
+                    : "Paid delegation mode. Your wallet signs an x402 payment authorization, then the district agent resumes the step."}
                 </div>
               </div>
+
+              {displayWalletIdentity.connected && displayWalletIdentity.validNetwork ? (
+                <div className="px-card accent-purple">
+                  <div className="px-kicker k-purple">Delegation Credit</div>
+                  <div className="px-title" style={{ fontSize: 16 }}>
+                    {x402StatusQuery.isLoading
+                      ? "Syncing..."
+                      : x402StatusQuery.data?.balanceLabel ?? "Unavailable"}
+                  </div>
+                  <div className="px-body" style={{ fontSize: 12, marginTop: 4, color: "var(--text-muted)" }}>
+                    Paid autonomous actions and skill unlocks settle through the local x402 facilitator on X Layer testnet.
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="px-btn ghost px-btn-sm"
+                      onClick={() => void x402StatusQuery.refetch()}
+                      disabled={x402StatusQuery.isFetching}
+                    >
+                      <RefreshCw size={10} />
+                      {x402StatusQuery.isFetching ? "Refreshing…" : "Refresh Credit"}
+                    </button>
+                    <button
+                      type="button"
+                      className="px-btn ghost px-btn-sm"
+                      onClick={() => claimX402Mutation.mutate()}
+                      disabled={!x402StatusQuery.data?.canClaimStipend || claimX402Mutation.isPending}
+                    >
+                      {claimX402Mutation.isPending
+                        ? "Minting…"
+                        : x402StatusQuery.data?.canClaimStipend
+                          ? `Claim ${x402StatusQuery.data.stipendAmountLabel}`
+                          : "Credit Ready"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               {pendingAction?.actionId === "execute-rule-change" && pendingAction.status === "pending" ? (
                 <div className="px-card accent-gold">
@@ -1662,7 +1902,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <div className="onboarding-logo-kicker">X Layer World Economy</div>
               <div className="onboarding-logo">Bazaar<span>X</span></div>
               <div className="onboarding-copy">
-                Your wallet is your citizenship. Your handle is the name people see in the village. One rail opens the shop, routes labor, collects tax, and replays the payment under new rules.
+                Your wallet is your citizenship. Your handle is the name people see in the village. One rail opens the shop, routes labor, collects tax, replays the payment under new rules, and pays for autonomous delegations through x402 on X Layer testnet.
               </div>
             </div>
 

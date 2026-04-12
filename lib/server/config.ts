@@ -51,3 +51,23 @@ export const UNISWAP_INITIAL_LP_TOKEN =
 export const UNISWAP_SLIPPAGE_BPS = Number(
   process.env.BAZAAR_X_UNISWAP_SLIPPAGE_BPS ?? "100",
 );
+export const X402_TOKEN_ARTIFACT_PATH =
+  process.env.BAZAAR_X_X402_TOKEN_ARTIFACT ?? "payments/x402-token/latest.json";
+export const X402_LEDGER_ARTIFACT_PATH =
+  process.env.BAZAAR_X_X402_LEDGER_ARTIFACT ?? "payments/x402-ledger/latest.json";
+export const X402_TOKEN_NAME =
+  process.env.BAZAAR_X_X402_TOKEN_NAME ?? "Bazaar Delegation Credit";
+export const X402_TOKEN_SYMBOL =
+  process.env.BAZAAR_X_X402_TOKEN_SYMBOL ?? "BXC";
+export const X402_TOKEN_DECIMALS = Number(
+  process.env.BAZAAR_X_X402_TOKEN_DECIMALS ?? "6",
+);
+export const X402_PAYMENT_TIMEOUT_SECONDS = Number(
+  process.env.BAZAAR_X_X402_PAYMENT_TIMEOUT_SECONDS ?? "300",
+);
+export const X402_STIPEND_AMOUNT =
+  process.env.BAZAAR_X_X402_STIPEND_AMOUNT ?? "1.250";
+export const X402_STIPEND_MIN_BALANCE =
+  process.env.BAZAAR_X_X402_STIPEND_MIN_BALANCE ?? "0.050";
+export const X402_DEV_MOCK_MODE =
+  process.env.BAZAAR_X_X402_DEV_MOCK_MODE === "1";

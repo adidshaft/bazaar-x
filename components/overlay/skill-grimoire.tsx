@@ -129,7 +129,9 @@ export function SkillGrimoire({
                     </div>
                     <div className="grimoire-stat">
                       <div className="grimoire-stat-label">Unlock</div>
-                      <div className="grimoire-stat-value" style={{ color: "var(--text-gold)" }}>{skill.execution.unlock_price_okb ?? "0.000"} OKB</div>
+                      <div className="grimoire-stat-value" style={{ color: "var(--text-gold)" }}>
+                        {skill.execution.unlock_price_okb ?? "0.000"} {skill.execution.unlock_price_asset_symbol ?? "BXC"}
+                      </div>
                     </div>
                   </div>
 
@@ -148,7 +150,9 @@ export function SkillGrimoire({
                       </button>
                     ) : (
                       <button type="button" onClick={() => onUnlock(skill.skill_id)} disabled={unlockPendingSkillId === skill.skill_id} className="px-btn ice">
-                        {unlockPendingSkillId === skill.skill_id ? "Processing…" : "Unlock Skill"}
+                        {unlockPendingSkillId === skill.skill_id
+                          ? "Processing…"
+                          : `Unlock · ${skill.execution.unlock_price_okb ?? "0.000"} ${skill.execution.unlock_price_asset_symbol ?? "BXC"}`}
                       </button>
                     )}
 
@@ -201,7 +205,7 @@ export function SkillGrimoire({
             <div className="grimoire-sidebar-card">
               <div style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 }}>Protocol Stack</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {["okx-agentic-wallet", "okx-x402-payment", "skill-json-ld"].map((proto) => (
+                {["okx-agentic-wallet", "x402-exact-evm", "skill-json-ld"].map((proto) => (
                   <div key={proto} style={{ padding: "5px 7px", background: "var(--bg-raised)", border: "1px solid var(--border-dim)", fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)", letterSpacing: "0.04em" }}>
                     {proto}
                   </div>

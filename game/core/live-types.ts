@@ -109,6 +109,7 @@ export type AISkillDefinition = {
     monetization_protocol?: string;
     delegated_action?: string;
     unlock_price_okb?: string;
+    unlock_price_asset_symbol?: string;
   };
   visual_metadata: {
     sprite_aura: string;
@@ -313,6 +314,79 @@ export type DashboardResponse = {
   status: LiveDashboardStatus;
 };
 
+export type X402PaymentKind = "agent-action" | "skill-unlock";
+
+export type X402PaymentRequirement = {
+  scheme: "exact";
+  network: string;
+  amount: string;
+  asset: `0x${string}`;
+  payTo: `0x${string}`;
+  maxTimeoutSeconds?: number;
+  extra?: Record<string, unknown>;
+};
+
+export type X402PaymentRequirements = {
+  x402Version: 2;
+  accepts: X402PaymentRequirement[];
+  resource: {
+    url: string;
+    description: string;
+    mimeType: string;
+  };
+  extra?: Record<string, unknown>;
+};
+
+export type X402PaymentAuthorization = {
+  from: `0x${string}`;
+  to: `0x${string}`;
+  value: string;
+  validAfter: string;
+  validBefore: string;
+  nonce: `0x${string}`;
+};
+
+export type X402PaymentPayload = {
+  x402Version: 2;
+  resource?: X402PaymentRequirements["resource"];
+  accepted: X402PaymentRequirement;
+  payload: {
+    signature: `0x${string}`;
+    authorization: X402PaymentAuthorization;
+  };
+};
+
+export type X402PaymentReceipt = {
+  id: string;
+  sessionId: string;
+  kind: X402PaymentKind;
+  protocol: "x402-exact-evm";
+  facilitator: "bazaar-local-testnet";
+  status: "settled" | "fulfilled" | "recovered";
+  network: string;
+  payer: `0x${string}`;
+  payTo: `0x${string}`;
+  asset: `0x${string}`;
+  assetSymbol: string;
+  amount: string;
+  amountLabel: string;
+  authorizationNonce: `0x${string}`;
+  settledAt: string;
+  settlementTxHash?: Hex;
+  settlementExplorerUrl?: string;
+  recovered?: boolean;
+};
+
+export type X402PaymentRequiredEnvelope = {
+  protocol: "x402-exact-evm";
+  header: "PAYMENT-SIGNATURE";
+  sessionId: string;
+  facilitator: "bazaar-local-testnet";
+  requirements: X402PaymentRequirements;
+  assetSymbol: string;
+  amountLabel: string;
+};
+
 export type GameActionResponse = {
   ok: true;
   actionId: QuestActionId;
@@ -324,6 +398,7 @@ export type GameActionResponse = {
   txHash?: Hex;
   message?: string;
   errorMessage?: string;
+  paymentReceipt?: X402PaymentReceipt | null;
   status: LiveDashboardStatus;
 };
 
@@ -350,7 +425,7 @@ export type PreparedGameActionResponse = {
 
 export type ProofArtifact = {
   id: string;
-  kind: "receipt" | "journal" | "unlock" | "decree" | "swap";
+  kind: "receipt" | "journal" | "unlock" | "decree" | "swap" | "payment";
   title: string;
   body: string;
   statement: string;
