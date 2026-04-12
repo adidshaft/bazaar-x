@@ -73,7 +73,7 @@ export class UIScene extends Phaser.Scene {
     const prompt = state.focusedInteractionId
       ? `E inspect ${focusedLabel}`
       : objectiveLabel
-        ? `Objective ${objectiveLabel}`
+        ? `Next: ${objectiveLabel}`
         : "WASD move  E inspect";
 
     this.promptText.setText(prompt);

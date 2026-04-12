@@ -73,11 +73,18 @@ type InteractionSelection = {
 };
 
 const drawerTabs: Array<{ id: DrawerTab; label: string; icon?: React.ReactNode }> = [
-  { id: "quests",    label: "Quests" },
+  { id: "quests",    label: "Rail" },
   { id: "proof",     label: "Proof" },
   { id: "districts", label: "Districts" },
   { id: "ops",       label: "Ops" },
 ];
+
+const drawerHeaderLabels: Record<DrawerTab, string> = {
+  quests: "RAIL",
+  proof: "PROOF",
+  districts: "DISTRICTS",
+  ops: "OPS",
+};
 
 const mapLabels: Record<MapId, string> = {
   "village-exterior": "Bazaar Village",
@@ -86,6 +93,17 @@ const mapLabels: Record<MapId, string> = {
   "treasury-interior":"Treasury Vault",
   "council-interior": "Covenant Hall",
 };
+
+const districtPurposeCopy: Record<DistrictId, string> = {
+  "village-gate": "Wallets are recognized here and the first route opens.",
+  "market-row": "Open the first shop and wake demand.",
+  "supplier-lane": "List supplier work and dispatch fulfillment.",
+  "worker-yard": "Labor enters here and proof returns.",
+  "treasury-vault": "Tax lands here before reinvestment.",
+  "council-hall": "Propose, vote, and execute rule changes.",
+};
+
+const canonicalLoopSummary = "Wallet-linked citizens open a shop, route labor, collect tax, vote on rule changes, and replay the same payment under the new rule.";
 
 const interactionNavigation: Record<string, { mapId: MapId; x: number; y: number; spawnId?: string }> = {
   "keeper-gate":     { mapId: "village-exterior", x: 800,  y: 352,  spawnId: "gate-spawn"       },
@@ -447,16 +465,19 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     const npcStepComplete = npc ? npc.questHooks.some((hook) => railStateById.get(hook) === "complete") : false;
     const dialogueSet = npc ? dialogueSets[npc.dialogueId] : undefined;
     const baseLines = npc
-      ? npcStepComplete
-        ? dialogueSet?.post ?? []
-        : dialogueSet?.pre ?? []
+      ? [
+          npc.economyRole,
+          npcStepComplete ? dialogueSet?.post?.[0] : dialogueSet?.pre?.[0],
+        ].filter((value): value is string => Boolean(value))
       : building
         ? [building.description]
         : [];
-    const objectiveLines = isObjective
-      ? [activeQuest?.requiredInteraction, activeQuest?.worldStateChange, activeQuest?.rewardOutput].filter(
-          (value): value is string => Boolean(value),
-        )
+    const objectiveLines = isObjective && activeQuest
+      ? [
+          activeQuest.objectiveText,
+          activeQuest.worldStateChange,
+          activeQuest.rewardOutput,
+        ].filter((value): value is string => Boolean(value))
       : [];
     const uniswapLine =
       isObjective &&
@@ -472,11 +493,11 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
     return {
       title:         npc?.name ?? building?.name ?? humanize(selection.interactionId),
-      subtitle:      npc?.economyRole ?? building?.description ?? "Village interaction",
+      subtitle:      npc?.shortBio ?? npc?.economyRole ?? building?.description ?? "Village interaction",
       lines:         lines.length > 0 ? lines : ["This landmark reacts to the next live economy step."],
       actionLabel:   isObjective && activeQuest?.actionId ? activeQuest.title : undefined,
       actionId:      isObjective ? activeQuest?.actionId : undefined,
-      objectiveLabel: isObjective ? "Objective" : "Inspect",
+      objectiveLabel: isObjective ? "Next step" : "Inspect",
       bannerText: showSkillBanner ? `▸ ${activeArenaSkill.identity.name} · ACTIVE` : undefined,
       bannerColor:
         activeArenaSkill?.execution.protocol === "Uniswap-V3-XLayer" ? "#ff007a" : "var(--gold)",
@@ -979,7 +1000,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         {activeQuest ? (
           <div className="hud-seg hud-quest-seg">
             <Zap size={10} style={{ color: "var(--gold)", flexShrink: 0 }} />
-            <span className="hud-quest-text">{activeQuest.objectiveText}</span>
+            <span className="hud-quest-text">Next: {activeQuest.title}</span>
           </div>
         ) : null}
 
@@ -994,12 +1015,14 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         {/* Wallet */}
         <div className="hud-seg">
           <div className={`hud-dot ${connDot}`} />
+          <span className="hud-seg-label">Citizen</span>
           <span className="hud-seg-value">{addressLabel}</span>
         </div>
 
         {/* Player name */}
         <div className="hud-seg">
           <Sparkles size={10} style={{ color: "var(--purple)" }} />
+          <span className="hud-seg-label">Handle</span>
           <span className="hud-seg-value">{playerName}</span>
         </div>
 
@@ -1059,13 +1082,21 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
           {/* Status pills */}
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             <span className="px-pill p-green">{world.worldTier ? `Tier ${world.worldTier}` : "Booting"}</span>
-            <span className="px-pill p-gold">Quest {questProgress}%</span>
+            <span className="px-pill p-gold">Rail {questProgress}%</span>
             {activeQuest ? <span className="px-pill p-green">{activeQuest.title}</span> : null}
+          </div>
+
+          <div className="px-card accent-gold">
+            <div className="px-kicker k-gold">Citizen Role</div>
+            <div className="px-title" style={{ fontSize: 14 }}>Wallet-linked citizen</div>
+            <div className="px-body" style={{ fontSize: 13 }}>
+              {canonicalLoopSummary}
+            </div>
           </div>
 
           {/* Progress */}
           <div className="px-card">
-            <div className="px-kicker k-gold">Campaign</div>
+            <div className="px-kicker k-gold">Golden Path</div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
               <span className="px-title" style={{ fontSize: 22 }}>{questProgress}%</span>
               <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 8, color: "var(--text-muted)" }}>
@@ -1082,14 +1113,17 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             <div className="px-kicker k-ice">Location</div>
             <div className="px-title">{currentDistrict?.name ?? stageLabel}</div>
             <div className="px-body" style={{ fontSize: 13 }}>
-              {currentDistrict?.subtitle ?? mapLabels[currentMapId]}
+              {currentDistrict ? districtPurposeCopy[currentDistrict.id] : mapLabels[currentMapId]}
             </div>
           </div>
 
-          {/* Roster */}
+          {/* District purpose */}
           {districtRoster.length > 0 ? (
             <div className="px-card accent-purple">
-              <div className="px-kicker k-purple">Roster</div>
+              <div className="px-kicker k-purple">Who Works Here</div>
+              <div className="px-body" style={{ fontSize: 12, marginTop: 4, color: "var(--text-muted)" }}>
+                {currentDistrict ? districtPurposeCopy[currentDistrict.id] : "Move to a district to learn its economy role."}
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 4 }}>
                 {districtRoster.slice(0, 4).map((npc) => (
                   <div key={npc.id} className="px-roster-row">
@@ -1103,7 +1137,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
           {/* Live feed */}
           <div className="px-card accent-green">
-            <div className="px-kicker k-green">Economy</div>
+            <div className="px-kicker k-green">Settlement Rail</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 4 }}>
               {recentSteps.slice(0, 3).map((step) => (
                 <div key={`${step.key}:${step.startedAt}`} style={{ display: "flex", justifyContent: "space-between", gap: 6, padding: "4px 6px", background: "var(--bg-raised)", border: "1px solid var(--border-dim)" }}>
@@ -1112,23 +1146,10 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 </div>
               ))}
               {recentSteps.length === 0 ? (
-                <span className="px-body" style={{ fontSize: 12, color: "var(--text-muted)" }}>No chain activity yet.</span>
+                <span className="px-body" style={{ fontSize: 12, color: "var(--text-muted)" }}>No settled steps yet.</span>
               ) : null}
             </div>
           </div>
-
-          {/* Latest proof */}
-          {latestProof ? (
-            <div className="px-card accent-ice">
-              <div className="px-kicker k-ice">Latest Proof</div>
-              <div className="px-title" style={{ fontSize: 13 }}>{latestProof.title}</div>
-              <div className="px-body" style={{ fontSize: 12, color: "var(--text-muted)" }}>{latestProof.body}</div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)" }}>{latestProof.label}</span>
-                <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)" }}>{formatTimeLabel(latestProof.createdAt, hasMounted)}</span>
-              </div>
-            </div>
-          ) : null}
 
           {/* Actions */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -1151,7 +1172,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         <div style={{ padding: "8px 10px", borderBottom: "2px solid var(--border-dim)", flexShrink: 0 }}>
           <div className="px-stat-grid">
             <div className="px-stat">
-              <div className="px-stat-label">Wallet</div>
+              <div className="px-stat-label">Citizen</div>
               <div className="px-stat-value">{addressLabel}</div>
             </div>
             <div className="px-stat">
@@ -1182,7 +1203,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
         {/* Panel header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", borderBottom: "2px solid var(--border-dim)", flexShrink: 0 }}>
-          <span className="panel-header-title">{drawerTab.toUpperCase()}</span>
+          <span className="panel-header-title">{drawerHeaderLabels[drawerTab]}</span>
           <button type="button" className="panel-close-btn" onClick={() => setDrawerOpen(false)} aria-label="Close panel">
             <X size={12} />
           </button>
@@ -1192,7 +1213,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         {activeQuest ? (
           <div style={{ padding: "6px 10px", background: "rgba(0,255,65,0.05)", borderBottom: "2px solid rgba(0,255,65,0.2)", flexShrink: 0 }}>
             <div style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-green)" }}>
-              ▸ {activeQuest.title}
+              ▸ Next Rail Step
             </div>
             <div style={{ fontFamily: "var(--font-pixel), monospace", fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.3 }}>
               {activeQuest.objectiveText}
@@ -1218,9 +1239,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                   </div>
                   <div className="px-quest-desc">{step.objectiveText}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <div className="px-detail-row"><strong>Do:</strong>{step.requiredInteraction}</div>
-                    <div className="px-detail-row"><strong>Effect:</strong>{step.worldStateChange}</div>
-                    <div className="px-detail-row"><strong>Proof:</strong>{step.rewardOutput}</div>
+                    <div className="px-detail-row"><strong>Action:</strong>{step.requiredInteraction}</div>
+                    <div className="px-detail-row"><strong>Impact:</strong>{step.worldStateChange}</div>
+                    <div className="px-detail-row"><strong>Receipt:</strong>{step.rewardOutput}</div>
                   </div>
                 </article>
               ))}
@@ -1254,7 +1275,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               ) : (
                 <div className="px-card">
                   <div className="px-kicker">No Proof Yet</div>
-                  <div className="px-body" style={{ fontSize: 13 }}>Complete a quest action to mint your first proof on X Layer.</div>
+                  <div className="px-body" style={{ fontSize: 13 }}>Complete the first rail step to mint your first proof on X Layer.</div>
                 </div>
               )}
             </div>
@@ -1275,6 +1296,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                       <button type="button" className="px-link" onClick={() => handleGuideToDistrict(district.id)}>
                         <LocateFixed size={10} />Go
                       </button>
+                    </div>
+                    <div className="px-quest-desc" style={{ fontSize: 12 }}>
+                      {districtPurposeCopy[district.id]}
                     </div>
                     <div className="px-quest-desc" style={{ fontSize: 12 }}>
                       {district.npcRoster.map((id) => npcLookup.get(id)?.name ?? humanize(id)).join(" • ")}
@@ -1337,8 +1361,8 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 </div>
                 <div className="px-body" style={{ fontSize: 12, marginTop: 6, color: "var(--text-muted)" }}>
                   {controlMode === "manual"
-                    ? "Default mode. Your connected wallet signs the steps it can legitimately perform."
-                    : "Opt-in mode. Autonomous district agents run the step after an x402 payment challenge."}
+                    ? "Wallet-led mode. Your connected wallet signs the step it can legitimately perform."
+                    : "x402 mode. An agent can run the step after the payment challenge clears."}
                 </div>
               </div>
 
@@ -1429,8 +1453,11 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
               {/* Wallet section */}
               <div className="px-card accent-purple">
-                <div className="px-kicker k-purple">Agent</div>
+                <div className="px-kicker k-purple">Handle</div>
                 <div className="px-title" style={{ fontSize: 14 }}>{playerName}</div>
+                <div className="px-body" style={{ fontSize: 12, marginTop: 4, color: "var(--text-muted)" }}>
+                  This is your village name. Your wallet remains the only login.
+                </div>
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                   <input
                     value={playerNameDraft}
@@ -1500,7 +1527,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 <div key={district.id} className={`map-hud-node ${isActive ? "is-active" : ""}`}>
                   <div style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 8, color: "var(--text-green)", marginBottom: 4 }}>{district.id.split("-")[0].toUpperCase()}</div>
                   <div style={{ fontFamily: "var(--font-display), sans-serif", fontSize: 13, fontWeight: "bold", color: "var(--text-white)", textAlign: "center", lineHeight: 1.1, marginBottom: 2 }}>{district.name}</div>
-                  <div style={{ fontFamily: "var(--font-pixel), monospace", fontSize: 11, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.2 }}>{district.subtitle}</div>
+                  <div style={{ fontFamily: "var(--font-pixel), monospace", fontSize: 11, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.2 }}>{districtPurposeCopy[district.id]}</div>
                 </div>
               );
             })}
@@ -1573,7 +1600,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             <div className="startup-console">
               <div className="startup-console-row"><span>status</span><strong>{startupStatusLabel}</strong></div>
               <div className="startup-console-row"><span>scene</span><strong>{sceneId}</strong></div>
-              <div className="startup-console-row"><span>wallet</span><strong>{displayWalletIdentity.connected ? "linked" : "awaiting"}</strong></div>
+              <div className="startup-console-row"><span>citizen</span><strong>{displayWalletIdentity.connected ? "linked" : "awaiting"}</strong></div>
             </div>
 
             <div className="startup-meter">
@@ -1609,7 +1636,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <div className="onboarding-logo-kicker">X Layer World Economy</div>
               <div className="onboarding-logo">Bazaar<span>X</span></div>
               <div className="onboarding-copy">
-                Connect your wallet, validate X Layer, name your agent, then enter the living village where economy settles onchain.
+                Your wallet is your citizenship. Your handle is the name people see in the village. One rail opens the shop, routes labor, collects tax, and replays the payment under new rules.
               </div>
             </div>
 
@@ -1617,7 +1644,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <div className={`onboarding-step ${displayWalletIdentity.connected ? "is-done" : "is-active"}`}>
                 <div className="onboarding-step-kicker">{displayWalletIdentity.connected ? "✓ Wallet linked" : "Step 1"}</div>
                 <div className="onboarding-step-title">{displayWalletIdentity.connected ? addressLabel : "Connect Wallet"}</div>
-                <div className="onboarding-step-desc">{displayWalletIdentity.connected ? "Identity keyed to wallet." : "No email. Wallet is the only login."}</div>
+                <div className="onboarding-step-desc">{displayWalletIdentity.connected ? "Wallet address is your citizenship key." : "No email. Wallet is the only login."}</div>
               </div>
               <div className={`onboarding-step ${displayWalletIdentity.validNetwork ? "is-done" : displayWalletIdentity.connected ? "is-active" : ""}`}>
                 <div className="onboarding-step-kicker">{displayWalletIdentity.validNetwork ? "✓ X Layer ready" : "Step 2"}</div>
@@ -1626,7 +1653,8 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               </div>
               <div className="onboarding-step">
                 <div className="onboarding-step-kicker">Step 3</div>
-                <div className="onboarding-step-title">Name Agent</div>
+                <div className="onboarding-step-title">Choose Handle</div>
+                <div className="onboarding-step-desc">This name appears in the village. The wallet still signs every live action.</div>
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                   <input
                     value={playerNameDraft}
@@ -1657,7 +1685,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             <div className="onboarding-footer">
               <div className={`onboarding-ready-dot ${canEnterVillage ? "is-ready" : ""}`} />
               <span className="onboarding-ready-label">
-                {canEnterVillage ? "Ready — enter the village" : "Wallet + X Layer required"}
+                {canEnterVillage ? "Ready — enter the village" : "Wallet citizenship + X Layer required"}
               </span>
             </div>
           </div>
