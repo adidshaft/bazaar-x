@@ -1,5 +1,5 @@
 import { defaultUnlockedSkillIds } from "@/lib/skills/ai-skills";
-import { XRAY_CHAIN_IDS } from "@/game/config/constants";
+import { defaultXLayerChain } from "@/lib/xlayer";
 import type { PersistedPlayerState, WalletIdentity } from "@/game/core/live-types";
 
 const agentPrefixes = ["Lattice", "Signal", "Relay", "Vector", "Nimbus", "Cinder", "Harbor", "Nova"] as const;
@@ -26,7 +26,7 @@ export function resolveWalletIdentity(input: {
 }): WalletIdentity {
   return {
     connected: input.isConnected,
-    validNetwork: Boolean(input.chainId && XRAY_CHAIN_IDS.includes(input.chainId as 1952 | 196)),
+    validNetwork: input.chainId === defaultXLayerChain.id,
     address: input.address,
     chainId: input.chainId,
   };

@@ -462,7 +462,12 @@ export async function getX402Status(address: Address) {
     payTo: balanceSnapshot.token.payTo,
     canClaimStipend: balanceSnapshot.balance < minimumBalance,
     stipendAmountLabel: `${X402_STIPEND_AMOUNT} ${balanceSnapshot.token.symbol}`,
-    lastClaim: claim,
+    lastClaim: claim
+      ? {
+          ...claim,
+          explorerUrl: explorerTxUrl(claim.txHash, balanceSnapshot.token.explorerBaseUrl),
+        }
+      : null,
   };
 }
 
@@ -949,12 +954,12 @@ export function buildSkillPaymentProof(input: {
   return {
     id: `${input.receipt.id}:proof`,
     kind: "payment",
-    title: `${input.skillName} Delegation Paid`,
+    title: `${input.skillName} Delegation Receipt`,
     body:
-      `${input.receipt.amountLabel} settled to the village treasury through the local x402 facilitator ` +
+      `${input.receipt.amountLabel} cleared as a separate paid delegation receipt through the local x402 facilitator ` +
       "on X Layer testnet.",
     statement:
-      `${input.skillId} unlock payment settled via x402 exact EVM on X Layer testnet.`,
+      `${input.skillId} paid delegation receipt settled via x402 exact EVM on X Layer testnet.`,
     label: input.receipt.amountLabel,
     districtId: "council-hall",
     actionId: "open-guild",

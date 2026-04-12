@@ -7,6 +7,24 @@ function humanize(id: string | null) {
   return id ? id.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "";
 }
 
+const objectivePromptLabelLookup: Record<string, string> = {
+  "keeper-gate": "Village Gate",
+  "forge-door": "Bazaar Forge",
+  "depot-door": "Supplier Depot",
+  "guild-yard": "Worker Yard",
+  "council-door": "Council Hall",
+  "supplier-desk": "Supplier Desk",
+  "treasury-board": "Treasury Board",
+};
+
+function objectivePromptLabel(id: string | null) {
+  if (!id) {
+    return "";
+  }
+
+  return objectivePromptLabelLookup[id] ?? humanize(id);
+}
+
 function pendingActionSourceLabel() {
   const pendingAction = bazaarGameStore.getState().pendingAction;
   if (!pendingAction?.executionKind) {
@@ -77,12 +95,12 @@ export class UIScene extends Phaser.Scene {
     panel.setDepth(5000);
 
     const background = this.add
-      .rectangle(0, 0, 340, 28, 0x0f1821, 0.48)
-      .setStrokeStyle(1, 0x84ddff, 0.24);
-    this.promptText = this.add.text(-140, 0, "", {
+      .rectangle(0, 0, 420, 30, 0x0f1821, 0.6)
+      .setStrokeStyle(1, 0x84ddff, 0.3);
+    this.promptText = this.add.text(-188, 0, "", {
       color: "#eef8ff",
       fontFamily: "\"Press Start 2P\", monospace",
-      fontSize: "7px",
+      fontSize: "8px",
     });
     this.promptText.setOrigin(0, 0.5);
 
@@ -111,15 +129,15 @@ export class UIScene extends Phaser.Scene {
   update() {
     const state = bazaarGameStore.getState();
     const focusedLabel = humanize(state.focusedInteractionId);
-    const objectiveLabel = humanize(state.objectiveTargetId);
+    const objectiveLabel = objectivePromptLabel(state.objectiveTargetId);
     const prompt = state.focusedInteractionId
       ? `E inspect ${focusedLabel}`
       : objectiveLabel
-        ? `Next: ${objectiveLabel}`
+        ? `Next stop: ${objectiveLabel}`
         : "WASD move · E inspect";
 
     this.promptText.setText(prompt);
-    this.promptPanel.setAlpha(state.focusedInteractionId ? 0.88 : 0.34);
+    this.promptPanel.setAlpha(state.focusedInteractionId ? 0.94 : objectiveLabel ? 0.76 : 0.4);
 
     if (
       this.txPill &&

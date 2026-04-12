@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { defaultXLayerChain } from "@/lib/xlayer";
 
 function shortAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -45,14 +46,22 @@ export function ConnectWalletButton({
   }
 
   if (isConnected && address) {
+    const wrongChain = Boolean(chain && chain.id !== defaultXLayerChain.id);
     return (
       <button
         type="button"
         onClick={() => disconnect()}
         className={`${baseClass} ${isPixel ? "" : "rounded-full border border-white/10 bg-white/[0.05] text-slate-200 hover:border-[#69f0d2]/40 hover:text-white"}`}
       >
-        <span className={isPixel ? "hud-dot is-green" : "h-2 w-2 rounded-full bg-[#69f0d2]"} />
-        {shortAddress(address)}{chain ? ` · ${chain.name}` : ""}
+        <span
+          className={
+            isPixel
+              ? `hud-dot ${wrongChain ? "is-gold" : "is-green"}`
+              : `h-2 w-2 rounded-full ${wrongChain ? "bg-[#f6c453]" : "bg-[#69f0d2]"}`
+          }
+        />
+        {shortAddress(address)}
+        {wrongChain ? " · X Layer Testnet Required" : chain ? ` · ${chain.name}` : ""}
       </button>
     );
   }

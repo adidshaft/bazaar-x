@@ -12,6 +12,7 @@ import { bazaarEventBridge } from "@/game/core/event-bridge";
 import { findSkillById } from "@/lib/skills/ai-skills";
 import { explorerAddressUrl } from "@/lib/xlayer";
 import {
+  clearPersistedPaymentSessions,
   claimX402StipendRequest,
   fetchX402Status,
   postWithX402Retry,
@@ -371,7 +372,7 @@ export function configureX402ClientContext(context: X402ClientContext | null) {
   activeX402ClientContext = context;
 }
 
-export { claimX402StipendRequest, fetchX402Status };
+export { claimX402StipendRequest, fetchX402Status, clearPersistedPaymentSessions };
 
 export const transactionService = {
   configureX402ClientContext,
@@ -385,4 +386,5 @@ export const transactionService = {
   exportSkillManifest,
   fetchX402Status,
   claimX402StipendRequest,
+  clearPersistedPaymentSessions,
 };

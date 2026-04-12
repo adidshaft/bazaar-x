@@ -63,3 +63,12 @@ export function savePersistedPlayerState(
 
   window.localStorage.setItem(key, JSON.stringify(state));
 }
+
+export function clearPersistedPlayerState(wallet: WalletIdentity) {
+  const key = createWalletStorageKey(wallet);
+  if (!key || typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(key);
+}

@@ -148,9 +148,60 @@ function getPersistedPaymentSession(
   return loadPaymentSessions(wallet)[`${kind}:${resourceId}`] ?? null;
 }
 
+function describeX402InvalidReason(reason?: string, cause?: string) {
+  switch (reason) {
+    case "insufficient_balance":
+      return "Insufficient Credit. Claim the citizen stipend or top up BXC, then try again.";
+    case "authorization_expired":
+      return "Authorization Expired. Start the payment again and sign a fresh x402 authorization.";
+    case "authorization_replayed":
+    case "authorization_already_settled":
+      return "Authorization Already Used. Retry to mint a fresh payment session.";
+    case "authorization_not_yet_valid":
+      return "Authorization Not Yet Valid. Wait a moment, then retry.";
+    case "invalid_signature":
+      return "Signature Invalid. Sign again with the same connected wallet.";
+    case "invalid_payee":
+    case "invalid_amount":
+    case "requirements_mismatch":
+    case "invalid_header_encoding":
+      return "Payment Payload Mismatch. Restart the delegation from the beginning.";
+    case "settlement_reverted":
+      return cause
+        ? `Settlement Reverted. ${cause}`
+        : "Settlement Reverted. Retry the delegation or refresh your credit.";
+    default:
+      return null;
+  }
+}
+
+function isUserRejectedError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("user rejected") ||
+    normalized.includes("user denied") ||
+    normalized.includes("request rejected") ||
+    normalized.includes("rejected the request")
+  );
+}
+
 function extractError(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") {
     return fallback;
+  }
+
+  const details =
+    (payload as { error?: { details?: { invalidReason?: string; cause?: string } } }).error?.details;
+  const detailedMessage = describeX402InvalidReason(details?.invalidReason, details?.cause);
+  if (detailedMessage) {
+    return detailedMessage;
   }
 
   const maybeMessage =
@@ -266,11 +317,19 @@ export async function postWithX402Retry<TBody extends Record<string, unknown>>(i
   });
   input.onPhaseChange?.({ phase: "payment-required", paymentRequired });
 
-  const signedPayload = await signPaymentPayload({
-    payerAddress: input.payerAddress,
-    walletClient: input.walletClient,
-    paymentRequired,
-  });
+  let signedPayload: Awaited<ReturnType<typeof signPaymentPayload>>;
+  try {
+    signedPayload = await signPaymentPayload({
+      payerAddress: input.payerAddress,
+      walletClient: input.walletClient,
+      paymentRequired,
+    });
+  } catch (error) {
+    if (isUserRejectedError(error)) {
+      throw new Error("Signature Rejected. The x402 payment was not authorized.", { cause: error });
+    }
+    throw error;
+  }
   input.onPhaseChange?.({ phase: "signing", paymentRequired });
 
   const encodedPayload = encodeBase64Json(signedPayload);
@@ -311,7 +370,12 @@ type X402StatusResponse = {
     payTo: `0x${string}`;
     canClaimStipend: boolean;
     stipendAmountLabel: string;
-    lastClaim: { amountLabel: string; txHash: `0x${string}`; claimedAt: string } | null;
+    lastClaim: {
+      amountLabel: string;
+      txHash: `0x${string}`;
+      claimedAt: string;
+      explorerUrl: string;
+    } | null;
   };
 };
 
@@ -351,4 +415,13 @@ export async function claimX402StipendRequest(address: `0x${string}`) {
   }
 
   return payload.stipend;
+}
+
+export function clearPersistedPaymentSessions(wallet: WalletIdentity) {
+  const key = paymentStorageKey(wallet);
+  if (!key || typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(key);
 }

@@ -49,9 +49,14 @@ import {
   resolveWalletIdentity,
 } from "@/game/systems/player-service";
 import { deriveQuestRail, getActiveQuestStep } from "@/game/systems/quest-service";
-import { loadPersistedPlayerState, savePersistedPlayerState } from "@/game/systems/persistence-service";
+import {
+  clearPersistedPlayerState,
+  loadPersistedPlayerState,
+  savePersistedPlayerState,
+} from "@/game/systems/persistence-service";
 import { ProofListener } from "@/game/systems/proof-service";
 import {
+  clearPersistedPaymentSessions,
   claimX402StipendRequest,
   configureX402ClientContext,
   delegateTradeSkill,
@@ -209,7 +214,19 @@ function proofTypeLabel(proof: ProofArtifact) {
   }
 
   if (proof.kind === "receipt") {
-    return "settlement proof";
+    return proof.actionId === "treasury-reinvest" ? "treasury proof" : "settlement proof";
+  }
+
+  if (proof.kind === "decree") {
+    return "governance proof";
+  }
+
+  if (proof.actionId === "treasury-reinvest" || proof.stepKey === "treasury-reinvests") {
+    return "treasury proof";
+  }
+
+  if (proof.kind === "unlock") {
+    return "skill unlock proof";
   }
 
   return proof.kind;
@@ -293,6 +310,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const [resetConfirm, setResetConfirm]             = useState(false);
   const [resetPending, setResetPending]             = useState(false);
   const [controlMode, setControlMode]               = useState<ActionControlMode>("manual");
+  const [victoryDismissed, setVictoryDismissed]     = useState(false);
 
   const { address, chain, isConnected } = useAccount();
   const { data: balance } = useBalance({ address, query: { enabled: Boolean(address) } });
@@ -774,7 +792,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     ? !displayWalletIdentity.connected
       ? "Connect wallet to act."
       : !displayWalletIdentity.validNetwork
-        ? `Switch to X Layer (chain ${defaultXLayerChain.id}).`
+        ? `Switch to X Layer Testnet (chain ${defaultXLayerChain.id}).`
         : needsX402Credit
           ? "Claim your citizen stipend before running a paid delegation."
         : actionMutation.isPending
@@ -905,7 +923,8 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const onboardingVisible  = !hydrated || !displayWalletIdentity.connected || !displayWalletIdentity.validNetwork || !hasEnteredVillage;
   const canEnterVillage    = hydrated && displayWalletIdentity.connected && displayWalletIdentity.validNetwork;
   const activeLaborCount   = useMemo(() => Object.values(laborRouting.npcStates).filter((s) => s.status === "walking").length, [laborRouting.npcStates]);
-  const cinematicFocusMode = Boolean(selection || mapOpen || skillHudMapId || proofOverlay || isComplete || onboardingVisible);
+  const showVictoryOverlay = isComplete && !victoryDismissed && !onboardingVisible;
+  const cinematicFocusMode = Boolean(selection || mapOpen || skillHudMapId || proofOverlay || showVictoryOverlay || onboardingVisible);
 
   const liveError = (statusQuery.error instanceof Error ? statusQuery.error.message : null)
     ?? (actionMutation.error instanceof Error ? actionMutation.error.message : null)
@@ -914,6 +933,12 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   useEffect(() => {
     bazaarEventBridge.emit("camera:focus-mode", { active: cinematicFocusMode });
   }, [cinematicFocusMode]);
+
+  useEffect(() => {
+    if (!isComplete) {
+      setVictoryDismissed(false);
+    }
+  }, [isComplete]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -1102,14 +1127,38 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       setSelection(null);
       setProofOverlay(null);
       setSkillHudMapId(null);
+      setVictoryDismissed(false);
+      setMapOpen(false);
+      setBriefOpen(false);
+      setDrawerOpen(false);
       setResetConfirm(false);
+      setControlMode("manual");
+      setHasEnteredVillage(false);
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(sessionKey);
+        window.localStorage.removeItem(controlModeKey);
+      }
+      clearPersistedPlayerState(walletIdentity);
+      clearPersistedPaymentSessions(walletIdentity);
       bazaarGameStore.getState().resetRuntime();
+      const defaultPersistence = createDefaultPlayerPersistence();
+      const defaultPlayerName = resolveDefaultPlayerName(walletIdentity.address);
+      bazaarGameStore.getState().hydrateFromPersistence({
+        ...defaultPersistence,
+        playerName: defaultPlayerName,
+      });
+      bazaarGameStore.getState().setPlayerName(defaultPlayerName);
+      setPlayerNameDraft(defaultPlayerName);
+      bazaarEventBridge.emit("scene:enter", {
+        mapId: "village-exterior",
+        spawnId: "gate-spawn",
+      });
       await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
       await statusQuery.refetch();
       bazaarEventBridge.emit("toast:show", {
         id: "runtime-reset",
         title: "Run Reset",
-        body: "Runtime state cleared. The village is ready for a fresh replay.",
+        body: "Runtime and local replay state cleared. The village is ready for a fresh testnet rehearsal.",
         tone: "success",
       });
     } catch (error) {
@@ -1617,11 +1666,11 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                     </div>
                     <div className="px-quest-desc">{proof.body}</div>
                     <div style={{ display: "flex", gap: 12, marginTop: 2 }}>
-                      <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)" }}>{humanize(proof.districtId)}</span>
+                      <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 10, color: "var(--text-muted)" }}>{humanize(proof.districtId)}</span>
                       {proof.executionLabel ? (
-                        <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)" }}>{proof.executionLabel}</span>
+                        <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 10, color: "var(--text-muted)" }}>{proof.executionLabel}</span>
                       ) : null}
-                      <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 7, color: "var(--text-muted)" }}>{formatTimeLabel(proof.createdAt, hasMounted)}</span>
+                      <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 10, color: "var(--text-muted)" }}>{formatTimeLabel(proof.createdAt, hasMounted)}</span>
                     </div>
                   </article>
                 ))
@@ -1771,9 +1820,17 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                         ? "Minting…"
                         : x402StatusQuery.data?.canClaimStipend
                           ? `Claim ${x402StatusQuery.data.stipendAmountLabel}`
-                          : "Credit Ready"}
+                          : "Already Claimed"}
                     </button>
                   </div>
+                  {x402StatusQuery.data?.lastClaim ? (
+                    <div className="px-body" style={{ fontSize: 12, marginTop: 6, color: "var(--text-muted)" }}>
+                      Latest stipend claim: {x402StatusQuery.data.lastClaim.amountLabel} at {formatTimeLabel(x402StatusQuery.data.lastClaim.claimedAt, hasMounted)}.{" "}
+                      <a href={x402StatusQuery.data.lastClaim.explorerUrl} target="_blank" rel="noreferrer" className="px-link">
+                        <ArrowUpRight size={10} />TX
+                      </a>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -1904,7 +1961,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
               {displayWalletIdentity.connected && !displayWalletIdentity.validNetwork ? (
                 <button type="button" disabled={isSwitching} onClick={() => switchChain?.({ chainId: defaultXLayerChain.id })} className="px-btn primary" style={{ width: "100%", justifyContent: "center" }}>
-                  <Wallet size={12} />{isSwitching ? "Switching…" : "Switch To X Layer"}
+                  <Wallet size={12} />{isSwitching ? "Switching…" : "Switch To X Layer Testnet"}
                 </button>
               ) : null}
 
@@ -1963,8 +2020,13 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         </div>
       ) : null}
 
-      {isComplete ? (
-        <VictoryOverlay proofs={deferredProofs} liveStatus={liveStatus} onReset={() => void handleReset()} />
+      {showVictoryOverlay ? (
+        <VictoryOverlay
+          proofs={deferredProofs}
+          liveStatus={liveStatus}
+          onClose={() => setVictoryDismissed(true)}
+          onReset={() => void handleReset()}
+        />
       ) : null}
 
       {/* ── OVERLAYS & MODALS ──────────────────────────────────────────────── */}
@@ -2064,7 +2126,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               <div className="onboarding-logo-kicker">X Layer World Economy</div>
               <div className="onboarding-logo">Bazaar<span>X</span></div>
               <div className="onboarding-copy">
-                Wallet is citizenship. Wallet-led steps sign on X Layer testnet, paid delegations use x402, and Ops shows whether execution used the OnchainOS gateway or the manifest fallback on this chain.
+                Wallet is citizenship. Wallet-led steps sign on X Layer testnet, paid delegations use x402, and Ops shows whether execution used the requested OnchainOS path or the manifest fallback that actually ran on this chain.
               </div>
             </div>
 
@@ -2075,9 +2137,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 <div className="onboarding-step-desc">{displayWalletIdentity.connected ? "Wallet address is your citizenship key." : "No email. Wallet is the only login."}</div>
               </div>
               <div className={`onboarding-step ${displayWalletIdentity.validNetwork ? "is-done" : displayWalletIdentity.connected ? "is-active" : ""}`}>
-                <div className="onboarding-step-kicker">{displayWalletIdentity.validNetwork ? "✓ X Layer ready" : "Step 2"}</div>
-                <div className="onboarding-step-title">{displayWalletIdentity.validNetwork ? chainLabel : "Validate Network"}</div>
-                <div className="onboarding-step-desc">{displayWalletIdentity.validNetwork ? "Live economy sync active." : "Switch to X Layer for live actions."}</div>
+                <div className="onboarding-step-kicker">{displayWalletIdentity.validNetwork ? "✓ Testnet ready" : "Step 2"}</div>
+                <div className="onboarding-step-title">{displayWalletIdentity.validNetwork ? chainLabel : "X Layer Testnet Required"}</div>
+                <div className="onboarding-step-desc">{displayWalletIdentity.validNetwork ? "Live economy sync active." : "Wrong chain detected. Switch to X Layer Testnet for live actions."}</div>
               </div>
               <div className="onboarding-step">
                 <div className="onboarding-step-kicker">Step 3</div>
@@ -2100,7 +2162,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               {!displayWalletIdentity.connected ? <ConnectWalletButton variant="pixel" fullWidth /> : null}
               {displayWalletIdentity.connected && !displayWalletIdentity.validNetwork ? (
                 <button type="button" disabled={isSwitching} onClick={() => switchChain?.({ chainId: defaultXLayerChain.id })} className="px-btn primary" style={{ padding: "10px 20px" }}>
-                  <Wallet size={14} />{isSwitching ? "Switching…" : "Switch To X Layer"}
+                  <Wallet size={14} />{isSwitching ? "Switching…" : "Switch To X Layer Testnet"}
                 </button>
               ) : null}
               {canEnterVillage ? (
@@ -2113,7 +2175,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             <div className="onboarding-footer">
               <div className={`onboarding-ready-dot ${canEnterVillage ? "is-ready" : ""}`} />
               <span className="onboarding-ready-label">
-                {canEnterVillage ? "Ready — enter the village" : "Wallet citizenship + X Layer required"}
+                {canEnterVillage ? "Ready — enter the village" : "Wallet citizenship + X Layer Testnet required"}
               </span>
             </div>
           </div>

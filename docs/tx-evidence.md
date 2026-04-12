@@ -10,6 +10,10 @@ This sheet collects the live X Layer testnet proof used in the Build X submissio
 - Contract: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
 - Treasury: `0xA90447Cb62B91467e45CC37e8B6020Dfd744f648`
 - Deployment tx: [0xd2616fe99793bca1732044ddd6d5c833fa682eb5fdd8640227528408171d169b](https://www.oklink.com/x-layer-testnet/tx/0xd2616fe99793bca1732044ddd6d5c833fa682eb5fdd8640227528408171d169b)
+- Canonical runtime artifact: `.bazaarx/runtime/live/latest.json`
+- Canonical count: `21` total tx hashes (`20` post-deploy flow txs + `1` deployment tx)
+- Current recorded actual executor: `manifest-wallet`
+- Requested autonomous executor: `agentic-wallet`
 
 ## Canonical Flow
 
@@ -23,8 +27,8 @@ This sheet collects the live X Layer testnet proof used in the Build X submissio
 - List supplier service: [0x58865d95bc74d99e0a70864c5b4310b73504d752e66442b5f7c4db8ebabc041c](https://www.oklink.com/x-layer-testnet/tx/0x58865d95bc74d99e0a70864c5b4310b73504d752e66442b5f7c4db8ebabc041c)
 - List worker service: [0x55451d3c24ec0af4e40405f50bbc1dfedd9bea6d3c5581fbd6c38148fb4e7f88](https://www.oklink.com/x-layer-testnet/tx/0x55451d3c24ec0af4e40405f50bbc1dfedd9bea6d3c5581fbd6c38148fb4e7f88)
 - Supplier hires worker: [0xf75537218fa204fe6907504e735449404e1bc61da126ab42f57eda6a4512d151](https://www.oklink.com/x-layer-testnet/tx/0xf75537218fa204fe6907504e735449404e1bc61da126ab42f57eda6a4512d151)
-- Supplier route swap: [0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da](https://www.oklink.com/x-layer-testnet/tx/0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da)
-- Shop hires supplier: [0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67](https://www.oklink.com/x-layer-testnet/tx/0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67)
+- Uniswap supplier-route swap proof: [0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da](https://www.oklink.com/x-layer-testnet/tx/0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da)
+- Supplier settlement proof: [0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67](https://www.oklink.com/x-layer-testnet/tx/0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67)
 - Governance proposal: [0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0](https://www.oklink.com/x-layer-testnet/tx/0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0)
 - Shop vote: [0xf183149237359ef9e6e78e974aeedc42eeb977c3d250d1dfc0d8aceca39b3ba7](https://www.oklink.com/x-layer-testnet/tx/0xf183149237359ef9e6e78e974aeedc42eeb977c3d250d1dfc0d8aceca39b3ba7)
 - Supplier vote: [0x50619470ca2131745d7039c808ca4c87401543ba275d0d3fb4a6f7dbc33feab5](https://www.oklink.com/x-layer-testnet/tx/0x50619470ca2131745d7039c808ca4c87401543ba275d0d3fb4a6f7dbc33feab5)
@@ -48,8 +52,9 @@ Notes:
 
 ## Current Onchain State
 
-- Recorded live runtime size: `20` tx hashes
+- Recorded live runtime size: `21` total tx hashes (`20` post-deploy flow txs + `1` deployment tx)
 - Treasury balance after the run: `0.016697820649891033 OKB`
+- Uniswap pair address: `0x1bf1C8423924807f20De5571955b92Da137a125C`
 - Post-governance rules:
   - Tax: `800` bps = `8.00%`
   - Minimum balance: `1500000000000000` wei = `0.0015 OKB`

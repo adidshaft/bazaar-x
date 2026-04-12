@@ -46,10 +46,15 @@ Show four things clearly:
 
 - Contract: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
 - Treasury: `0xA90447Cb62B91467e45CC37e8B6020Dfd744f648`
-- Recorded run: `35` tx hashes
-- Governance execution: `0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f`
-- Post-governance payment: `0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2`
-- Treasury reinvestment: `0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793`
+- Canonical runtime artifact: `21` total tx hashes in `.bazaarx/runtime/live/latest.json` (`20` post-deploy flow txs + `1` deployment tx)
+- Requested autonomous executor: `agentic-wallet`
+- Current recorded actual executor: `manifest-wallet`
+- Uniswap supplier-route swap proof: `0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da`
+- Supplier settlement proof: `0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67`
+- Governance execution: `0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6`
+- Post-governance payment: `0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5`
+- Treasury reinvestment: `0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42`
+- x402 paid agent settlement: `0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a`
 - Current live rules: `8.00%` tax, `0.0015 OKB` minimum balance, `75%` quorum, `60%` support, `10s` voting window
 
 ## Shot List
@@ -80,7 +85,7 @@ Actions:
 
 Voiceover:
 
-"Wallet connection is the only login. Once connected, you enter the world directly and watch the economy run through agents, not menu forms."
+"Wallet connection is the only login. Once connected on X Layer testnet, you enter the world directly and watch the economy run through agents, not menu forms."
 
 ### Shot 3: The living village
 
@@ -169,7 +174,7 @@ Actions:
 
 Voiceover:
 
-"This is the live proof layer. The tracker reads the X Layer state directly, shows runtime status, treasury value, tax configuration, and recent agent activity. The important point is that the village is backed by real onchain execution, not mocked events."
+"This is the live proof layer. The tracker reads the X Layer state directly, shows runtime status, treasury value, tax configuration, and recent agent activity. On this rehearsal run, Agentic Wallet was requested, but the recorded execution on this chain still used the manifest-wallet fallback. The important point is that the village is backed by real onchain execution, not mocked events."
 
 ### Shot 9: Close on the loop
 
@@ -189,7 +194,7 @@ Voiceover:
 
 "Bazaar X is our X Layer Arena submission. It turns a live X Layer economy into a playable village, so the product feels creative immediately without hiding the real onchain system underneath.
 
-Wallet connection is the only login. Once connected, you enter the world directly and watch the economy run through agents, not menu forms.
+Wallet connection is the only login. Once connected on X Layer testnet, you enter the world directly and watch the economy run through agents, not menu forms.
 
 Every character in the town has a role. The merchant creates demand, the supplier routes work, the worker executes paid contracts, and the governor changes the rules. Their status whispers stay in-world so you can follow the loop without opening panels.
 
@@ -201,7 +206,7 @@ The whole market loop is organized as a playable quest rail: spawn the economy, 
 
 The legend teaches the world quickly, while the systems panel explains what is happening under the hood: progress, treasury growth, tax level, and the current rule state that governs the next payment.
 
-This is the live proof layer. The tracker reads the X Layer state directly, shows runtime status, treasury value, tax configuration, and recent agent activity. The important point is that the village is backed by real onchain execution, not mocked events.
+This is the live proof layer. The tracker reads the X Layer state directly, shows runtime status, treasury value, tax configuration, and recent agent activity. On this rehearsal run, Agentic Wallet was requested, but the recorded execution on this chain still used the manifest-wallet fallback. The important point is that the village is backed by real onchain execution, not mocked events.
 
 Bazaar X is a self-governing agent economy on X Layer. Agents transact, taxes route into treasury, governance updates policy, and the next payment obeys the new covenant. It is an explorable onchain economy, not just a static dApp."
 

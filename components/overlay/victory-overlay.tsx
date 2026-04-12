@@ -7,10 +7,11 @@ import { explorerAddressUrl } from "@/lib/xlayer";
 type VictoryOverlayProps = {
   proofs: ProofArtifact[];
   liveStatus: LiveDashboardStatus | null;
+  onClose: () => void;
   onReset: () => void;
 };
 
-export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayProps) {
+export function VictoryOverlay({ proofs, liveStatus, onClose, onReset }: VictoryOverlayProps) {
   const contractAddress =
     liveStatus?.liveDashboard.runtime?.deployment?.contractAddress ?? liveStatus?.onchain?.address ?? null;
   const explorerBaseUrl =
@@ -36,7 +37,27 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
       return "Payment Proof";
     }
 
-    return proof.kind === "swap" ? "Swap Proof" : proof.kind === "receipt" ? "Settlement Proof" : proof.kind;
+    if (proof.kind === "swap") {
+      return "Swap Proof";
+    }
+
+    if (proof.kind === "receipt") {
+      return proof.actionId === "treasury-reinvest" ? "Treasury Proof" : "Settlement Proof";
+    }
+
+    if (proof.kind === "decree") {
+      return "Governance Proof";
+    }
+
+    if (proof.actionId === "treasury-reinvest" || proof.stepKey === "treasury-reinvests") {
+      return "Treasury Proof";
+    }
+
+    if (proof.kind === "unlock") {
+      return "Skill Unlock Proof";
+    }
+
+    return proof.kind;
   }
 
   return (
@@ -45,7 +66,7 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
         <div className="victory-scanline" />
         <div className="victory-kicker">Village Loop Complete</div>
         <div className="victory-headline">
-          The town now reads as a live economy, not a mock overlay.
+          The town now reads as a live X Layer testnet economy.
         </div>
         <div className="victory-summary">
           {proofs.length} Proofs Minted · {gdp.toFixed(1)} GDP · {(taxBps / 100).toFixed(2)}% Tax · {treasury.toFixed(3)} OKB Vault · {txCount} TXs
@@ -80,6 +101,9 @@ export function VictoryOverlay({ proofs, liveStatus, onReset }: VictoryOverlayPr
         </div>
 
         <div className="victory-actions">
+          <button type="button" className="px-btn ghost" onClick={onClose}>
+            Keep Touring
+          </button>
           <button type="button" className="px-btn gold" onClick={onReset}>
             <RefreshCw size={12} /> Replay From Scratch
           </button>

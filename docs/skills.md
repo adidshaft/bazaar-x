@@ -28,6 +28,12 @@ Future registry install:
 pnpm add @bazaar-x/covenant-skill
 ```
 
+Proof:
+- `pnpm --dir covenant-skill test`
+- `pnpm --dir covenant-skill smoke:install`
+- Clean-room install proof script: `covenant-skill/scripts/smoke-install.mjs`
+- API coverage: `covenant-skill/test/covenant-skill.test.mjs`
+
 ## Why It Exists
 
 The town UI is Bazaar X specific.

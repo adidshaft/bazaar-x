@@ -1620,7 +1620,8 @@ body {
   background: rgba(17, 24, 33, 0.78);
   color: #9ab7c7;
   font-family: var(--font-arcade), monospace;
-  font-size: 7px;
+  font-size: 10px;
+  line-height: 1.35;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

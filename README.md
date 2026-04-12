@@ -20,15 +20,36 @@ The goal is not a mock demo. The goal is a working economy loop:
 ## Live Proof At A Glance
 
 - Contract on X Layer testnet: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
-- Recorded live runtime: `20` tx hashes
+- Canonical rehearsal artifact: `21` tx hashes total in `.bazaarx/runtime/live/latest.json` (`20` post-deploy flow txs + `1` deployment tx)
+- Current recorded autonomous executor: `manifest-wallet`
+- Requested autonomous executor: `agentic-wallet`
 - Uniswap supplier-route swap: [0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da](https://www.oklink.com/x-layer-testnet/tx/0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da)
-- Supplier settlement after swap: [0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67](https://www.oklink.com/x-layer-testnet/tx/0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67)
+- Supplier settlement proof: [0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67](https://www.oklink.com/x-layer-testnet/tx/0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67)
 - Governance execution: [0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6](https://www.oklink.com/x-layer-testnet/tx/0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6)
 - Post-governance payment: [0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5](https://www.oklink.com/x-layer-testnet/tx/0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5)
 - Treasury reinvestment: [0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42](https://www.oklink.com/x-layer-testnet/tx/0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42)
 - x402 payment asset deployment: [0xab97a48badf5aeeb2586375341e216ebb7db3778f65a2b7675c652512af39de2](https://www.oklink.com/x-layer-testnet/tx/0xab97a48badf5aeeb2586375341e216ebb7db3778f65a2b7675c652512af39de2)
 - x402 skill unlock settlement: [0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6](https://www.oklink.com/x-layer-testnet/tx/0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6)
 - x402 paid agent settlement: [0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a](https://www.oklink.com/x-layer-testnet/tx/0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a)
+
+## Reality Matrix
+
+Proven on X Layer testnet today:
+- Wallet-led market and governance settlement
+- Uniswap-backed supplier swap plus separate supplier settlement proof
+- x402-aligned paid delegations through a local/self-hosted facilitator
+- Covenant Skill as a packed, installable artifact with clean-room smoke proof
+
+Conditional on supported chains or runtime configuration:
+- OnchainOS gateway simulation and broadcast
+- Agentic Wallet readiness and login visibility
+
+Still local/self-hosted in this repo:
+- x402 facilitator on X Layer testnet
+- Covenant Skill installation via packed artifact rather than public npm publish
+
+Mainnet-final only:
+- Any mainnet execution or mainnet submission proof
 
 ## Screenshots
 
@@ -131,6 +152,12 @@ Real today:
 Still pending:
 - The package is not published to a public npm registry yet.
 - Bazaar X still consumes the local package source inside this repo.
+
+Proof:
+- `pnpm --dir covenant-skill test`
+- `pnpm --dir covenant-skill smoke:install`
+- The clean-room install proof lives in `covenant-skill/scripts/smoke-install.mjs`
+- The package API coverage lives in `covenant-skill/test/covenant-skill.test.mjs`
 
 The module exposes:
 - `enforcePolicy(tx)`
@@ -308,24 +335,27 @@ Recommended deployment path:
 
 ## Real Transaction Evidence
 
-Live testnet proof captured on April 7, 2026:
+Canonical testnet rehearsal artifact:
 
 - Network: `X Layer testnet (1952)`
 - RPC used: `https://testrpc.xlayer.tech/terigon`
 - Contract: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
 - Treasury: `0xA90447Cb62B91467e45CC37e8B6020Dfd744f648`
-- Recorded live run: `35` tx hashes
+- Runtime artifact: `.bazaarx/runtime/live/latest.json`
+- Recorded proof count: `21` total tx hashes in the current runtime artifact (`20` post-deploy flow txs + `1` deployment tx)
+- Current recorded actual executor: `manifest-wallet`
+- Requested executor in the same runtime: `agentic-wallet`
 - Post-governance rules verified from chain: `8.00%` tax, `0.0015 OKB` minimum balance, `75%` quorum, `60%` support, `10s` voting window
 
 Key explorer links:
 
 - Deployment: [0xd2616fe99793bca1732044ddd6d5c833fa682eb5fdd8640227528408171d169b](https://www.oklink.com/x-layer-testnet/tx/0xd2616fe99793bca1732044ddd6d5c833fa682eb5fdd8640227528408171d169b)
-- Supplier hires worker: [0xf0debf069008462fb1d9a1c972229f3316b0ef52a7d4687dab1f38f08078cfc5](https://www.oklink.com/x-layer-testnet/tx/0xf0debf069008462fb1d9a1c972229f3316b0ef52a7d4687dab1f38f08078cfc5)
-- Shop hires supplier: [0xc5208218f769bc204e5c0866d8ac7b380b19757c72e7e301cbde59f3fdbf34f0](https://www.oklink.com/x-layer-testnet/tx/0xc5208218f769bc204e5c0866d8ac7b380b19757c72e7e301cbde59f3fdbf34f0)
-- Governance proposal: [0xd19a907461c8475451d2b53047b32ca3db46a91d6b2005084f67518a576af4e7](https://www.oklink.com/x-layer-testnet/tx/0xd19a907461c8475451d2b53047b32ca3db46a91d6b2005084f67518a576af4e7)
-- Governance execution: [0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f](https://www.oklink.com/x-layer-testnet/tx/0x7cd272821bb70dd5d67975cbd7575cfb4ba2cf9e47b6f4aec1438deb1ac0fe4f)
-- Post-governance payment: [0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2](https://www.oklink.com/x-layer-testnet/tx/0x5eadb3acea372dd60cf9509cd839c3bdc614d21d8d5f814fef1ec263ecfce6f2)
-- Treasury reinvestment: [0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793](https://www.oklink.com/x-layer-testnet/tx/0x33645440dea97d2d6a8a1b0088c5a329b7075db56030b9670cb4116928c17793)
+- Uniswap supplier-route swap: [0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da](https://www.oklink.com/x-layer-testnet/tx/0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da)
+- Supplier settlement proof: [0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67](https://www.oklink.com/x-layer-testnet/tx/0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67)
+- Governance proposal: [0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0](https://www.oklink.com/x-layer-testnet/tx/0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0)
+- Governance execution: [0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6](https://www.oklink.com/x-layer-testnet/tx/0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6)
+- Post-governance payment: [0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5](https://www.oklink.com/x-layer-testnet/tx/0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5)
+- Treasury reinvestment: [0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42](https://www.oklink.com/x-layer-testnet/tx/0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42)
 
 See [docs/tx-evidence.md](/Users/amanpandey/projects/bazaar-x/docs/tx-evidence.md) for the full evidence sheet used in the submission package.
 

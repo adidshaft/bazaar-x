@@ -894,11 +894,11 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       const text = this.add.text(0, 0, interactable.label.toUpperCase(), {
         color: "#edf8ff",
         fontFamily: "\"Press Start 2P\", monospace",
-        fontSize: "7px",
+        fontSize: "8px",
       }).setOrigin(0.5);
       const container = this.add.container(interactable.center.x, interactable.center.y - 48, [background, text]);
       container.setDepth(interactable.center.y + 80);
-      container.setAlpha(0.7);
+      container.setAlpha(0.78);
 
       this.labelEntries.push({
         id: interactable.id,
@@ -931,7 +931,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       const isObjective = entry.id === objectiveTargetId;
 
       entry.container.setVisible(true);
-      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.94 : 0.48);
+      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.96 : 0.62);
       entry.container.setScale(isFocused ? 1.05 : isObjective ? 1.03 : 0.98);
       entry.text.setColor(isFocused || isObjective ? "#ffffff" : "#d6e9f2");
       entry.text.setText(
