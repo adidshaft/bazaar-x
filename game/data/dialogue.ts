@@ -6,65 +6,65 @@ export type DialogueSet = {
 export const dialogueSets: Record<string, DialogueSet> = {
   keeper: {
     pre: [
-      "Wallet light recognized. This village keys itself to your X Layer address.",
-      "OnchainOS verifies each identity before the first action clears.",
-      "Head to the keep and wake the roster before anything else.",
+      "Your wallet is the key. The village turns connection into citizenship.",
+      "OnchainOS still expects the town to wake in order, so start at the keep.",
+      "The keep is the first stop in the canonical economy loop.",
     ],
     post: [
-      "The roster is awake. The funded agents are ready to move value.",
-      "Head to Bazaar Forge. The first demand signal is waiting on the board.",
+      "Citizenship is set and the roster is awake.",
+      "Go to Market Row and open the first shop so the village can feel demand.",
     ],
   },
   shopkeeper: {
     pre: [
-      "Opening this shop sends a demand signal to the Uniswap X Layer pool.",
-      "One shop starts the whole economy: supply, labor, and tax flow.",
-      "Submit 0.001 OKB through the contract board and Market Row lights up.",
+      "A shop is the village's demand signal, not just a storefront.",
+      "Open it and the rest of the economy can justify supply, labor, and tax.",
+      "Use the board and the market row wakes on the current testnet path.",
     ],
     post: [
-      "The forge is awake. Supplier Lane is already watching the pool.",
-      "Take the next order to Supply Coil and complete the first loop.",
+      "Market Row is awake.",
+      "Supplier Lane can now read a real order instead of a rumor.",
     ],
   },
   supplier: {
     pre: [
-      "OnchainOS confirms the route is live before I dispatch any worker.",
-      "No oracle reading, no payment. The village does not trust blind routes.",
-      "List the service and I will route the next hire.",
+      "I only move routes when a shop exists to pull against them.",
+      "That keeps the village honest: demand first, fulfillment second.",
+      "Bring me the order and I will stage the labor.",
     ],
     post: [
-      "The service board is live. Labor can move and treasury can glow.",
-      "Come back when you are ready to pay the worker or route the supplier swap.",
+      "The route is live.",
+      "Now the worker yard can show how payment and tax flow through the village.",
     ],
   },
   worker: {
     pre: [
-      "Labor means nothing until it settles onchain.",
-      "Wake the yard and I will make the first payment leg visible.",
+      "Labor only matters when the payment is visible.",
+      "After governance changes, replay the same work and compare the tax result.",
     ],
     post: [
-      "The route is hot. Every confirmed hire leaves a proof trail.",
-      "Replay the labor payment after governance and compare the tax outcome.",
+      "The labor route is hot.",
+      "That replay is the proof that rule changes alter the economy.",
     ],
   },
   treasurer: {
     pre: [
-      "The vault is quiet until the first loop pushes tax inside.",
-      "Bring me a confirmed treasury notice and I will verify the reserve state.",
+      "The vault trusts receipts, not stories.",
+      "Bring me a confirmed tax notice and I will read the reserve.",
     ],
     post: [
-      "The OnchainOS oracle has the balance. The reserve notice is ready.",
-      "Approve the reinvestment and the village loop will close cleanly.",
+      "The reserve is live.",
+      "Reinvestment closes the loop and sends value back into the village.",
     ],
   },
   governor: {
     pre: [
-      "A rule change is only real when the next payment behaves differently.",
-      "Propose, vote, and execute the decree before replaying the labor route.",
+      "A vote matters only if the next payment behaves differently.",
+      "Propose it, vote it, then execute it before replaying the route.",
     ],
     post: [
-      "The covenant moved the tax. Now prove it with one more payment.",
-      "The village only trusts governance when the treasury math changes onchain.",
+      "The new rule is in place.",
+      "Replaying the payment will show whether the village really changed.",
     ],
   },
 };

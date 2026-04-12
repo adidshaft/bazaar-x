@@ -32,7 +32,7 @@ export class OverworldScene extends BaseWorldScene {
   protected resolveSceneCard() {
     return {
       title: "Bazaar X Village",
-      subtitle: "Late-afternoon X Layer economy",
+      subtitle: "Citizenship, shops, labor, tax, and rule replay",
     };
   }
 
@@ -126,7 +126,12 @@ export class OverworldScene extends BaseWorldScene {
   private animateTaxFlow() {
     const source = this.resolveFlowSourceActor();
     const treasury = this.getWorldInteractables().find((entry) => entry.id === "treasury-door");
-    const sourcePoint = source?.getPosition() ?? this.getWorldInteractables().find((entry) => entry.id === "forge-door")?.center ?? null;
+    const sourcePoint =
+      source?.getPosition() ??
+      this.getWorldInteractables().find((entry) => entry.id === "supplier-desk")?.center ??
+      this.getWorldInteractables().find((entry) => entry.id === "worker-bench")?.center ??
+      this.getWorldInteractables().find((entry) => entry.id === "forge-door")?.center ??
+      null;
 
     if (!this.valueFlowParticlePool || this.walkGrid.length === 0 || !sourcePoint || !treasury) {
       return;

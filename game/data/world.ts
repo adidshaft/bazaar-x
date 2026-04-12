@@ -27,9 +27,9 @@ export const districtDefinitions: DistrictDefinition[] = [
   {
     id: "village-gate",
     name: "Canal Gate",
-    subtitle: "Arrival road",
-    theme: "blue stone, banner shade, canal mist",
-    landmarkSet: ["keeper hall", "bridge lamps", "market sign"],
+    subtitle: "Citizenship and arrival",
+    theme: "blue stone, charter lamps, canal mist",
+    landmarkSet: ["keeper hall", "bridge lamps", "citizenship board"],
     interactPoints: ["keeper-gate", "settlement-keep"],
     npcRoster: ["keeper"],
     music: "bazaar-exploration",
@@ -37,8 +37,8 @@ export const districtDefinitions: DistrictDefinition[] = [
   },
   {
     id: "market-row",
-    name: "Bazaar Forge",
-    subtitle: "Demand district",
+    name: "Market Row",
+    subtitle: "Shops and demand",
     theme: "slate roofs, iron trim, forge light",
     landmarkSet: ["forge front", "service board", "coin awning"],
     interactPoints: ["forge-door", "forge-board"],
@@ -48,10 +48,10 @@ export const districtDefinitions: DistrictDefinition[] = [
   },
   {
     id: "supplier-lane",
-    name: "Supply Coil Depot",
-    subtitle: "Fulfillment district",
+    name: "Supply Coil Lane",
+    subtitle: "Routes and fulfillment",
     theme: "canal edge, hoists, stacked cargo",
-    landmarkSet: ["depot shutters", "cargo crane", "route banner"],
+    landmarkSet: ["depot shutters", "cargo crane", "route board"],
     interactPoints: ["depot-door", "supplier-desk"],
     npcRoster: ["supplier"],
     music: "bazaar-exploration",
@@ -60,7 +60,7 @@ export const districtDefinitions: DistrictDefinition[] = [
   {
     id: "worker-yard",
     name: "Node Pilot Yard",
-    subtitle: "Labor district",
+    subtitle: "Labor and replays",
     theme: "cool planks, ledger posts, workshop sparks",
     landmarkSet: ["yard gate", "guild sign", "tool rack"],
     interactPoints: ["guild-yard", "worker-bench"],
@@ -71,7 +71,7 @@ export const districtDefinitions: DistrictDefinition[] = [
   {
     id: "treasury-vault",
     name: "Treasury Vault",
-    subtitle: "Reserve district",
+    subtitle: "Tax and reserves",
     theme: "ribbed stone, vault glow, secure arches",
     landmarkSet: ["vault arch", "treasury notice", "reserve lantern"],
     interactPoints: ["treasury-door", "treasury-board"],
@@ -82,7 +82,7 @@ export const districtDefinitions: DistrictDefinition[] = [
   {
     id: "council-hall",
     name: "Covenant Hall",
-    subtitle: "Governance district",
+    subtitle: "Governance and replay",
     theme: "slate columns, stained glass, decree glow",
     landmarkSet: ["council stair", "rule bell", "vote standard"],
     interactPoints: ["council-door", "governor-dais"],
@@ -99,7 +99,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     name: "Settlement Keep",
     mapId: "village-exterior",
     landmark: "keeper hall",
-    description: "The contract gate, treasury route, and village charter all start here.",
+    description: "Wallet connection becomes village citizenship here. This is the first stop before the economy loop opens.",
     roleAccent: "#7de6ff",
   },
   {
@@ -109,7 +109,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "forge-interior",
     landmark: "forge front",
-    description: "Open the first shop here — 0.001 OKB sends a demand signal to the Uniswap X Layer pool.",
+    description: "Open the first shop here. The opening payment creates the demand signal that wakes Market Row on X Layer testnet.",
     roleAccent: "#ff9a78",
   },
   {
@@ -119,7 +119,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "depot-interior",
     landmark: "cargo depot",
-    description: "List routes, stage supply work, and dispatch the next hire.",
+    description: "List routes, stage fulfillment, and dispatch labor against live orders.",
     roleAccent: "#8db8ff",
   },
   {
@@ -129,7 +129,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "treasury-interior",
     landmark: "vault arch",
-    description: "OnchainOS oracle feeds the vault. Watch tax receipts land, verify balance, and approve reinvestment.",
+    description: "OnchainOS reads the reserve here. Watch tax receipts land, verify the balance, and reinvest only after the notice is confirmed.",
     roleAccent: "#8ff0d5",
   },
   {
@@ -139,7 +139,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "council-interior",
     landmark: "council stair",
-    description: "Propose, vote, and execute rule changes that alter the next payment.",
+    description: "Propose, vote, execute, and replay the same payment under the new rule.",
     roleAccent: "#d7b8ff",
   },
 ];

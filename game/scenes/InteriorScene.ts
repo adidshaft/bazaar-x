@@ -6,23 +6,23 @@ import { CouncilHeroSystem } from "./council-hero-system";
 const titleMap: Record<MapId, { title: string; subtitle: string }> = {
   "village-exterior": {
     title: "Bazaar X Village",
-    subtitle: "Late-afternoon X Layer economy",
+    subtitle: "Citizenship, shops, labor, tax, and rule replay",
   },
   "forge-interior": {
     title: "Bazaar Forge",
-    subtitle: "Create demand and open the first live shop",
+    subtitle: "Open the first shop and wake demand",
   },
   "depot-interior": {
     title: "Supply Coil Depot",
-    subtitle: "List routes and dispatch the next hire",
+    subtitle: "List routes and dispatch fulfillment",
   },
   "treasury-interior": {
     title: "Treasury Vault",
-    subtitle: "Read tax proof as light and reserve notices",
+    subtitle: "Read tax receipts, reserves, and reinvestment",
   },
   "council-interior": {
     title: "Covenant Hall",
-    subtitle: "Propose, vote, and execute live governance",
+    subtitle: "Propose, vote, execute, and replay the rule",
   },
 };
 
@@ -56,7 +56,7 @@ export class InteriorScene extends BaseWorldScene {
       center: new Phaser.Math.Vector2(288, 270),
       radius: 48,
       districtId: "council-hall",
-      label: "Skill Altar",
+      label: "Covenant Altar",
     });
   }
 
