@@ -97,6 +97,30 @@ async function persist(runtime: LiveRuntimeArtifact) {
   await saveLiveRuntime(runtime);
 }
 
+function recordDeployStep(runtime: LiveRuntimeArtifact, deployment: DeploymentArtifact) {
+  const alreadyRecorded = runtime.steps.some((step) => step.key === "deploy" && step.status === "success");
+  if (alreadyRecorded) {
+    return;
+  }
+
+  runtime.steps.push({
+    key: "deploy",
+    label: "Deploy Bazaar X contract",
+    status: "success",
+    startedAt: deployment.deployedAt,
+    completedAt: deployment.deployedAt,
+    txHash: deployment.deployTxHash,
+    explorerUrl: explorerTxUrl(deployment.deployTxHash, deployment.explorerBaseUrl),
+    detail: `Deployed Bazaar X to ${deployment.contractAddress}.`,
+    meta: withExecutionMeta({
+      executionMode: deployment.executionMode,
+      gatewayOrderId: deployment.gatewayOrderId,
+      simulated: false,
+    }),
+  });
+  runtime.txHashes.push(deployment.deployTxHash);
+}
+
 async function runStep(
   runtime: LiveRuntimeArtifact,
   deployment: DeploymentArtifact,
@@ -271,15 +295,17 @@ export async function initializeBazaarLiveState() {
 
 export async function deployLiveBazaar() {
   const manifest = await ensureWalletManifest();
-  const existingDeployment = await loadDeploymentArtifact();
+  const existingRuntime = await loadLiveRuntime();
+  const existingDeployment = existingRuntime?.deployment ?? (await loadDeploymentArtifact());
   if (existingDeployment) {
-    const runtime = createRuntimeBase(await loadLiveRuntime());
+    const runtime = createRuntimeBase(existingRuntime);
     runtime.deployment = existingDeployment;
     runtime.funding = await getFundingSnapshot(manifest);
     runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
     runtime.execution = buildExecutionSnapshot(manifest.chainId);
     runtime.status = "ready";
     runtime.runId = runtime.runId ?? `run_${Date.now()}`;
+    recordDeployStep(runtime, existingDeployment);
     await persist(runtime);
     return existingDeployment;
   }
@@ -293,33 +319,14 @@ export async function deployLiveBazaar() {
   }
 
   const deployment = await deployBazaarContract(manifest);
-  const runtime = createRuntimeBase(await loadLiveRuntime());
+  const runtime = createRuntimeBase(existingRuntime);
   runtime.deployment = deployment;
   runtime.funding = funding;
   runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
   runtime.execution = buildExecutionSnapshot(manifest.chainId);
   runtime.status = "ready";
   runtime.runId = runtime.runId ?? `run_${Date.now()}`;
-
-  const alreadyRecorded = runtime.steps.some((step) => step.key === "deploy");
-  if (!alreadyRecorded) {
-    runtime.steps.push({
-      key: "deploy",
-      label: "Deploy Bazaar X contract",
-      status: "success",
-      startedAt: deployment.deployedAt,
-      completedAt: deployment.deployedAt,
-      txHash: deployment.deployTxHash,
-      explorerUrl: explorerTxUrl(deployment.deployTxHash, deployment.explorerBaseUrl),
-      detail: `Deployed Bazaar X to ${deployment.contractAddress}.`,
-      meta: withExecutionMeta({
-        executionMode: deployment.executionMode,
-        gatewayOrderId: deployment.gatewayOrderId,
-        simulated: false,
-      }),
-    });
-    runtime.txHashes.push(deployment.deployTxHash);
-  }
+  recordDeployStep(runtime, deployment);
 
   await persist(runtime);
   return deployment;

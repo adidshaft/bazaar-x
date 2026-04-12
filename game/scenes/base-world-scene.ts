@@ -347,6 +347,9 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.activeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     this.activeUnsubscribers = [];
     this.labelEntries = [];
+    this.proofPickup?.sprite.destroy();
+    this.proofPickup?.ring.destroy();
+    this.proofPickup = undefined;
   }
 
   protected resolveSpawn(mapId: MapId, spawnId?: string) {

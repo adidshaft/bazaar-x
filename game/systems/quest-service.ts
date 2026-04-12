@@ -1,4 +1,5 @@
 import { goldenPathQuest } from "@/game/data/quests";
+import type { QuestStepDefinition } from "@/game/data/quests";
 import type {
   LiveDashboardStatus,
   QuestState,
@@ -17,13 +18,17 @@ function hasAnyStep(status: LiveDashboardStatus | null, stepKeys: string[] | und
   );
 }
 
+function isImplicitlyComplete(step: QuestStepDefinition, wallet: WalletIdentity) {
+  return step.id === "meet-keeper" && wallet.connected && wallet.validNetwork;
+}
+
 export function deriveQuestRail(status: LiveDashboardStatus | null, wallet: WalletIdentity) {
-  return goldenPathQuest.steps.map((step, index) => {
-    const complete = hasAnyStep(status, step.confirmationStepKeys);
+  return goldenPathQuest.steps.reduce<Array<QuestStepDefinition & { state: QuestState }>>((rail, step, index) => {
+    const complete = hasAnyStep(status, step.confirmationStepKeys) || isImplicitlyComplete(step, wallet);
     const priorComplete =
       index === 0
         ? wallet.connected && wallet.validNetwork
-        : hasAnyStep(status, goldenPathQuest.steps[index - 1]?.confirmationStepKeys);
+        : rail[index - 1]?.state === "complete";
 
     const state: QuestState = complete
       ? "complete"
@@ -31,15 +36,16 @@ export function deriveQuestRail(status: LiveDashboardStatus | null, wallet: Wall
         ? "active"
         : "locked";
 
-    return {
+    rail.push({
       ...step,
       state,
-    };
-  });
+    });
+
+    return rail;
+  }, []);
 }
 
 export function getActiveQuestStep(status: LiveDashboardStatus | null, wallet: WalletIdentity) {
   const rail = deriveQuestRail(status, wallet);
   return rail.find((step) => step.state === "active") ?? rail[0];
 }
-

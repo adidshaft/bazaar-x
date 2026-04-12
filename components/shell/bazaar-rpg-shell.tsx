@@ -361,6 +361,16 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     };
   }, [activeQuest, selection, displayWalletIdentity.connected, displayWalletIdentity.validNetwork]);
 
+  const interactionDisabledReason = interactionView?.actionId
+    ? !displayWalletIdentity.connected
+      ? "Connect wallet to act."
+      : !displayWalletIdentity.validNetwork
+        ? `Switch to X Layer (chain ${defaultXLayerChain.id}).`
+        : actionMutation.isPending
+          ? "Transaction in progress..."
+          : null
+    : null;
+
   const completedSteps = deferredRail.filter((s) => s.state === "complete").length;
   const questProgress  = Math.round((completedSteps / Math.max(1, goldenPathQuest.steps.length)) * 100);
 
@@ -1003,13 +1013,12 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
           objectiveLabel={interactionView.objectiveLabel}
           actionLabel={interactionView.actionLabel}
           actionNode={interactionView.actionNode}
-          actionDisabled={Boolean(!interactionView.actionId || actionMutation.isPending || !displayWalletIdentity.validNetwork)}
+          actionDisabled={Boolean(
+            interactionView.actionId &&
+            (!displayWalletIdentity.connected || !displayWalletIdentity.validNetwork || actionMutation.isPending)
+          )}
           actionPending={actionMutation.isPending}
-          disabledReason={
-            !displayWalletIdentity.connected ? "Connect wallet first."
-            : !displayWalletIdentity.validNetwork ? "Switch to X Layer."
-            : "Quest actions submit real Bazaar X transactions."
-          }
+          disabledReason={interactionDisabledReason}
           onAction={interactionView.actionId ? () => handleQuestAction(interactionView.actionId as QuestActionId) : undefined}
           onClose={() => setSelection(null)}
         />

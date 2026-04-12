@@ -36,6 +36,7 @@ export function InteractionSheet({
           <div style={{ minWidth: 0 }}>
             <div className="interaction-sub">{objectiveLabel ?? "Village Interaction"}</div>
             <div className="interaction-title">{title}</div>
+            <div className="interaction-footer" style={{ marginTop: 4, textAlign: "left" }}>{subtitle}</div>
           </div>
           <button
             type="button"
@@ -70,8 +71,17 @@ export function InteractionSheet({
                 {actionPending ? "Submitting…" : actionLabel}
               </button>
             ) : null}
-            {disabledReason ? (
-              <div className="interaction-footer">{disabledReason}</div>
+            {(actionDisabled || actionPending) && disabledReason ? (
+              <div
+                className="interaction-footer"
+                style={{
+                  color: "var(--red)",
+                  marginTop: 4,
+                  textAlign: "right",
+                }}
+              >
+                {disabledReason}
+              </div>
             ) : null}
           </div>
         </div>

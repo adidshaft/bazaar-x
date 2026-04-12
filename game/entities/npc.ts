@@ -195,7 +195,6 @@ export class NpcActor {
     }
     if (!this.sprite.anims.exists(key)) {
       // Fall back to idle frame rather than crash
-      const idleKey = `${this.sprite.name}-${this.direction}-idle-0`;
       if (this.sprite.anims.currentAnim?.key !== key) {
         this.sprite.stop();
         const tex = `${this.sprite.name}-${this.direction}-idle-0`;

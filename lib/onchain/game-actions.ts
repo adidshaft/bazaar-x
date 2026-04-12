@@ -109,6 +109,81 @@ function latestStep(runtime: LiveRuntimeArtifact, key: string) {
   return matches[matches.length - 1] ?? null;
 }
 
+function readStepNumber(step: StepRecord | null, metaKey: string) {
+  const value = step?.meta?.[metaKey];
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function recoverRuntimeReferences(runtime: LiveRuntimeArtifact) {
+  const nextShopIds = { ...(runtime.shopIds ?? {}) };
+  const nextServiceIds = { ...(runtime.serviceIds ?? {}) };
+  let changed = false;
+
+  const shopMappings = [
+    ["shop", "shop-create"],
+    ["supplier", "supplier-shop"],
+    ["worker", "worker-shop"],
+  ] as const;
+
+  shopMappings.forEach(([role, stepKey]) => {
+    if (typeof nextShopIds[role] === "number") {
+      return;
+    }
+
+    const recoveredId = readStepNumber(latestStep(runtime, stepKey), "shopId");
+    if (typeof recoveredId === "number") {
+      nextShopIds[role] = recoveredId;
+      changed = true;
+    }
+  });
+
+  const serviceMappings = [
+    ["supplier", "supplier-service"],
+    ["worker", "worker-service"],
+  ] as const;
+
+  serviceMappings.forEach(([role, stepKey]) => {
+    if (typeof nextServiceIds[role] === "number") {
+      return;
+    }
+
+    const recoveredId = readStepNumber(latestStep(runtime, stepKey), "serviceId");
+    if (typeof recoveredId === "number") {
+      nextServiceIds[role] = recoveredId;
+      changed = true;
+    }
+  });
+
+  if (Object.keys(nextShopIds).length) {
+    runtime.shopIds = nextShopIds;
+  }
+
+  if (Object.keys(nextServiceIds).length) {
+    runtime.serviceIds = nextServiceIds;
+  }
+
+  if (runtime.proposalId == null) {
+    const recoveredProposalId = readStepNumber(latestStep(runtime, "proposal"), "proposalId");
+    if (typeof recoveredProposalId === "number") {
+      runtime.proposalId = recoveredProposalId;
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
 async function runStep(
   runtime: LiveRuntimeArtifact,
   deployment: DeploymentArtifact,
@@ -259,6 +334,7 @@ async function ensureActionContext() {
   runtime.funding = await getFundingSnapshot(manifest);
   runtime.onchainOs = await collectOnchainOsSnapshot(manifest.chainId);
   runtime.error = undefined;
+  recoverRuntimeReferences(runtime);
   await persist(runtime);
 
   return {
@@ -857,11 +933,13 @@ export async function runGameAction(actionId: QuestActionId) {
   }
 
   if (actionId === "deploy-bazaar") {
+    const existingRuntime = await loadLiveRuntime();
+    const existingDeployment = existingRuntime?.deployment ?? (await loadDeploymentArtifact());
     const deployment = await deployLiveBazaar();
     return {
       actionId,
-      txState: "confirmed" as const,
-      recovered: false,
+      txState: existingDeployment ? ("recovered" as const) : ("confirmed" as const),
+      recovered: Boolean(existingDeployment),
       txHash: deployment.deployTxHash,
       stepKey: "deploy",
       status: await getLiveDashboardStatus(),
