@@ -39,7 +39,7 @@ import type {
 import { bazaarGameStore, useBazaarGameStore } from "@/game/core/store";
 import { dialogueSets } from "@/game/data/dialogue";
 import { npcDefinitions } from "@/game/data/npcs";
-import { goldenPathQuest } from "@/game/data/quests";
+import { goldenPathQuest, type QuestStepDefinition } from "@/game/data/quests";
 import { buildingDefinitions, districtDefinitions } from "@/game/data/world";
 import {
   createDefaultPlayerPersistence,
@@ -95,15 +95,15 @@ const mapLabels: Record<MapId, string> = {
 };
 
 const districtPurposeCopy: Record<DistrictId, string> = {
-  "village-gate": "Wallets are recognized here and the first route opens.",
-  "market-row": "Open the first shop and wake demand.",
-  "supplier-lane": "List supplier work and dispatch fulfillment.",
-  "worker-yard": "Labor enters here and proof returns.",
-  "treasury-vault": "Tax lands here before reinvestment.",
-  "council-hall": "Propose, vote, and execute rule changes.",
+  "village-gate": "Citizenship, charter sync, and first-step orientation start here.",
+  "market-row": "Claim a stall, open the shop, and create demand for the whole town.",
+  "supplier-lane": "Publish supplier work, stage routes, and keep the market stocked.",
+  "worker-yard": "Make labor visible and replay the same wage after governance changes.",
+  "treasury-vault": "Watch tax accumulate, read reserves, and close the loop with reinvestment.",
+  "council-hall": "Propose, vote, execute, and then prove the rule change with a replay.",
 };
 
-const canonicalLoopSummary = "Wallet-linked citizens open a shop, route labor, collect tax, vote on rule changes, and replay the same payment under the new rule.";
+const canonicalLoopSummary = "Wallet-linked citizens sync the charter, claim a stall, route supply and labor, collect tax, vote on rule changes, and replay the same wage under the new rule.";
 
 const interactionNavigation: Record<string, { mapId: MapId; x: number; y: number; spawnId?: string }> = {
   "keeper-gate":     { mapId: "village-exterior", x: 800,  y: 352,  spawnId: "gate-spawn"       },
@@ -172,8 +172,27 @@ function resolveInitialDrawerTab(initialScene?: string | null): DrawerTab {
   return "quests";
 }
 
-function clampPlayerName(name: string, fallback: string) {
+  function clampPlayerName(name: string, fallback: string) {
   return name.replace(/\s+/g, " ").trim().slice(0, 24) || fallback;
+}
+
+function describeQuestSurface(step: QuestStepDefinition) {
+  if (!step.actionId) {
+    return "Narrative onboarding step";
+  }
+
+  if (step.actionId === "initialize-town") {
+    return "System sync and recovered village state";
+  }
+
+  if (step.actionId === "deploy-bazaar") {
+    return "Recovered shared deployment proof";
+  }
+
+  const policy = getActionControlPolicy(step.actionId);
+  return policy.manualSupport === "agent_required"
+    ? "Agent-run step on the shared village contract"
+    : "Wallet-led onchain step, with optional agent mode";
 }
 
 export function BazaarRpgShell({ initialScene }: { initialScene?: string | null }) {
@@ -918,7 +937,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       if (!activeSkillId) bazaarEventBridge.emit("skill:activated", { skillId });
       bazaarEventBridge.emit("camera:flash", { duration: 500, red: 0, green: 255, blue: 65 });
       bazaarEventBridge.emit("skill:unlock-success", { skillId });
-      bazaarEventBridge.emit("toast:show", { id: `skill:unlock:${skillId}`, title: "Skill Unlocked", body: `${receipt.amountOkb} OKB settled through ${receipt.protocol}.`, tone: "success" });
+      bazaarEventBridge.emit("toast:show", { id: `skill:unlock:${skillId}`, title: "Skill Unlocked", body: `${receipt.amountOkb} OKB unlock confirmed via ${receipt.protocol}.`, tone: "success" });
       bazaarAudioSystem.play("success-chime");
     } catch (error) {
       bazaarEventBridge.emit("toast:show", { id: `skill:unlock:error:${skillId}`, title: "Unlock Failed", body: error instanceof Error ? error.message : "Unable to unlock.", tone: "skill" });
@@ -1071,7 +1090,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       <aside className={`overlay-panel overlay-panel-left ${briefOpen ? "" : "is-closed"}`}>
         <div className="panel-header">
           <div>
-            <div className="panel-header-title">Village Brief</div>
+            <div className="panel-header-title">Citizen Brief</div>
           </div>
           <button type="button" className="panel-close-btn" onClick={() => setBriefOpen(false)} aria-label="Close brief">
             <X size={12} />
@@ -1096,7 +1115,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
           {/* Progress */}
           <div className="px-card">
-            <div className="px-kicker k-gold">Golden Path</div>
+            <div className="px-kicker k-gold">Citizen Rail</div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
               <span className="px-title" style={{ fontSize: 22 }}>{questProgress}%</span>
               <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 8, color: "var(--text-muted)" }}>
@@ -1241,7 +1260,8 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <div className="px-detail-row"><strong>Action:</strong>{step.requiredInteraction}</div>
                     <div className="px-detail-row"><strong>Impact:</strong>{step.worldStateChange}</div>
-                    <div className="px-detail-row"><strong>Receipt:</strong>{step.rewardOutput}</div>
+                    <div className="px-detail-row"><strong>Onchain:</strong>{step.rewardOutput}</div>
+                    <div className="px-detail-row"><strong>Surface:</strong>{describeQuestSurface(step)}</div>
                   </div>
                 </article>
               ))}
@@ -1362,7 +1382,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 <div className="px-body" style={{ fontSize: 12, marginTop: 6, color: "var(--text-muted)" }}>
                   {controlMode === "manual"
                     ? "Wallet-led mode. Your connected wallet signs the step it can legitimately perform."
-                    : "x402 mode. An agent can run the step after the payment challenge clears."}
+                    : "Challenge-gated agent mode. An agent can run the step after the signed challenge clears."}
                 </div>
               </div>
 

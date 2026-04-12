@@ -1,16 +1,16 @@
 # Bazaar X
 
-Bazaar X is a self-governing autonomous agent economy on X Layer.
+Bazaar X is a self-governing autonomous agent economy proven on X Layer testnet.
 
 Public repo: [github.com/adidshaft/bazaar-x](https://github.com/adidshaft/bazaar-x)
 
 Lead contributor: `adidshaft` (`adidshaft@gmail.com`)
 
 It combines:
-- A real onchain market for agent-to-agent work and payment.
+- A real X Layer testnet market for agent-to-agent work and payment.
 - A reusable policy engine called `Covenant Skill`.
 - A game-like overworld that lets judges explore the live economy as a town.
-- X Layer-native execution through the OKX Onchain OS stack.
+- X Layer execution with wallet-led settlement and conditional OKX OnchainOS support.
 
 The goal is not a mock demo. The goal is a working economy loop:
 `earn -> pay -> tax -> treasury -> vote -> rule update -> next payment`.
@@ -55,7 +55,7 @@ Bazaar X is designed around the public Build X review surface:
 - AI judges inspect code quality and onchain data.
 - Human judges evaluate creativity and practicality.
 - Official materials do not publish numeric scoring weights, so the product is optimized to be both technically replayable and instantly legible in a short demo.
-- The submission form explicitly asks for the repo, demo, OnchainOS usage, agentic wallet, and X post, so those proof points are built into the project story.
+- The submission form explicitly asks for the repo, demo, OnchainOS usage, agentic wallet, and X post, so those proof points are built into the project story without overstating unsupported paths.
 
 X Layer is the right chain for this because:
 - It is the execution layer for the entire product.
@@ -66,7 +66,7 @@ X Layer is the right chain for this because:
 ## Build X Hackathon Strategy
 
 Bazaar X is tuned for the published judging split:
-- Replayable technical proof for AI review: Solidity contracts, deterministic agent orchestration, real X Layer settlement, and persisted tx evidence.
+- Replayable technical proof for AI review: Solidity contracts, deterministic agent orchestration, real X Layer testnet settlement, and persisted tx evidence.
 - Strong practicality for human review: one market loop that is easy to understand in under three minutes.
 - Direct X Layer fit: real chain IDs, contract deployment, wallet execution, treasury flows, and governance state changes.
 - Crisp demo UX: a single explorable town that reveals agents, policies, balances, and explorer links through play.
@@ -78,7 +78,7 @@ Public X Layer Arena special prizes we intentionally target:
 Supporting differentiators:
 - Strong economy loop: agents earn, pay, tax, reinvest, and govern in one loop.
 - Onchain OS integration: the stack is built around OKX wallet-aware execution and transaction tooling.
-- x402-ready payment hooks: the same policy layer can gate paid agent resources or API access if extended.
+- Challenge-gated payment hooks: the same policy layer can gate paid agent resources or API access if extended.
 
 ## Architecture
 
@@ -128,7 +128,7 @@ Bazaar X now treats economy logic as a pluggable skill layer instead of a hard-c
 
 Core pieces:
 - `covenant-skill/registry.ts` defines the generic `WorldEconomySkillRegistry`
-- `covenant-skill/skill.ts` exposes Covenant as a reusable installable skill
+- `covenant-skill/skill.ts` exposes Covenant as a reusable registry-backed skill module
 - `lib/economy/skills.ts` installs the skill catalog for Bazaar X
 - `lib/economy/ledger.ts` talks to installed skills through the registry-backed interface
 
@@ -182,7 +182,7 @@ Agentic Wallet notes:
 
 - The CLI supports API-key login through `OKX_API_KEY`, `OKX_SECRET_KEY`, and `OKX_PASSPHRASE`.
 - You can log in with `onchainos wallet login`.
-- The dashboard now reports whether Agentic Wallet is logged in, but the current multi-agent testnet replay still uses the local manifest wallets by default.
+- The dashboard now reports whether the OnchainOS wallet is logged in, but the current multi-agent testnet replay still uses the local manifest wallets by default.
 
 Relevant env vars:
 

@@ -109,7 +109,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "forge-interior",
     landmark: "forge front",
-    description: "Open the first shop here. The opening payment creates the demand signal that wakes Market Row on X Layer testnet.",
+    description: "Claim the first market stall here. Opening the shop creates Bazaar X's first real demand node on X Layer testnet.",
     roleAccent: "#ff9a78",
   },
   {
@@ -129,7 +129,7 @@ export const buildingDefinitions: BuildingDefinition[] = [
     mapId: "village-exterior",
     portalMapId: "treasury-interior",
     landmark: "vault arch",
-    description: "OnchainOS reads the reserve here. Watch tax receipts land, verify the balance, and reinvest only after the notice is confirmed.",
+    description: "Tax receipts accumulate here before the treasury steward routes reserve surplus back into the market. OnchainOS status remains visible in Ops when configured.",
     roleAccent: "#8ff0d5",
   },
   {

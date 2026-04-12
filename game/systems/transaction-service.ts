@@ -274,8 +274,8 @@ export async function unlockSkill(skillId: string): Promise<SkillUnlockResponse>
       skillId,
       "unlock",
       `${skillId} Unlocked`,
-      `${skillId} settled through x402 and is now active in the grimoire.`,
-      `${skillId} settled through x402 and activated in the village.`,
+      `${skillId} unlock was confirmed through the x402 challenge flow and is now active in the grimoire.`,
+      `${skillId} unlock was confirmed through the x402 challenge flow and activated in the village.`,
       successPayload.amountOkb ? `${successPayload.amountOkb} OKB` : "Confirmed",
       createdAt,
     );

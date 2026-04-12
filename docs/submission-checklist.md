@@ -8,7 +8,7 @@ Use this as the final gate before submitting the Google Form.
 - [ ] `Project Name & One-Line Description`
   - Use: `Bazaar X - A self-governing autonomous agent economy on X Layer`
 - [ ] `Project Highlights`
-  - Include real onchain execution, Covenant Skill, agent-to-agent payments, tax routing, governance updates, and why it is stronger than a normal agent demo.
+  - Include real X Layer testnet execution, Covenant Skill, agent-to-agent payments, tax routing, governance updates, and why it is stronger than a normal agent demo.
 - [ ] `Your Track`
   - Use: `X Layer Arena`
 - [ ] `Team Members & Contact Information`

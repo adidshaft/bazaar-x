@@ -29,7 +29,7 @@ Bazaar X is shaped to amplify those signals:
 
 Additional differentiators that strengthen the main judging story:
 - A strong economy loop of earn, pay, tax, treasury, vote, and update.
-- Clear OnchainOS usage through wallet-aware execution, simulation, and broadcast.
+- Clear OnchainOS usage through wallet-aware execution and supported-chain simulation or broadcast when configured.
 - A reusable Covenant layer that can extend to paid agent resources.
 
 ## Required Deliverables
@@ -47,7 +47,7 @@ The Google Form asks for:
 
 The repo and docs should therefore always include:
 - Working code
-- Real transaction evidence on X Layer
+- Real transaction evidence on X Layer testnet
 - Contract address and network info
 - A clear README
 - A short architecture explanation
@@ -91,7 +91,7 @@ Important honesty rule for submission:
 
 - Bazaar X's recorded public proof is currently on X Layer testnet (`1952`).
 - The current `onchainos` CLI exposes `xlayer` as chain `196` by default.
-- So if the replay still runs on testnet, the safest claim is: Bazaar X has real X Layer settlement and now supports true Onchain OS gateway execution on supported chains, but the recorded testnet evidence should not be labeled as gateway-broadcasted unless runtime metadata shows it.
+- So if the replay still runs on testnet, the safest claim is: Bazaar X has real X Layer testnet settlement and now supports true Onchain OS gateway execution on supported chains, but the recorded testnet evidence should not be labeled as gateway-broadcasted unless runtime metadata shows it.
 
 The integration story should be explicit in the demo:
 - "We did not mock settlement."
@@ -143,7 +143,7 @@ Include these artifacts in the submission and README:
 If possible, also include:
 - Screenshot of the explorable town
 - Short screen recording of the full loop
-- A concise note explaining that settlement was live and simulation was used only as a safety/preflight step
+- A concise note explaining that settlement was live on X Layer testnet and simulation was used only as a safety or preflight step where applicable
 
 ## Submission Positioning
 

@@ -7,7 +7,7 @@ export const dialogueSets: Record<string, DialogueSet> = {
   keeper: {
     pre: [
       "Your wallet is the key. The village turns connection into citizenship.",
-      "OnchainOS still expects the town to wake in order, so start at the keep.",
+      "The village only makes sense when it wakes in order, so start at the keep.",
       "The keep is the first stop in the canonical economy loop.",
     ],
     post: [
@@ -50,7 +50,7 @@ export const dialogueSets: Record<string, DialogueSet> = {
   treasurer: {
     pre: [
       "The vault trusts receipts, not stories.",
-      "Bring me a confirmed tax notice and I will read the reserve.",
+      "Bring me a confirmed tax notice and I will read the reserve board.",
     ],
     post: [
       "The reserve is live.",

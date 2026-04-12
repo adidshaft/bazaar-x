@@ -163,17 +163,17 @@ export const aiSkillCatalog: AISkillDefinition[] = [
     identity: {
       name: "OnchainOS Oracle Feed",
       description:
-        "Verifies live price feeds and treasury balance proofs through the OnchainOS oracle network before any payment is dispatched.",
+        "Surfaces treasury, gateway, and wallet-status context through OnchainOS tooling so reserve actions can be reviewed before dispatch.",
       owner_requirement: "EIP-8004 Agent Identity",
     },
     execution: {
       protocol: "OnchainOS",
       target_contract: "0xOnchainOS_Oracle_XLayer_Contract",
       logic_hash: "ipfs://QmBazaarXOnchainOSSkill",
-      permission_scope: ["read:price_feed", "read:treasury_state", "call:verify_oracle"],
+      permission_scope: ["read:gateway_state", "read:treasury_state", "read:wallet_status"],
       delegation_protocol: "okx-agentic-wallet",
       monetization_protocol: "okx-x402-payment",
-      delegated_action: "Oracle",
+      delegated_action: "Inspect",
       unlock_price_okb: "0.008",
     },
     visual_metadata: {
@@ -194,17 +194,17 @@ export const aiSkillCatalog: AISkillDefinition[] = [
     identity: {
       name: "Uniswap X Layer AMM",
       description:
-        "Routes village supply payments through Uniswap V3 pools on X Layer. Every hire-supplier action creates a live swap signal in the AMM.",
+        "Surfaces Uniswap V3 route quotes and pool context for supplier legs on X Layer. In this phase it informs the route; live swap settlement lands later.",
       owner_requirement: "EIP-8004 Agent Identity",
     },
     execution: {
       protocol: "Uniswap-V3-XLayer",
       target_contract: "0xUniswap_V3_XLayer_Pool_Address",
       logic_hash: "ipfs://QmBazaarXUniswapXLayerSkill",
-      permission_scope: ["read:pool_state", "write:swap_route", "call:execute_swap"],
+      permission_scope: ["read:pool_state", "read:route_quote", "write:swap_route"],
       delegation_protocol: "okx-agentic-wallet",
       monetization_protocol: "okx-x402-payment",
-      delegated_action: "Swap",
+      delegated_action: "Route",
       unlock_price_okb: "0.010",
     },
     visual_metadata: {

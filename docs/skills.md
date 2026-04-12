@@ -8,14 +8,14 @@ The town UI is Bazaar X specific.
 
 The economy logic should not be.
 
-`Covenant Skill` is the first installed module, but the runtime is designed so other games can install additional rule packs without rewriting settlement, agent orchestration, or the HUD.
+`Covenant Skill` is the first runtime-installed module, but the registry is designed so other games can register additional rule packs without rewriting settlement, agent orchestration, or the HUD.
 
 ## Core Files
 
 - `covenant-skill/registry.ts`
-  - Generic registry for installable world-economy skills
+  - Generic registry for registerable world-economy skills
 - `covenant-skill/skill.ts`
-  - Turns Covenant into a named reusable skill package
+  - Turns Covenant into a named reusable skill module
 - `lib/economy/skills.ts`
   - Installs Bazaar X's default skill catalog
 - `lib/economy/ledger.ts`
@@ -68,4 +68,4 @@ Because the registry rejects duplicate IDs, extensions fail loudly instead of si
 - Keep skill metadata visible in the UI
 - Swap or combine rule modules per world
 - Keep policy logic independently testable
-- Pitch Covenant Skill as a standalone hackathon asset, not just an internal helper
+- Pitch Covenant Skill as a reusable runtime extension, not just an internal helper
