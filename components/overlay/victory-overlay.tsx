@@ -81,7 +81,7 @@ export function VictoryOverlay({ proofs, liveStatus, onClose, onReset }: Victory
         <div className="victory-proof-grid">
           {proofs.map((proof) => (
             <article key={proof.id} className="victory-proof-card">
-              <div>
+              <div className="victory-proof-content">
                 <div className="victory-proof-kind">
                   {proofToneLabel(proof)}
                 </div>
@@ -92,7 +92,7 @@ export function VictoryOverlay({ proofs, liveStatus, onClose, onReset }: Victory
                 ) : null}
               </div>
               {proof.explorerUrl ? (
-                <a href={proof.explorerUrl} target="_blank" rel="noreferrer" className="px-link">
+                <a href={proof.explorerUrl} target="_blank" rel="noreferrer" className="px-link victory-proof-link">
                   <ArrowUpRight size={10} /> OKLink
                 </a>
               ) : null}

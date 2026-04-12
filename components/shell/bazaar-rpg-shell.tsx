@@ -1665,7 +1665,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                       ) : null}
                     </div>
                     <div className="px-quest-desc">{proof.body}</div>
-                    <div style={{ display: "flex", gap: 12, marginTop: 2 }}>
+                    <div style={{ display: "flex", gap: 12, marginTop: 2, flexWrap: "wrap", rowGap: 6 }}>
                       <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 10, color: "var(--text-muted)" }}>{humanize(proof.districtId)}</span>
                       {proof.executionLabel ? (
                         <span style={{ fontFamily: "var(--font-arcade), monospace", fontSize: 10, color: "var(--text-muted)" }}>{proof.executionLabel}</span>
