@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bazaar Village Deployer"
+  short_description: "Design and validate new Bazaar villages"
+  default_prompt: "Use $bazaar-village-deployer to design and validate a new Bazaar X village economy before wiring it into the game and deployment flow."

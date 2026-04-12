@@ -6,7 +6,7 @@ import type {
   WalletIdentity,
 } from "@/game/core/live-types";
 
-function hasAnyStep(status: LiveDashboardStatus | null, stepKeys: string[] | undefined) {
+export function hasStepComplete(status: LiveDashboardStatus | null, stepKeys: string[] | undefined) {
   if (!stepKeys?.length) {
     return false;
   }
@@ -22,9 +22,16 @@ function isImplicitlyComplete(step: QuestStepDefinition, wallet: WalletIdentity)
   return step.id === "meet-keeper" && wallet.connected && wallet.validNetwork;
 }
 
+function isInitializeTownComplete(status: LiveDashboardStatus | null) {
+  return Boolean(status?.runtime.artifactAvailable || status?.liveDashboard.runtime?.lastUpdatedAt);
+}
+
 export function deriveQuestRail(status: LiveDashboardStatus | null, wallet: WalletIdentity) {
   return goldenPathQuest.steps.reduce<Array<QuestStepDefinition & { state: QuestState }>>((rail, step, index) => {
-    const complete = hasAnyStep(status, step.confirmationStepKeys) || isImplicitlyComplete(step, wallet);
+    const complete =
+      hasStepComplete(status, step.confirmationStepKeys) ||
+      isImplicitlyComplete(step, wallet) ||
+      (step.id === "initialize-town" && isInitializeTownComplete(status));
     const priorComplete =
       index === 0
         ? wallet.connected && wallet.validNetwork

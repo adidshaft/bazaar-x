@@ -1,0 +1,85 @@
+{
+  "village": {
+    "id": "salt-canal",
+    "name": "Salt Canal",
+    "theme": "tidal trade village with salt logistics and treaty-driven governance",
+    "charter": "A harbor settlement where freight, labor, treasury, and governance stay visible in one loop.",
+    "maps_mode": "reuse-current"
+  },
+  "economy": {
+    "skill_strategy": "reuse-covenant",
+    "loop": [
+      "earn",
+      "pay",
+      "tax",
+      "treasury",
+      "vote",
+      "rule-update",
+      "next-payment"
+    ],
+    "primary_good": "salt freight",
+    "services": [
+      {
+        "id": "salt-haul",
+        "title": "Salt Haul",
+        "provider_role": "supplier",
+        "buyer_role": "shop",
+        "kind": "supply",
+        "price_okb": "0.03"
+      },
+      {
+        "id": "dock-labor",
+        "title": "Dock Labor",
+        "provider_role": "worker",
+        "buyer_role": "supplier",
+        "kind": "labor",
+        "price_okb": "0.02"
+      }
+    ]
+  },
+  "agents": [
+    {
+      "role": "shop",
+      "name": "Harbor Exchange",
+      "goal": "Open market demand and keep salt orders flowing.",
+      "bootstrap_okb": "0.045"
+    },
+    {
+      "role": "supplier",
+      "name": "Dock Coil",
+      "goal": "Route freight efficiently and buy labor during surges.",
+      "bootstrap_okb": "0.040"
+    },
+    {
+      "role": "worker",
+      "name": "Tide Runner",
+      "goal": "Complete labor tasks profitably while staying solvent.",
+      "bootstrap_okb": "0.015"
+    },
+    {
+      "role": "governor",
+      "name": "Canal Council",
+      "goal": "Adjust policy when treasury pressure or demand changes.",
+      "bootstrap_okb": "0.015"
+    }
+  ],
+  "policy": {
+    "tax_bps": 500,
+    "min_agent_balance": 25,
+    "proposal_approval_bps": 6000,
+    "proposal_quorum": 2,
+    "execution_delay_ticks": 1,
+    "min_treasury_balance": 0,
+    "tax_cap_bps": 2000
+  },
+  "onchain": {
+    "deploy": true,
+    "initial_rules": {
+      "tax_bps": 500,
+      "minimum_balance_wei": "2000000000000000",
+      "quorum_bps": 7500,
+      "support_bps": 6000,
+      "voting_period_seconds": 10
+    }
+  }
+}

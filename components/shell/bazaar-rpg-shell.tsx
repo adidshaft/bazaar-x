@@ -19,16 +19,25 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useAccount, useBalance, useSwitchChain } from "wagmi";
+import { useAccount, useBalance, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
 import { ConnectWalletButton } from "@/components/connect-wallet-button";
 import { InteractionSheet } from "@/components/overlay/interaction-sheet";
 import { ProofRealityOverlay } from "@/components/overlay/proof-reality-overlay";
 import { SkillGrimoire } from "@/components/overlay/skill-grimoire";
+import { VictoryOverlay } from "@/components/overlay/victory-overlay";
+import { GovernanceCountdown } from "@/components/shell/governance-countdown";
 import { STATUS_QUERY_KEY } from "@/game/config/constants";
 import { bazaarEventBridge } from "@/game/core/event-bridge";
-import type { DistrictId, MapId, ProofArtifact, QuestActionId, WalletIdentity } from "@/game/core/live-types";
+import type {
+  ActionControlMode,
+  DistrictId,
+  MapId,
+  ProofArtifact,
+  QuestActionId,
+  WalletIdentity,
+} from "@/game/core/live-types";
 import { bazaarGameStore, useBazaarGameStore } from "@/game/core/store";
-import { dialogueEntries } from "@/game/data/dialogue";
+import { dialogueSets } from "@/game/data/dialogue";
 import { npcDefinitions } from "@/game/data/npcs";
 import { goldenPathQuest } from "@/game/data/quests";
 import { buildingDefinitions, districtDefinitions } from "@/game/data/world";
@@ -42,14 +51,18 @@ import { loadPersistedPlayerState, savePersistedPlayerState } from "@/game/syste
 import { ProofListener } from "@/game/systems/proof-service";
 import {
   delegateTradeSkill,
-  executeQuestAction,
+  executeAgentQuestAction,
   fetchDashboardStatus,
+  prepareManualQuestAction,
+  recordManualQuestAction,
   unlockSkill,
 } from "@/game/systems/transaction-service";
 import { bazaarAudioSystem } from "@/game/systems/audio-system";
 import { deriveWorldState, EconomicMonitor } from "@/game/systems/world-state-service";
+import { getActionControlPolicy } from "@/lib/game/action-controls";
 import { aiSkillCatalog, defaultUnlockedSkillIds } from "@/lib/skills/ai-skills";
-import { defaultXLayerChain } from "@/lib/xlayer";
+import { getUniswapQuoteDisplay } from "@/lib/skills/uniswap-quote";
+import { defaultXLayerChain, explorerAddressUrl } from "@/lib/xlayer";
 import { PhaserGameClient } from "./phaser-game-client";
 
 type DrawerTab = "quests" | "proof" | "districts" | "ops";
@@ -117,6 +130,16 @@ function humanize(value: string) {
   return value.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function findDistrictForInteraction(interactionId?: string | null) {
+  if (!interactionId) return null;
+  return districtDefinitions.find((district) => district.interactPoints.includes(interactionId))?.id ?? null;
+}
+
+function findDistrictForMap(mapId?: MapId | null) {
+  if (!mapId) return null;
+  return districtDefinitions.find((district) => district.linkedInteriors.includes(mapId))?.id ?? null;
+}
+
 function formatTimeLabel(input?: string | number, ready = true) {
   if (!ready || !input) return "—";
   const date = typeof input === "number" ? new Date(input) : new Date(input);
@@ -154,10 +177,15 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const [hasMounted, setHasMounted]                 = useState(false);
   const [phaserReady, setPhaserReady]               = useState(false);
   const [stageLoadError, setStageLoadError]         = useState<string | null>(null);
+  const [resetConfirm, setResetConfirm]             = useState(false);
+  const [resetPending, setResetPending]             = useState(false);
+  const [controlMode, setControlMode]               = useState<ActionControlMode>("manual");
 
   const { address, chain, isConnected } = useAccount();
   const { data: balance } = useBalance({ address, query: { enabled: Boolean(address) } });
   const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient({ chainId: defaultXLayerChain.id });
 
   const walletIdentity = useMemo(
     () => resolveWalletIdentity({ address, chainId: chain?.id, isConnected }),
@@ -196,7 +224,13 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   });
 
   const actionMutation = useMutation({
-    mutationFn: async (actionId: QuestActionId) => executeQuestAction(actionId),
+    mutationFn: async (input: { actionId: QuestActionId; controlMode: ActionControlMode }) => {
+      if (input.controlMode === "manual") {
+        return executeManualQuestAction(input.actionId);
+      }
+
+      return executeAgentQuestAction(input.actionId);
+    },
     onSuccess:  (payload) => {
       queryClient.setQueryData(STATUS_QUERY_KEY, payload.status);
       setDrawerOpen(true);
@@ -207,6 +241,10 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const sessionKey = useMemo(
     () => `bazaar-x:entered:${address ?? "guest"}:${chain?.id ?? "none"}`,
     [address, chain?.id],
+  );
+  const controlModeKey = useMemo(
+    () => `bazaar-x:control-mode:${address ?? "guest"}`,
+    [address],
   );
 
   useEffect(() => { setHasMounted(true); }, []);
@@ -227,6 +265,19 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     const sessionValue = window.sessionStorage.getItem(sessionKey) === "1";
     setHasEnteredVillage(Boolean(initialScene) || sessionValue);
   }, [initialScene, sessionKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const nextMode = window.localStorage.getItem(controlModeKey);
+    if (nextMode === "manual" || nextMode === "agent") {
+      setControlMode(nextMode);
+    }
+  }, [controlModeKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(controlModeKey, controlMode);
+  }, [controlMode, controlModeKey]);
 
   useEffect(() => { bazaarGameStore.getState().setWallet(walletIdentity); }, [walletIdentity]);
 
@@ -258,6 +309,12 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   }, [playerName, walletIdentity]);
 
   useEffect(() => { setPlayerNameDraft(playerName); }, [playerName]);
+
+  useEffect(() => {
+    if (!resetConfirm) return;
+    const timeoutId = window.setTimeout(() => setResetConfirm(false), 5_000);
+    return () => window.clearTimeout(timeoutId);
+  }, [resetConfirm]);
 
   useEffect(() => {
     if (!hydrated || !walletIdentity.connected || !walletIdentity.validNetwork) return;
@@ -337,18 +394,81 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     return currentDistrict.npcRoster.map((id) => npcLookup.get(id)).filter((n): n is NonNullable<typeof n> => Boolean(n));
   }, [currentDistrict]);
 
+  const railStateById = useMemo(
+    () => new Map(deferredRail.map((step) => [step.id, step.state] as const)),
+    [deferredRail],
+  );
+
+  const activeSkill = useMemo(
+    () => skillCatalog.find((skill) => skill.skill_id === activeSkillId) ?? null,
+    [activeSkillId, skillCatalog],
+  );
+  const activeArenaSkill = useMemo(() => {
+    const protocol = activeSkill?.execution.protocol;
+    if (protocol !== "OnchainOS" && protocol !== "Uniswap-V3-XLayer") {
+      return null;
+    }
+    return activeSkill;
+  }, [activeSkill]);
+
+  const districtStates = useMemo(() => {
+    const completedDistrictIds = new Set<DistrictId>();
+    const activeDistrictIds = new Set<DistrictId>();
+
+    deferredRail.forEach((step) => {
+      const districtId = findDistrictForInteraction(step.targetId) ?? findDistrictForMap(step.targetMapId);
+      if (!districtId) return;
+      if (step.state === "complete") {
+        completedDistrictIds.add(districtId);
+        return;
+      }
+      if (step.state === "active") {
+        activeDistrictIds.add(districtId);
+      }
+    });
+
+    return Object.fromEntries(
+      districtDefinitions.map((district) => [
+        district.id,
+        completedDistrictIds.has(district.id)
+          ? "complete"
+          : activeDistrictIds.has(district.id) || district.id === "village-gate"
+            ? "active"
+            : "locked",
+      ]),
+    ) as Record<DistrictId, "active" | "complete" | "locked">;
+  }, [deferredRail]);
+
   const interactionView = useMemo(() => {
     if (!selection) return null;
     const npc      = selection.npcId ? npcDefinitions.find((e) => e.id === selection.npcId) : null;
     const building = buildingDefinitions.find((e) => e.id === selection.interactionId);
     const isObjective = activeQuest?.targetId === selection.interactionId;
-
-    const baseLines     = npc ? dialogueEntries[npc.dialogueId]?.[0]?.lines ?? [] : building ? [building.description] : [];
-    const objectiveLines = isObjective ? [activeQuest?.requiredInteraction, activeQuest?.worldStateChange, activeQuest?.rewardOutput].filter((v): v is string => Boolean(v)) : [];
-    const lines = [...baseLines, ...objectiveLines].slice(0, 3);
-    
-    // Inject ConnectWallet for the Keeper
+    const npcStepComplete = npc ? npc.questHooks.some((hook) => railStateById.get(hook) === "complete") : false;
+    const dialogueSet = npc ? dialogueSets[npc.dialogueId] : undefined;
+    const baseLines = npc
+      ? npcStepComplete
+        ? dialogueSet?.post ?? []
+        : dialogueSet?.pre ?? []
+      : building
+        ? [building.description]
+        : [];
+    const objectiveLines = isObjective
+      ? [activeQuest?.requiredInteraction, activeQuest?.worldStateChange, activeQuest?.rewardOutput].filter(
+          (value): value is string => Boolean(value),
+        )
+      : [];
+    const uniswapLine =
+      isObjective &&
+      activeQuest?.actionId === "hire-supplier" &&
+      activeSkillId === "uniswap-xlayer-amm-v1"
+        ? `Route: ${getUniswapQuoteDisplay("0.030")}`
+        : null;
+    const lines = [...baseLines, ...objectiveLines, ...(uniswapLine ? [uniswapLine] : [])].slice(0, 4);
     const isKeeperWithoutWallet = selection.npcId === "keeper" && (!displayWalletIdentity.connected || !displayWalletIdentity.validNetwork);
+    const showSkillBanner =
+      activeArenaSkill &&
+      (selection.interactionId === "forge-board" || selection.interactionId === "treasury-board");
 
     return {
       title:         npc?.name ?? building?.name ?? humanize(selection.interactionId),
@@ -357,10 +477,28 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
       actionLabel:   isObjective && activeQuest?.actionId ? activeQuest.title : undefined,
       actionId:      isObjective ? activeQuest?.actionId : undefined,
       objectiveLabel: isObjective ? "Objective" : "Inspect",
+      bannerText: showSkillBanner ? `▸ ${activeArenaSkill.identity.name} · ACTIVE` : undefined,
+      bannerColor:
+        activeArenaSkill?.execution.protocol === "Uniswap-V3-XLayer" ? "#ff007a" : "var(--gold)",
       actionNode:    isKeeperWithoutWallet ? <ConnectWalletButton /> : undefined,
     };
-  }, [activeQuest, selection, displayWalletIdentity.connected, displayWalletIdentity.validNetwork]);
+  }, [
+    activeArenaSkill,
+    activeQuest,
+    activeSkillId,
+    displayWalletIdentity.connected,
+    displayWalletIdentity.validNetwork,
+    railStateById,
+    selection,
+  ]);
 
+  const actionPolicy = useMemo(
+    () => (interactionView?.actionId ? getActionControlPolicy(interactionView.actionId) : null),
+    [interactionView?.actionId],
+  );
+
+  const actionRequiresAgent = controlMode === "manual" && actionPolicy?.manualSupport === "agent_required";
+  const selectedActionMode: ActionControlMode = actionRequiresAgent ? "agent" : controlMode;
   const interactionDisabledReason = interactionView?.actionId
     ? !displayWalletIdentity.connected
       ? "Connect wallet to act."
@@ -370,9 +508,84 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
           ? "Transaction in progress..."
           : null
     : null;
+  const actionModeSummary = actionPolicy
+    ? selectedActionMode === "manual"
+      ? actionPolicy.manualSummary
+      : actionPolicy.agentSummary
+    : null;
+  const actionPrimaryLabel = interactionView?.actionId
+    ? selectedActionMode === "manual"
+      ? actionPolicy?.manualSupport === "recoverable"
+        ? "Sync Live Proof"
+        : "Sign With Wallet"
+      : actionPolicy?.agentPaymentOkb
+        ? `Run Agent · ${actionPolicy.agentPaymentOkb} OKB`
+        : "Run Agent"
+    : undefined;
+  const questActionNode =
+    interactionView?.actionId && actionPolicy ? (
+      <div style={{ display: "flex", minWidth: 216, flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+          <button
+            type="button"
+            className={`px-btn ${controlMode === "manual" ? "gold" : "ghost"}`}
+            onClick={() => setControlMode("manual")}
+            disabled={actionMutation.isPending}
+            style={{ justifyContent: "center" }}
+          >
+            Wallet
+          </button>
+          <button
+            type="button"
+            className={`px-btn ${controlMode === "agent" ? "gold" : "ghost"}`}
+            onClick={() => setControlMode("agent")}
+            disabled={actionMutation.isPending}
+            style={{ justifyContent: "center" }}
+          >
+            Agent
+          </button>
+        </div>
+
+        <div
+          className="interaction-footer"
+          style={{
+            color: actionRequiresAgent ? "var(--text-gold)" : "var(--text-muted)",
+            marginTop: 0,
+            maxWidth: 216,
+            textAlign: "right",
+          }}
+        >
+          {actionModeSummary}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleQuestAction(interactionView.actionId as QuestActionId, selectedActionMode)}
+          disabled={Boolean(interactionDisabledReason)}
+          className={`px-btn ${selectedActionMode === "manual" ? "gold" : "ice"}`}
+          style={{ justifyContent: "center", whiteSpace: "nowrap" }}
+        >
+          {actionMutation.isPending ? "Submitting…" : actionPrimaryLabel}
+        </button>
+
+        {interactionDisabledReason ? (
+          <div
+            className="interaction-footer"
+            style={{
+              color: "var(--red)",
+              marginTop: 0,
+              textAlign: "right",
+            }}
+          >
+            {interactionDisabledReason}
+          </div>
+        ) : null}
+      </div>
+    ) : undefined;
 
   const completedSteps = deferredRail.filter((s) => s.state === "complete").length;
   const questProgress  = Math.round((completedSteps / Math.max(1, goldenPathQuest.steps.length)) * 100);
+  const isComplete = deferredRail.length > 0 && deferredRail.every((step) => step.state === "complete");
 
   const addressLabel  = shortAddress(displayAddress);
   const balanceLabel  = displayWalletIdentity.connected ? (displayBalance ? `${Number(displayBalance.formatted).toFixed(3)} ${displayBalance.symbol}` : "Syncing") : "—";
@@ -386,6 +599,16 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const recentSteps = useMemo(() => [...(liveStatus?.liveDashboard.runtime?.steps ?? [])].slice(-4).reverse(), [liveStatus]);
   const latestProof = deferredProofs[0] ?? null;
   const stageLabel  = currentDistrict?.name ?? mapLabels[currentMapId];
+  const votingMs = (liveStatus?.liveDashboard.runtime?.deployment?.initialRules.votingPeriodSeconds ?? 10) * 1_000;
+  const votingSeconds = Math.ceil(votingMs / 1_000);
+  const contractAddress =
+    liveStatus?.liveDashboard.runtime?.deployment?.contractAddress ?? liveStatus?.onchain?.address ?? null;
+  const contractExplorerBaseUrl =
+    liveStatus?.liveDashboard.runtime?.deployment?.explorerBaseUrl ??
+    liveStatus?.liveDashboard.manifest.explorerBaseUrl;
+  const contractExplorerUrl = contractAddress
+    ? explorerAddressUrl(contractAddress, contractExplorerBaseUrl)
+    : null;
 
   const startupVisible  = !hasMounted || !phaserReady || sceneId === "boot" || sceneId === "preload";
   const startupProgress = stageLoadError ? 100 : !hasMounted ? 18 : !phaserReady ? 42 : sceneId === "boot" ? 58 : sceneId === "preload" ? 84 : 100;
@@ -401,18 +624,203 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  async function handleQuestAction(actionId: QuestActionId) {
+  async function executeManualQuestAction(actionId: QuestActionId) {
+    if (!displayAddress || !walletClient || !publicClient) {
+      throw new Error("Connect a wallet on X Layer before using the manual village controls.");
+    }
+
+    const baseLabel = humanize(actionId);
+    let latestPayload: Awaited<ReturnType<typeof recordManualQuestAction>> | null = null;
+    let latestHash: `0x${string}` | undefined;
+
+    for (let pass = 0; pass < 6; pass += 1) {
+      const plan = await prepareManualQuestAction(actionId, displayAddress);
+      queryClient.setQueryData(STATUS_QUERY_KEY, plan.status);
+
+      if (plan.planState === "agent_required") {
+        throw new Error(plan.message);
+      }
+
+      if (plan.planState === "recovered") {
+        return (
+          latestPayload ?? {
+            ok: true as const,
+            actionId,
+            txState: "recovered" as const,
+            controlMode: "manual" as const,
+            executionKind: "system" as const,
+            recovered: true,
+            stepKey: plan.stepKey,
+            txHash: plan.txHash,
+            message: plan.message,
+            status: plan.status,
+          }
+        );
+      }
+
+      if (!plan.steps.length) {
+        throw new Error("The manual village planner did not return a signable step.");
+      }
+
+      for (const step of plan.steps) {
+        bazaarGameStore.getState().setPendingAction({
+          actionId,
+          label: step.label || baseLabel,
+          status: "pending",
+          startedAt: Date.now(),
+          controlMode: "manual",
+          executionKind: "player-wallet",
+          message: plan.message,
+        });
+
+        const txHash = await walletClient.sendTransaction({
+          account: walletClient.account ?? displayAddress,
+          to: step.to,
+          data: step.data,
+          value: BigInt(step.value),
+        });
+        latestHash = txHash;
+
+        bazaarGameStore.getState().setPendingAction({
+          actionId,
+          label: step.label || baseLabel,
+          status: "submitted",
+          startedAt: Date.now(),
+          txHash,
+          controlMode: "manual",
+          executionKind: "player-wallet",
+          message: "Waiting for X Layer confirmation…",
+        });
+        bazaarEventBridge.emit("tx:submitted", {
+          actionId,
+          label: step.label || baseLabel,
+          txHash,
+        });
+
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+        if (!step.recordStepKey) {
+          continue;
+        }
+
+        latestPayload = await recordManualQuestAction(actionId, displayAddress, [
+          {
+            stepKey: step.recordStepKey,
+            txHash,
+          },
+        ]);
+
+        queryClient.setQueryData(STATUS_QUERY_KEY, latestPayload.status);
+        bazaarEventBridge.emit("tx:confirmed", {
+          actionId,
+          stepKey: step.recordStepKey,
+          txHash,
+        });
+      }
+    }
+
+    throw new Error(
+      latestHash
+        ? `The manual action partially settled, but the village planner did not finish cleanly. Last tx: ${latestHash}`
+        : "The manual action could not be completed after several preparation passes.",
+    );
+  }
+
+  async function handleQuestAction(
+    actionId: QuestActionId,
+    requestedMode: ActionControlMode = controlMode,
+  ) {
     bazaarAudioSystem.play("ui-confirm");
-    bazaarGameStore.getState().setPendingAction({ actionId, label: humanize(actionId), status: "pending", startedAt: Date.now() });
-    bazaarEventBridge.emit("tx:submitted", { actionId, label: humanize(actionId) });
+    bazaarGameStore.getState().setPendingAction({
+      actionId,
+      label: humanize(actionId),
+      status: "pending",
+      startedAt: Date.now(),
+      controlMode: requestedMode,
+      executionKind: requestedMode === "manual" ? "player-wallet" : "x402-agent",
+    });
+    if (requestedMode !== "manual") {
+      bazaarEventBridge.emit("tx:submitted", { actionId, label: humanize(actionId) });
+    }
     setDrawerOpen(true); setDrawerTab("ops");
     try {
-      const payload = await actionMutation.mutateAsync(actionId);
-      bazaarGameStore.getState().setPendingAction({ actionId, label: humanize(actionId), status: payload.txState, startedAt: Date.now(), txHash: payload.txHash, stepKey: payload.stepKey });
-      if (payload.stepKey) bazaarEventBridge.emit("tx:confirmed", { actionId, stepKey: payload.stepKey, txHash: payload.txHash });
+      const payload = await actionMutation.mutateAsync({
+        actionId,
+        controlMode: requestedMode,
+      });
+      bazaarGameStore.getState().setPendingAction({
+        actionId,
+        label: humanize(actionId),
+        status: payload.txState,
+        startedAt: Date.now(),
+        txHash: payload.txHash,
+        stepKey: payload.stepKey,
+        controlMode: payload.controlMode,
+        executionKind: payload.executionKind,
+        message: payload.message,
+      });
+      if (requestedMode !== "manual") {
+        bazaarEventBridge.emit("tx:confirmed", { actionId, stepKey: payload.stepKey ?? actionId, txHash: payload.txHash });
+      }
     } catch (error) {
-      bazaarGameStore.getState().setPendingAction({ actionId, label: humanize(actionId), status: "failed", startedAt: Date.now(), errorMessage: error instanceof Error ? error.message : "Unknown error" });
+      bazaarGameStore.getState().setPendingAction({
+        actionId,
+        label: humanize(actionId),
+        status: "failed",
+        startedAt: Date.now(),
+        controlMode: requestedMode,
+        executionKind: requestedMode === "manual" ? "player-wallet" : "x402-agent",
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+      });
     }
+  }
+
+  async function handleReset() {
+    setResetPending(true);
+    bazaarAudioSystem.play("ui-confirm");
+
+    try {
+      const response = await fetch("/api/game/reset", { method: "POST" });
+      if (!response.ok) {
+        throw new Error("Failed to reset the live runtime artifact.");
+      }
+
+      proofListenerRef.current = new ProofListener();
+      economicMonitorRef.current = new EconomicMonitor();
+      setSelection(null);
+      setProofOverlay(null);
+      setSkillHudMapId(null);
+      setResetConfirm(false);
+      bazaarGameStore.getState().resetRuntime();
+      await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
+      await statusQuery.refetch();
+      bazaarEventBridge.emit("toast:show", {
+        id: "runtime-reset",
+        title: "Run Reset",
+        body: "Runtime state cleared. The village is ready for a fresh replay.",
+        tone: "success",
+      });
+    } catch (error) {
+      bazaarEventBridge.emit("toast:show", {
+        id: "runtime-reset-error",
+        title: "Reset Failed",
+        body: error instanceof Error ? error.message : "Unable to reset the live runtime.",
+        tone: "proof",
+      });
+    } finally {
+      setResetPending(false);
+      setResetConfirm(false);
+    }
+  }
+
+  function handleResetClick() {
+    if (resetPending) return;
+    if (!resetConfirm) {
+      bazaarAudioSystem.play("ui-confirm");
+      setResetConfirm(true);
+      return;
+    }
+    void handleReset();
   }
 
   function toggleBrief()  { bazaarAudioSystem.play("ui-confirm"); setBriefOpen((v) => !v); if (drawerOpen) setDrawerOpen(false); }
@@ -554,6 +962,18 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
           <Radio size={10} />
           <span className="hud-seg-value is-ice">{deferredProofs.length}</span>
         </div>
+
+        {activeArenaSkill ? (
+          <div className="hud-seg">
+            <div className="hud-dot is-gold" style={{ animation: "pulse 1.5s infinite" }} />
+            <span
+              className="hud-seg-value"
+              style={{ color: activeArenaSkill.execution.protocol === "Uniswap-V3-XLayer" ? "#ff007a" : "var(--gold)" }}
+            >
+              {activeArenaSkill.execution.protocol === "Uniswap-V3-XLayer" ? "UNI-X" : "OS-ORACLE"}
+            </span>
+          </div>
+        ) : null}
 
         {/* Active quest objective */}
         {activeQuest ? (
@@ -846,7 +1266,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
               {districtDefinitions.map((district) => {
                 const linkedInterior = district.linkedInteriors[0];
                 return (
-                  <article key={district.id} className="px-quest state-locked">
+                  <article key={district.id} className={`px-quest state-${districtStates[district.id]}`}>
                     <div className="px-quest-head">
                       <div>
                         <div className="px-quest-state">{district.subtitle}</div>
@@ -893,12 +1313,51 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 </div>
               </div>
 
+              <div className="px-card accent-ice">
+                <div className="px-kicker k-ice">Control Mode</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    className={`px-btn ${controlMode === "manual" ? "gold" : "ghost"}`}
+                    onClick={() => setControlMode("manual")}
+                    disabled={actionMutation.isPending}
+                    style={{ justifyContent: "center" }}
+                  >
+                    Wallet-led
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-btn ${controlMode === "agent" ? "ice" : "ghost"}`}
+                    onClick={() => setControlMode("agent")}
+                    disabled={actionMutation.isPending}
+                    style={{ justifyContent: "center" }}
+                  >
+                    Agent x402
+                  </button>
+                </div>
+                <div className="px-body" style={{ fontSize: 12, marginTop: 6, color: "var(--text-muted)" }}>
+                  {controlMode === "manual"
+                    ? "Default mode. Your connected wallet signs the steps it can legitimately perform."
+                    : "Opt-in mode. Autonomous district agents run the step after an x402 payment challenge."}
+                </div>
+              </div>
+
+              {pendingAction?.actionId === "execute-rule-change" && pendingAction.status === "pending" ? (
+                <div className="px-card accent-gold">
+                  <div className="px-kicker k-gold">Governance</div>
+                  <div className="px-body" style={{ fontSize: 13, marginBottom: 6 }}>
+                    Waiting for voting period to close. This takes about {votingSeconds}s on X Layer.
+                  </div>
+                  <GovernanceCountdown startedAt={pendingAction.startedAt} durationMs={votingMs} />
+                </div>
+              ) : null}
+
               {/* Error / pending note */}
               {(liveError || pendingAction) ? (
                 <div className={`px-card ${liveError ? "accent-red" : "accent-green"}`}>
                   <div className={`px-kicker ${liveError ? "k-red" : "k-green"}`}>{liveError ? "Error" : "Pending"}</div>
                   <div className="px-body" style={{ fontSize: 13 }}>
-                    {liveError ?? `${pendingAction?.label} is ${pendingAction?.status}.`}
+                    {liveError ?? pendingAction?.message ?? `${pendingAction?.label} is ${pendingAction?.status}.`}
                   </div>
                 </div>
               ) : null}
@@ -909,6 +1368,41 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                   <div className="px-kicker k-green">Village Health</div>
                   <div className="px-title" style={{ fontSize: 16 }}>{Math.round(liveStatus.monitor.villageHealth * 100)}%</div>
                   <div className="px-body" style={{ fontSize: 12 }}>{liveStatus.monitor.note}</div>
+                </div>
+              ) : null}
+
+              {contractAddress ? (
+                <div className="px-card accent-ice">
+                  <div className="px-kicker k-ice">Bazaar X Contract</div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-pixel), monospace",
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {contractAddress}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="px-link"
+                      onClick={() => void navigator.clipboard?.writeText(contractAddress)}
+                    >
+                      Copy
+                    </button>
+                    {contractExplorerUrl ? (
+                      <a
+                        href={contractExplorerUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-link"
+                      >
+                        <ArrowUpRight size={10} />OKLink ↗
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
 
@@ -963,6 +1457,16 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
                 <button type="button" className="px-btn ghost px-btn-sm" onClick={() => void statusQuery.refetch()} disabled={isStatusSyncing}>
                   <RefreshCw size={10} />{isStatusSyncing ? "Refreshing…" : "Refresh"}
                 </button>
+                <button
+                  type="button"
+                  className="px-btn ghost px-btn-sm"
+                  onClick={handleResetClick}
+                  disabled={resetPending}
+                  style={{ borderColor: "var(--red)", color: "var(--red)" }}
+                >
+                  <RefreshCw size={10} />
+                  {resetPending ? "Resetting…" : resetConfirm ? "Confirm Reset" : "Reset Run"}
+                </button>
                 <button type="button" className="px-btn ghost px-btn-sm" onClick={toggleMuted}>
                   {settings.muted ? <Volume2 size={10} /> : <VolumeX size={10} />}
                   {settings.muted ? "Unmute" : "Mute"}
@@ -1004,22 +1508,33 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         </div>
       ) : null}
 
+      {isComplete ? (
+        <VictoryOverlay proofs={deferredProofs} liveStatus={liveStatus} onReset={() => void handleReset()} />
+      ) : null}
+
       {/* ── OVERLAYS & MODALS ──────────────────────────────────────────────── */}
       {interactionView ? (
         <InteractionSheet
           title={interactionView.title}
           subtitle={interactionView.subtitle}
           lines={interactionView.lines}
+          bannerText={interactionView.bannerText}
+          bannerColor={interactionView.bannerColor}
           objectiveLabel={interactionView.objectiveLabel}
-          actionLabel={interactionView.actionLabel}
-          actionNode={interactionView.actionNode}
+          actionLabel={questActionNode ? undefined : interactionView.actionLabel}
+          actionNode={questActionNode ?? interactionView.actionNode}
           actionDisabled={Boolean(
+            !questActionNode &&
             interactionView.actionId &&
             (!displayWalletIdentity.connected || !displayWalletIdentity.validNetwork || actionMutation.isPending)
           )}
-          actionPending={actionMutation.isPending}
-          disabledReason={interactionDisabledReason}
-          onAction={interactionView.actionId ? () => handleQuestAction(interactionView.actionId as QuestActionId) : undefined}
+          actionPending={!questActionNode && actionMutation.isPending}
+          disabledReason={!questActionNode ? interactionDisabledReason : null}
+          onAction={
+            !questActionNode && interactionView.actionId
+              ? () => handleQuestAction(interactionView.actionId as QuestActionId)
+              : undefined
+          }
           onClose={() => setSelection(null)}
         />
       ) : null}

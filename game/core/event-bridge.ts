@@ -22,6 +22,7 @@ type BridgePayloads = {
   "tx:submitted": {
     actionId: QuestActionId;
     label: string;
+    txHash?: Hex;
   };
   "tx:confirmed": {
     actionId: QuestActionId;

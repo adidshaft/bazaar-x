@@ -1,5 +1,6 @@
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import { deriveWorldState } from "../systems/world-state-service";
 import type {
   AISkillDefinition,
   Direction,
@@ -62,6 +63,7 @@ type BazaarGameStore = GameStoreState & {
   setLaborRoutingState: (state: LaborRoutingState) => void;
   hydrateFromPersistence: (state: PersistedPlayerState) => void;
   setSettings: (settings: Partial<GameStoreState["settings"]>) => void;
+  resetRuntime: () => void;
   markHydrated: () => void;
 };
 
@@ -184,6 +186,18 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
         ...settings,
       },
     })),
+  resetRuntime: () => {
+    const world = deriveWorldState(null);
+    set(() => ({
+      liveStatus: null,
+      proofs: [],
+      pendingAction: null,
+      world,
+      objectiveTargetId: world.objectiveTargetId,
+      questHighlightId: world.objectiveTargetId,
+      selectedDistrictId: "village-gate",
+    }));
+  },
   markHydrated: () => set(() => ({ hydrated: true })),
 }));
 

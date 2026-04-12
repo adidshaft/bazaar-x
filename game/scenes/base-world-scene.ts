@@ -32,6 +32,7 @@ type BuildingSpriteConfig = {
 
 type LabelEntry = {
   id: string;
+  label: string;
   target: Phaser.Math.Vector2;
   container: Phaser.GameObjects.Container;
   text: Phaser.GameObjects.Text;
@@ -157,6 +158,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   private focusVignetteFx?: Phaser.FX.Vignette;
   private activeAuraSkillId: string | null = null;
   private focusMode = false;
+  private touchDir = { x: 0, y: 0 };
   private proofPickup?: {
     proof: ProofArtifact;
     sprite: Phaser.GameObjects.Image;
@@ -347,6 +349,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.activeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     this.activeUnsubscribers = [];
     this.labelEntries = [];
+    this.touchDir = { x: 0, y: 0 };
     this.proofPickup?.sprite.destroy();
     this.proofPickup?.ring.destroy();
     this.proofPickup = undefined;
@@ -364,8 +367,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     const up = Boolean(this.cursors?.up.isDown || this.wasd?.W.isDown);
     const down = Boolean(this.cursors?.down.isDown || this.wasd?.S.isDown);
 
-    const dx = Number(right) - Number(left);
-    const dy = Number(down) - Number(up);
+    const keyboardDx = Number(right) - Number(left);
+    const keyboardDy = Number(down) - Number(up);
+    const dx = keyboardDx !== 0 || keyboardDy !== 0 ? keyboardDx : this.touchDir.x;
+    const dy = keyboardDx !== 0 || keyboardDy !== 0 ? keyboardDy : this.touchDir.y;
     return { dx, dy };
   }
 
@@ -379,8 +384,22 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.input.keyboard?.once("keydown", () => bazaarAudioSystem.unlock());
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.touchDir = { x: 0, y: 0 };
       const walkableTarget = this.resolveNearestWalkableWorldPoint(pointer.worldX, pointer.worldY);
       this.player.setPointerTarget(walkableTarget.x, walkableTarget.y);
+    });
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown) return;
+      const dx = pointer.x - pointer.downX;
+      const dy = pointer.y - pointer.downY;
+      if (Math.abs(dx) <= 12 && Math.abs(dy) <= 12) {
+        return;
+      }
+      this.touchDir = { x: Math.sign(dx), y: Math.sign(dy) };
+      this.player.clearPointerTarget();
+    });
+    this.input.on("pointerup", () => {
+      this.touchDir = { x: 0, y: 0 };
     });
 
     this.input.keyboard?.on("keydown-E", () => this.handleInteraction());
@@ -775,6 +794,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
       this.labelEntries.push({
         id: interactable.id,
+        label: interactable.label,
         target: interactable.center.clone(),
         container,
         text,
@@ -799,11 +819,12 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       if (!entry.container.active || !entry.text.active) return;
       const isFocused = entry.id === focusedInteractionId;
       const isObjective = entry.id === objectiveTargetId;
-      
+
       entry.container.setVisible(true);
       entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.92 : 0.4);
       entry.container.setScale(isFocused ? 1.04 : isObjective ? 1.02 : 1);
       entry.text.setColor(isFocused || isObjective ? "#ffffff" : "#d6e9f2");
+      entry.text.setText(isFocused ? `▸ E · ${entry.label.toUpperCase()}` : entry.label.toUpperCase());
     });
   }
 

@@ -2,6 +2,8 @@ type InteractionSheetProps = {
   title: string;
   subtitle: string;
   lines: string[];
+  bannerText?: string;
+  bannerColor?: string;
   objectiveLabel?: string;
   actionLabel?: string;
   actionDisabled?: boolean;
@@ -16,6 +18,8 @@ export function InteractionSheet({
   title,
   subtitle,
   lines,
+  bannerText,
+  bannerColor,
   objectiveLabel,
   actionLabel,
   actionDisabled,
@@ -52,7 +56,21 @@ export function InteractionSheet({
         {/* Body: dialogue + action */}
         <div className="interaction-body">
           <div className="interaction-lines">
-            {lines.slice(0, 2).map((line, idx) => (
+            {bannerText ? (
+              <div
+                style={{
+                  fontFamily: "var(--font-arcade), monospace",
+                  fontSize: 7,
+                  color: bannerColor ?? "var(--text-gold)",
+                  marginBottom: 4,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {bannerText}
+              </div>
+            ) : null}
+            {lines.slice(0, 4).map((line, idx) => (
               <div key={idx} className="interaction-line">{line}</div>
             ))}
           </div>

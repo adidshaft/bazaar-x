@@ -33,6 +33,8 @@ export type QuestActionId =
   | "replay-worker-payment"
   | "treasury-reinvest";
 
+export type ActionControlMode = "manual" | "agent";
+export type ActionExecutionKind = "player-wallet" | "x402-agent" | "system";
 export type QuestState = "locked" | "available" | "active" | "complete";
 export type TxState = "idle" | "pending" | "submitted" | "confirmed" | "failed" | "recovered";
 export type Direction = "up" | "down" | "left" | "right";
@@ -315,10 +317,34 @@ export type GameActionResponse = {
   ok: true;
   actionId: QuestActionId;
   txState: Exclude<TxState, "idle">;
+  controlMode: ActionControlMode;
+  executionKind: ActionExecutionKind;
   recovered: boolean;
   stepKey?: string;
   txHash?: Hex;
+  message?: string;
   errorMessage?: string;
+  status: LiveDashboardStatus;
+};
+
+export type PreparedGameActionStep = {
+  label: string;
+  to: `0x${string}`;
+  data: Hex;
+  value: string;
+  recordStepKey?: string;
+};
+
+export type PreparedGameActionResponse = {
+  ok: true;
+  actionId: QuestActionId;
+  controlMode: "manual";
+  executionKind: "player-wallet" | "system";
+  planState: "prepared" | "recovered" | "agent_required";
+  message: string;
+  stepKey?: string;
+  txHash?: Hex;
+  steps: PreparedGameActionStep[];
   status: LiveDashboardStatus;
 };
 
@@ -342,6 +368,9 @@ export type PendingAction = {
   label: string;
   status: TxState;
   startedAt: number;
+  controlMode?: ActionControlMode;
+  executionKind?: ActionExecutionKind;
+  message?: string;
   errorMessage?: string;
   txHash?: Hex;
   stepKey?: string;

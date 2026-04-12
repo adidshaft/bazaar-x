@@ -1,6 +1,8 @@
 import type {
+  ActionControlMode,
   DashboardResponse,
   GameActionResponse,
+  PreparedGameActionResponse,
   ProofArtifact,
   QuestActionId,
 } from "@/game/core/live-types";
@@ -140,13 +142,13 @@ function resolvePaymentChallenge(response: Response, payload: SkillUnlockErrorRe
   return payload?.paymentRequired?.challenge ? JSON.stringify(payload.paymentRequired.challenge) : null;
 }
 
-async function postWithPaymentRetry(url: string, skillId: string) {
+async function postWithPaymentRetry<TBody extends Record<string, unknown>>(url: string, body: TBody) {
   const firstResponse = await fetch(url, {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify({ skillId }),
+    body: JSON.stringify(body),
     cache: "no-store",
   });
 
@@ -166,7 +168,7 @@ async function postWithPaymentRetry(url: string, skillId: string) {
       "content-type": "application/json",
       "X-PAYMENT": paymentChallenge,
     },
-    body: JSON.stringify({ skillId }),
+    body: JSON.stringify(body),
     cache: "no-store",
   });
 }
@@ -184,13 +186,10 @@ export async function fetchDashboardStatus() {
   return payload.status;
 }
 
-export async function executeQuestAction(actionId: QuestActionId) {
-  const response = await fetch("/api/game/action", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ actionId }),
+export async function executeAgentQuestAction(actionId: QuestActionId) {
+  const response = await postWithPaymentRetry("/api/game/action", {
+    actionId,
+    controlMode: "agent" satisfies ActionControlMode,
   });
 
   const payload = await parseJson<GameActionResponse>(response);
@@ -201,9 +200,52 @@ export async function executeQuestAction(actionId: QuestActionId) {
   return payload;
 }
 
+export async function prepareManualQuestAction(
+  actionId: QuestActionId,
+  playerAddress: `0x${string}`,
+) {
+  const response = await fetch("/api/game/action/prepare", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ actionId, playerAddress }),
+    cache: "no-store",
+  });
+
+  const payload = await parseJson<PreparedGameActionResponse>(response);
+  if (!response.ok || !payload) {
+    throw new Error(extractError(payload, `Failed to prepare ${actionId}.`));
+  }
+
+  return payload;
+}
+
+export async function recordManualQuestAction(
+  actionId: QuestActionId,
+  playerAddress: `0x${string}`,
+  records: Array<{ stepKey: string; txHash: `0x${string}` }>,
+) {
+  const response = await fetch("/api/game/action/record", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ actionId, playerAddress, records }),
+    cache: "no-store",
+  });
+
+  const payload = await parseJson<GameActionResponse>(response);
+  if (!response.ok || !payload) {
+    throw new Error(extractError(payload, `Failed to record ${actionId}.`));
+  }
+
+  return payload;
+}
+
 export async function vote(support: boolean) {
   if (support) {
-    return executeQuestAction("vote-rule-change");
+    return executeAgentQuestAction("vote-rule-change");
   }
 
   return {
@@ -214,7 +256,7 @@ export async function vote(support: boolean) {
 }
 
 export async function unlockSkill(skillId: string): Promise<SkillUnlockResponse> {
-  const response = await postWithPaymentRetry("/api/skills/unlock", skillId);
+  const response = await postWithPaymentRetry("/api/skills/unlock", { skillId });
   const payload = await parseJson<SkillUnlockResponse | SkillUnlockErrorResponse>(response);
 
   if (!response.ok || !payload) {
@@ -312,7 +354,9 @@ export async function exportSkillManifest(skillId: string): Promise<SkillExportR
 }
 
 export const transactionService = {
-  executeQuestAction,
+  executeAgentQuestAction,
+  prepareManualQuestAction,
+  recordManualQuestAction,
   fetchDashboardStatus,
   vote,
   unlockSkill,

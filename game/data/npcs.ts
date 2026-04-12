@@ -25,7 +25,7 @@ export const npcDefinitions: NpcDefinition[] = [
     pathId: "keeper-route",
     shortBio: "Maintains the contract gate and routes new players toward the first live action.",
     dialogueId: "keeper",
-    questHooks: ["arrival", "wallet-validation", "shop-open"],
+    questHooks: ["meet-keeper", "initialize-town"],
     economyRole: "Tutorial guide and world-state narrator.",
   },
   {
@@ -77,7 +77,7 @@ export const npcDefinitions: NpcDefinition[] = [
     pathId: "treasurer-loop",
     shortBio: "Reads treasury deltas as village light, unlocks notices, and returns grants.",
     dialogueId: "treasurer",
-    questHooks: ["treasury-proof", "treasury-reinvest"],
+    questHooks: ["treasury-reinvest"],
     economyRole: "Displays treasury impact and reinvestment receipts.",
   },
   {
