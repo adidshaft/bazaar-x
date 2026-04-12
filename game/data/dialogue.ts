@@ -11,7 +11,8 @@ export const dialogueEntries: Record<string, DialogueEntry[]> = {
       speaker: "Village Keeper",
       lines: [
         "Wallet light recognized. This village keys itself to your X Layer address.",
-        "Start at the forge. Open demand, then watch the town move real value.",
+        "OnchainOS verifies each identity before the first action clears.",
+        "Head to the forge — open demand, and the Uniswap pool wakes up.",
       ],
     },
   ],
@@ -20,8 +21,9 @@ export const dialogueEntries: Record<string, DialogueEntry[]> = {
       id: "shop-open",
       speaker: "Forge Master",
       lines: [
-        "One shop starts the whole economy.",
-        "Open it here, and the supplier lane wakes up.",
+        "Opening this shop sends a demand signal to the Uniswap X Layer pool.",
+        "One shop starts the whole economy — supply, labor, and tax flow next.",
+        "Submit 0.001 OKB through the contract dais and watch Market Row light up.",
       ],
     },
   ],
@@ -30,8 +32,9 @@ export const dialogueEntries: Record<string, DialogueEntry[]> = {
       id: "supplier-route",
       speaker: "Supply Coil",
       lines: [
-        "List the route, then I can pay the worker for live fulfillment.",
-        "When the payment lands, the treasury siphon will glow.",
+        "OnchainOS confirms the route is live before I dispatch any worker.",
+        "No oracle reading, no payment — the village doesn't trust blind routes.",
+        "List the service, then I'll swap through Uniswap to pay the worker.",
       ],
     },
   ],
@@ -40,18 +43,20 @@ export const dialogueEntries: Record<string, DialogueEntry[]> = {
       id: "worker-proof",
       speaker: "Node Pilot",
       lines: [
-        "Labor means nothing until it settles.",
-        "Hire the service and watch the village react to the receipt.",
+        "Labor means nothing until it settles onchain.",
+        "The hire-service call went through Uniswap X Layer — I can prove it.",
+        "Check the Proof panel. The swap receipt is your labor confirmation.",
       ],
     },
   ],
   treasurer: [
     {
       id: "treasury-proof",
-      speaker: "Treasurer",
+      speaker: "Reserve Steward",
       lines: [
-        "Tax is not a hidden number here.",
-        "When the payment confirms, this vault should brighten in front of you.",
+        "The OnchainOS oracle fed the treasury balance — every glow you see is verified.",
+        "Tax is not a hidden number. When payment confirms, this vault brightens.",
+        "Approve the reinvestment notice and the oracle will log the final state.",
       ],
     },
   ],
@@ -61,9 +66,9 @@ export const dialogueEntries: Record<string, DialogueEntry[]> = {
       speaker: "Council Steward",
       lines: [
         "A rule change is only real when the next payment behaves differently.",
-        "Propose, vote, execute, then replay the labor route.",
+        "OnchainOS governance oracle tracks each proposal, vote, and execution.",
+        "Propose, vote, execute — then replay the labor route to prove the tax changed.",
       ],
     },
   ],
 };
-

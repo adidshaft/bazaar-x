@@ -1,5 +1,5 @@
 import type { Hex } from "viem";
-import type { DistrictId, LiveDashboardStatus, MapId, QuestActionId } from "./live-types";
+import type { DistrictId, LiveDashboardStatus, MapId, ProofArtifact, QuestActionId } from "./live-types";
 
 type BridgePayloads = {
   "district:selected": {
@@ -45,6 +45,57 @@ type BridgePayloads = {
     mapId: MapId;
     spawnId?: string;
   };
+  "ui:viewport-changed": {
+    briefOpen: boolean;
+    drawerOpen: boolean;
+    leftWidth: number;
+    rightWidth: number;
+  };
+  "toast:show": {
+    id: string;
+    title: string;
+    body?: string;
+    tone?: "tax" | "success" | "proof" | "skill";
+    durationMs?: number;
+  };
+  "economy:tax-collected": {
+    id: string;
+    amountOkb: string;
+    txHash?: Hex;
+    explorerUrl?: string;
+  };
+  "camera:flash": {
+    duration: number;
+    red?: number;
+    green?: number;
+    blue?: number;
+  };
+  "camera:focus-mode": {
+    active: boolean;
+  };
+  "skill:altar-open": {
+    mapId: MapId;
+  };
+  "skill:altar-close": {
+    mapId: MapId;
+  };
+  "skill:activated": {
+    skillId: string | null;
+  };
+  "skill:unlock-success": {
+    skillId: string;
+  };
+  "skill:delegate-trade": {
+    skillId: string;
+    agentNpcId: string;
+    delegatedAction: string;
+  };
+  "proof:verified": {
+    proof: ProofArtifact;
+  };
+  "proof:scroll-picked": {
+    proof: ProofArtifact;
+  };
 };
 
 type BridgeEventName = keyof BridgePayloads;
@@ -76,4 +127,3 @@ class TypedEventBridge {
 }
 
 export const bazaarEventBridge = new TypedEventBridge();
-

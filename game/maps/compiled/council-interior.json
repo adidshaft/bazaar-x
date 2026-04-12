@@ -1938,6 +1938,62 @@
             "scale": 10
           }
         }
+      ],
+      "navigationNodes": [
+        {
+          "id": 3,
+          "name": "governor-loop-1",
+          "type": "path",
+          "x": 400,
+          "y": 320,
+          "tileX": 12.5,
+          "tileY": 10,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "governor-loop",
+            "order": 1
+          }
+        },
+        {
+          "id": 4,
+          "name": "governor-loop-2",
+          "type": "path",
+          "x": 496,
+          "y": 320,
+          "tileX": 15.5,
+          "tileY": 10,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "governor-loop",
+            "order": 2
+          }
+        },
+        {
+          "id": 5,
+          "name": "governor-loop-3",
+          "type": "path",
+          "x": 448,
+          "y": 400,
+          "tileX": 14,
+          "tileY": 12.5,
+          "width": 0,
+          "height": 0,
+          "widthTiles": 0,
+          "heightTiles": 0,
+          "point": true,
+          "properties": {
+            "pathId": "governor-loop",
+            "order": 3
+          }
+        }
       ]
     }
   }

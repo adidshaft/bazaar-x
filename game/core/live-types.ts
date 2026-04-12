@@ -36,6 +36,118 @@ export type QuestActionId =
 export type QuestState = "locked" | "available" | "active" | "complete";
 export type TxState = "idle" | "pending" | "submitted" | "confirmed" | "failed" | "recovered";
 export type Direction = "up" | "down" | "left" | "right";
+export type WorldTier = 0 | 1 | 2;
+export type LaborPoolId = "council" | "depot";
+export type LaborJobKind = "job-assigned" | "supply-requested" | "value-flow";
+export type LaborJobStatus = "queued" | "dispatched" | "walking" | "working" | "complete";
+
+export type LaborRoutingPoint = {
+  x: number;
+  y: number;
+};
+
+export type LaborRoutingJob = {
+  id: string;
+  stepKey: string;
+  actionId?: QuestActionId;
+  label: string;
+  kind: LaborJobKind;
+  pool: LaborPoolId;
+  targetBuildingId: string;
+  targetMapId: MapId;
+  npcId?: string;
+  status: LaborJobStatus;
+  path: LaborRoutingPoint[];
+  pathIndex: number;
+  createdAt: string;
+  updatedAt: string;
+  workUntilAt?: number;
+  txHash?: Hex;
+  amountOkb?: string;
+};
+
+export type LaborRoutingNpcState = {
+  npcId: string;
+  role: AgentRole | "guide" | "treasurer";
+  pool: LaborPoolId;
+  mapId: MapId;
+  status: "idle" | "walking" | "working";
+  x: number;
+  y: number;
+  direction: Direction;
+  path: LaborRoutingPoint[];
+  pathIndex: number;
+  currentJobId?: string;
+  targetBuildingId?: string;
+  workUntilAt?: number;
+  lastUpdatedAt: string;
+};
+
+export type LaborRoutingState = {
+  jobs: LaborRoutingJob[];
+  npcStates: Record<string, LaborRoutingNpcState>;
+  observedStepKeys: string[];
+  lastSyncedAt?: string;
+};
+
+export type AISkillDefinition = {
+  version: string;
+  skill_id: string;
+  identity: {
+    name: string;
+    description: string;
+    owner_requirement: string;
+  };
+  execution: {
+    protocol: string;
+    target_contract: string;
+    logic_hash: string;
+    permission_scope: string[];
+    delegation_protocol?: string;
+    monetization_protocol?: string;
+    delegated_action?: string;
+    unlock_price_okb?: string;
+  };
+  visual_metadata: {
+    sprite_aura: string;
+    ui_icon: string;
+    rarity: string;
+    glow_color?: string;
+  };
+  interop_stats: {
+    efficiency_bonus: number;
+    gas_reduction_bps: number;
+    compatible_tags: string[];
+  };
+};
+
+export type BazaarEconomicState = {
+  tvlOkb: number;
+  dailyVolumeOkb: number;
+  dailyTransactionCount: number;
+  treasuryInflowOkb: number;
+  gdpScore: number;
+  worldTier: WorldTier;
+  sampledAt?: string;
+  latestTreasuryTxHash?: Hex;
+  latestTreasuryExplorerUrl?: string;
+  latestTaxAmountOkb?: string;
+};
+
+export type BazaarGovernanceState = {
+  activeProposalCount: number;
+  activeProposalIds: number[];
+  latestProposalId: number;
+  ayeVotes: number;
+  nayVotes: number;
+};
+
+export type BazaarGatewayState = {
+  blockHeight: number;
+  latestTxHash?: Hex;
+  latestExplorerUrl?: string;
+  syncedAt?: string;
+};
 
 export type LiveStepRecord = {
   key: string;
@@ -132,6 +244,32 @@ export type LiveDashboardStatus = {
     version: string;
     tags: string[];
   }>;
+  aiSkills: AISkillDefinition[];
+  economics: BazaarEconomicState;
+  governance: BazaarGovernanceState;
+  gateway: BazaarGatewayState;
+  monitor?: {
+    cacheAgeMs: number;
+    cacheHitCount: number;
+    dispatcherHeartbeatMs: number;
+    healthLabel: "healthy" | "steady" | "strained";
+    hudGlow: number;
+    hudOpacity: number;
+    lastFetchMs: number;
+    lastSyncedAt: string;
+    note: string;
+    pulseMs: number;
+    refreshInMs: number;
+    rpcFetchCount: number;
+    rpcThrottleMs: number;
+    villageHealth: number;
+  };
+  hud?: {
+    opacity: number;
+    glow: number;
+    pulseMs: number;
+    label: "healthy" | "steady" | "strained";
+  };
   onchain: {
     address: string;
     chainId: number;
@@ -189,6 +327,7 @@ export type ProofArtifact = {
   kind: "receipt" | "journal" | "unlock" | "decree";
   title: string;
   body: string;
+  statement: string;
   label: string;
   districtId: DistrictId;
   actionId?: QuestActionId;
@@ -222,6 +361,13 @@ export type WorldReactionState = {
   treasuryUnlocked: boolean;
   councilUnlocked: boolean;
   governancePassed: boolean;
+  worldTier: WorldTier;
+  tvlOkb: number;
+  dailyVolumeOkb: number;
+  gdpScore: number;
+  activeProposalCount: number;
+  blockHeight: number;
+  latestTxHash?: Hex;
   treasuryGlow: number;
   lanternGlow: number;
   taxRateBps: number;
@@ -236,8 +382,11 @@ export type PersistedPlayerState = {
   revealedProofIds: string[];
   unlockedLocations: string[];
   activeQuestStepId?: string;
+  unlockedSkillIds: string[];
+  activeSkillId?: string | null;
   muted: boolean;
   lowEffects: boolean;
+  laborRouting?: LaborRoutingState;
 };
 
 export type GameStoreState = {
@@ -260,10 +409,14 @@ export type GameStoreState = {
   pendingAction: PendingAction | null;
   playerName: string;
   wallet: WalletIdentity;
+  skillCatalog: AISkillDefinition[];
+  unlockedSkillIds: string[];
+  activeSkillId: string | null;
   settings: {
     muted: boolean;
     lowEffects: boolean;
   };
+  laborRouting: LaborRoutingState;
   world: WorldReactionState;
   hydrated: boolean;
 };

@@ -1,11 +1,13 @@
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import type {
+  AISkillDefinition,
   Direction,
   DistrictId,
   GameStoreState,
   LiveDashboardStatus,
   MapId,
+  LaborRoutingState,
   PendingAction,
   PersistedPlayerState,
   ProofArtifact,
@@ -21,11 +23,23 @@ const defaultWorldState: WorldReactionState = {
   treasuryUnlocked: false,
   councilUnlocked: false,
   governancePassed: false,
+  worldTier: 0,
+  tvlOkb: 0,
+  dailyVolumeOkb: 0,
+  gdpScore: 0,
+  activeProposalCount: 0,
+  blockHeight: 0,
   treasuryGlow: 0.2,
   lanternGlow: 0.55,
   taxRateBps: 500,
   treasuryBalanceOkb: 0,
   objectiveTargetId: "keeper-gate",
+};
+
+const defaultLaborRoutingState: LaborRoutingState = {
+  jobs: [],
+  npcStates: {},
+  observedStepKeys: [],
 };
 
 type BazaarGameStore = GameStoreState & {
@@ -43,6 +57,9 @@ type BazaarGameStore = GameStoreState & {
   setPlayerName: (playerName: string) => void;
   setWallet: (wallet: WalletIdentity) => void;
   setWorldState: (world: WorldReactionState) => void;
+  setSkillCatalog: (skills: AISkillDefinition[]) => void;
+  setSkillLoadout: (input: { unlockedSkillIds?: string[]; activeSkillId?: string | null }) => void;
+  setLaborRoutingState: (state: LaborRoutingState) => void;
   hydrateFromPersistence: (state: PersistedPlayerState) => void;
   setSettings: (settings: Partial<GameStoreState["settings"]>) => void;
   markHydrated: () => void;
@@ -71,10 +88,14 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
     connected: false,
     validNetwork: false,
   },
+  skillCatalog: [],
+  unlockedSkillIds: [],
+  activeSkillId: null,
   settings: {
     muted: false,
     lowEffects: false,
   },
+  laborRouting: defaultLaborRoutingState,
   world: defaultWorldState,
   hydrated: false,
   setScene: (sceneId, mapId) =>
@@ -132,12 +153,25 @@ export const bazaarGameStore = createStore<BazaarGameStore>((set) => ({
       world,
       objectiveTargetId: world.objectiveTargetId,
     })),
+  setSkillCatalog: (skillCatalog) => set(() => ({ skillCatalog })),
+  setSkillLoadout: ({ unlockedSkillIds, activeSkillId }) =>
+    set((state) => ({
+      unlockedSkillIds: unlockedSkillIds ?? state.unlockedSkillIds,
+      activeSkillId:
+        activeSkillId === undefined
+          ? state.activeSkillId
+          : activeSkillId,
+    })),
+  setLaborRoutingState: (laborRouting) => set(() => ({ laborRouting })),
   hydrateFromPersistence: (persisted) =>
     set((state) => ({
       currentMapId: persisted.currentMapId,
       objectiveTargetId: persisted.activeQuestStepId ?? state.objectiveTargetId,
       questHighlightId: persisted.activeQuestStepId ?? state.questHighlightId,
       playerName: persisted.playerName ?? state.playerName,
+      unlockedSkillIds: persisted.unlockedSkillIds,
+      activeSkillId: persisted.activeSkillId ?? state.activeSkillId,
+      laborRouting: persisted.laborRouting ?? state.laborRouting,
       settings: {
         muted: persisted.muted,
         lowEffects: persisted.lowEffects,

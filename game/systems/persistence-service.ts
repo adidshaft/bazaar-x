@@ -1,5 +1,17 @@
 import { STORAGE_PREFIX } from "@/game/config/constants";
-import type { PersistedPlayerState, WalletIdentity } from "@/game/core/live-types";
+import type {
+  LaborRoutingState,
+  PersistedPlayerState,
+  WalletIdentity,
+} from "@/game/core/live-types";
+
+function createEmptyLaborRoutingState(): LaborRoutingState {
+  return {
+    jobs: [],
+    npcStates: {},
+    observedStepKeys: [],
+  };
+}
 
 export function createWalletStorageKey(wallet: WalletIdentity) {
   if (!wallet.address || !wallet.chainId) {
@@ -21,7 +33,20 @@ export function loadPersistedPlayerState(wallet: WalletIdentity): PersistedPlaye
   }
 
   try {
-    return JSON.parse(raw) as PersistedPlayerState;
+    const parsed = JSON.parse(raw) as Partial<PersistedPlayerState>;
+    return {
+      currentMapId: parsed.currentMapId ?? "village-exterior",
+      lastSpawnId: parsed.lastSpawnId,
+      playerName: parsed.playerName,
+      revealedProofIds: parsed.revealedProofIds ?? [],
+      unlockedLocations: parsed.unlockedLocations ?? ["village-exterior"],
+      activeQuestStepId: parsed.activeQuestStepId,
+      unlockedSkillIds: parsed.unlockedSkillIds ?? [],
+      activeSkillId: parsed.activeSkillId ?? null,
+      muted: parsed.muted ?? false,
+      lowEffects: parsed.lowEffects ?? false,
+      laborRouting: parsed.laborRouting ?? createEmptyLaborRoutingState(),
+    };
   } catch {
     return null;
   }
@@ -38,4 +63,3 @@ export function savePersistedPlayerState(
 
   window.localStorage.setItem(key, JSON.stringify(state));
 }
-

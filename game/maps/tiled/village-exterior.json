@@ -5461,39 +5461,10 @@
         0,
         0,
         0,
-        16,
-        16,
-        16,
-        16,
         0,
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        16,
-        16,
-        16,
-        16,
         0,
         0,
         0,
@@ -5548,39 +5519,10 @@
         0,
         0,
         0,
-        16,
-        16,
-        16,
-        16,
         0,
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        16,
-        16,
-        16,
-        16,
         0,
         0,
         0,
@@ -5635,10 +5577,68 @@
         0,
         0,
         0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
         16,
         16,
         16,
         16,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
         0,
         0,
         0,
@@ -7346,8 +7346,8 @@
           "id": 28,
           "name": "pine-4",
           "type": "ambient",
-          "x": 1152,
-          "y": 192,
+          "x": 1312,
+          "y": 256,
           "width": 0,
           "height": 0,
           "rotation": 0,
@@ -7370,8 +7370,8 @@
           "id": 29,
           "name": "pine-5",
           "type": "ambient",
-          "x": 1312,
-          "y": 256,
+          "x": 192,
+          "y": 768,
           "width": 0,
           "height": 0,
           "rotation": 0,
@@ -7394,8 +7394,8 @@
           "id": 30,
           "name": "pine-6",
           "type": "ambient",
-          "x": 1664,
-          "y": 192,
+          "x": 1248,
+          "y": 800,
           "width": 0,
           "height": 0,
           "rotation": 0,
@@ -7418,8 +7418,8 @@
           "id": 31,
           "name": "pine-7",
           "type": "ambient",
-          "x": 192,
-          "y": 768,
+          "x": 1728,
+          "y": 800,
           "width": 0,
           "height": 0,
           "rotation": 0,
@@ -7442,8 +7442,8 @@
           "id": 32,
           "name": "pine-8",
           "type": "ambient",
-          "x": 512,
-          "y": 768,
+          "x": 576,
+          "y": 1056,
           "width": 0,
           "height": 0,
           "rotation": 0,
@@ -7466,8 +7466,8 @@
           "id": 33,
           "name": "pine-9",
           "type": "ambient",
-          "x": 1248,
-          "y": 800,
+          "x": 1632,
+          "y": 1088,
           "width": 0,
           "height": 0,
           "rotation": 0,
@@ -7488,102 +7488,6 @@
         },
         {
           "id": 34,
-          "name": "pine-10",
-          "type": "ambient",
-          "x": 1728,
-          "y": 800,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "pine"
-            },
-            {
-              "name": "scale",
-              "type": "int",
-              "value": 12
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 35,
-          "name": "pine-11",
-          "type": "ambient",
-          "x": 576,
-          "y": 1056,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "pine"
-            },
-            {
-              "name": "scale",
-              "type": "int",
-              "value": 10
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 36,
-          "name": "pine-12",
-          "type": "ambient",
-          "x": 1280,
-          "y": 1088,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "pine"
-            },
-            {
-              "name": "scale",
-              "type": "int",
-              "value": 10
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 37,
-          "name": "pine-13",
-          "type": "ambient",
-          "x": 1632,
-          "y": 1088,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "pine"
-            },
-            {
-              "name": "scale",
-              "type": "int",
-              "value": 12
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 38,
           "name": "lamp-1",
           "type": "ambient",
           "x": 288,
@@ -7602,7 +7506,7 @@
           "point": true
         },
         {
-          "id": 39,
+          "id": 35,
           "name": "lamp-2",
           "type": "ambient",
           "x": 576,
@@ -7621,27 +7525,8 @@
           "point": true
         },
         {
-          "id": 40,
+          "id": 36,
           "name": "lamp-3",
-          "type": "ambient",
-          "x": 768,
-          "y": 576,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "lamp"
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 41,
-          "name": "lamp-4",
           "type": "ambient",
           "x": 1120,
           "y": 576,
@@ -7659,8 +7544,8 @@
           "point": true
         },
         {
-          "id": 42,
-          "name": "lamp-5",
+          "id": 37,
+          "name": "lamp-4",
           "type": "ambient",
           "x": 1344,
           "y": 576,
@@ -7678,8 +7563,8 @@
           "point": true
         },
         {
-          "id": 43,
-          "name": "lamp-6",
+          "id": 38,
+          "name": "lamp-5",
           "type": "ambient",
           "x": 1600,
           "y": 576,
@@ -7697,8 +7582,8 @@
           "point": true
         },
         {
-          "id": 44,
-          "name": "lamp-7",
+          "id": 39,
+          "name": "lamp-6",
           "type": "ambient",
           "x": 928,
           "y": 320,
@@ -7716,8 +7601,8 @@
           "point": true
         },
         {
-          "id": 45,
-          "name": "lamp-8",
+          "id": 40,
+          "name": "lamp-7",
           "type": "ambient",
           "x": 384,
           "y": 1120,
@@ -7735,8 +7620,8 @@
           "point": true
         },
         {
-          "id": 46,
-          "name": "lamp-9",
+          "id": 41,
+          "name": "lamp-8",
           "type": "ambient",
           "x": 992,
           "y": 1120,
@@ -7754,7 +7639,7 @@
           "point": true
         },
         {
-          "id": 47,
+          "id": 42,
           "name": "forge-stall",
           "type": "ambient",
           "x": 512,
@@ -7773,7 +7658,7 @@
           "point": true
         },
         {
-          "id": 48,
+          "id": 43,
           "name": "depot-stall",
           "type": "ambient",
           "x": 1344,
@@ -7792,7 +7677,7 @@
           "point": true
         },
         {
-          "id": 49,
+          "id": 44,
           "name": "north-banner",
           "type": "ambient",
           "x": 928,
@@ -7811,26 +7696,7 @@
           "point": true
         },
         {
-          "id": 50,
-          "name": "south-banner",
-          "type": "ambient",
-          "x": 992,
-          "y": 1024,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "banner"
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 51,
+          "id": 45,
           "name": "plaza-statue",
           "type": "ambient",
           "x": 912,
@@ -7849,7 +7715,7 @@
           "point": true
         },
         {
-          "id": 52,
+          "id": 46,
           "name": "west-signpost",
           "type": "ambient",
           "x": 576,
@@ -7868,7 +7734,7 @@
           "point": true
         },
         {
-          "id": 53,
+          "id": 47,
           "name": "east-signpost",
           "type": "ambient",
           "x": 1280,
@@ -7887,45 +7753,7 @@
           "point": true
         },
         {
-          "id": 54,
-          "name": "crate-stack-1",
-          "type": "ambient",
-          "x": 1408,
-          "y": 640,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "crate"
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 55,
-          "name": "crate-stack-2",
-          "type": "ambient",
-          "x": 512,
-          "y": 640,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "crate"
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 56,
+          "id": 48,
           "name": "reed-bank-1",
           "type": "ambient",
           "x": 800,
@@ -7944,7 +7772,7 @@
           "point": true
         },
         {
-          "id": 57,
+          "id": 49,
           "name": "reed-bank-2",
           "type": "ambient",
           "x": 1024,
@@ -7963,7 +7791,7 @@
           "point": true
         },
         {
-          "id": 58,
+          "id": 50,
           "name": "gate-banner-west",
           "type": "ambient",
           "x": 768,
@@ -7982,7 +7810,7 @@
           "point": true
         },
         {
-          "id": 59,
+          "id": 51,
           "name": "gate-banner-east",
           "type": "ambient",
           "x": 1088,
@@ -8001,45 +7829,7 @@
           "point": true
         },
         {
-          "id": 60,
-          "name": "gate-crate-west",
-          "type": "ambient",
-          "x": 720,
-          "y": 432,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "crate"
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 61,
-          "name": "gate-crate-east",
-          "type": "ambient",
-          "x": 1136,
-          "y": 432,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "crate"
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 62,
+          "id": 52,
           "name": "gate-lamp-west",
           "type": "ambient",
           "x": 736,
@@ -8058,7 +7848,7 @@
           "point": true
         },
         {
-          "id": 63,
+          "id": 53,
           "name": "gate-lamp-east",
           "type": "ambient",
           "x": 1088,
@@ -8075,60 +7865,12 @@
             }
           ],
           "point": true
-        },
-        {
-          "id": 64,
-          "name": "gate-pine-west",
-          "type": "ambient",
-          "x": 640,
-          "y": 448,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "pine"
-            },
-            {
-              "name": "scale",
-              "type": "int",
-              "value": 11
-            }
-          ],
-          "point": true
-        },
-        {
-          "id": 65,
-          "name": "gate-pine-east",
-          "type": "ambient",
-          "x": 1216,
-          "y": 448,
-          "width": 0,
-          "height": 0,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            {
-              "name": "kind",
-              "type": "string",
-              "value": "pine"
-            },
-            {
-              "name": "scale",
-              "type": "int",
-              "value": 11
-            }
-          ],
-          "point": true
         }
       ]
     }
   ],
   "nextlayerid": 10,
-  "nextobjectid": 66,
+  "nextobjectid": 54,
   "orientation": "orthogonal",
   "renderorder": "right-down",
   "tiledversion": "1.11.0",

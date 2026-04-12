@@ -1,5 +1,7 @@
+import * as Phaser from "phaser";
 import type { MapId } from "@/game/core/live-types";
 import { BaseWorldScene } from "./base-world-scene";
+import { CouncilHeroSystem } from "./council-hero-system";
 
 const titleMap: Record<MapId, { title: string; subtitle: string }> = {
   "village-exterior": {
@@ -25,6 +27,8 @@ const titleMap: Record<MapId, { title: string; subtitle: string }> = {
 };
 
 export class InteriorScene extends BaseWorldScene {
+  private councilHeroSystem?: CouncilHeroSystem;
+
   constructor() {
     super("InteriorScene");
   }
@@ -40,5 +44,35 @@ export class InteriorScene extends BaseWorldScene {
   protected resolveSceneCard(mapId: MapId) {
     return titleMap[mapId];
   }
-}
 
+  protected augmentInteractables() {
+    if (this.mapId !== "council-interior") {
+      return;
+    }
+
+    this.interactables.push({
+      id: "skill-altar",
+      name: "skill-altar",
+      center: new Phaser.Math.Vector2(288, 270),
+      radius: 48,
+      districtId: "council-hall",
+      label: "Skill Altar",
+    });
+  }
+
+  protected afterWorldCreate() {
+    if (this.mapId !== "council-interior") {
+      return;
+    }
+
+    this.councilHeroSystem = new CouncilHeroSystem(this);
+  }
+
+  protected afterWorldUpdate(time: number, delta: number) {
+    this.councilHeroSystem?.update(time, delta);
+  }
+
+  protected onWorldStateApplied(world: import("@/game/core/live-types").WorldReactionState) {
+    this.councilHeroSystem?.apply(world);
+  }
+}

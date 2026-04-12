@@ -6,6 +6,7 @@ import type { CompiledMapObject } from "@/game/core/map-types";
 import type {
   DistrictId,
   MapId,
+  ProofArtifact,
   QuestActionId,
   SceneId,
   WorldReactionState,
@@ -41,6 +42,16 @@ type GlowEntry = {
   group: "lamp" | "treasury" | "governance";
 };
 
+type FootstepSurface = "grass" | "stone" | "plaza" | "wood";
+
+const mapLabelLookup: Record<MapId, string> = {
+  "village-exterior": "Village",
+  "forge-interior": "Forge",
+  "depot-interior": "Depot",
+  "treasury-interior": "Treasury",
+  "council-interior": "Council",
+};
+
 const buildingSpriteMap: Record<string, BuildingSpriteConfig> = {
   "settlement-keep": { texture: "building-keep", yOffset: 82 },
   "forge-door": { texture: "building-forge", yOffset: 82 },
@@ -66,16 +77,16 @@ const fallbackSpawns: Record<MapId, Record<string, { x: number; y: number }>> = 
     "council-return": { x: 31 * TILE_SIZE, y: 34 * TILE_SIZE },
   },
   "forge-interior": {
-    "forge-entry": { x: 13 * TILE_SIZE, y: 14.5 * TILE_SIZE },
+    "forge-entry": { x: 13 * TILE_SIZE, y: 5 * TILE_SIZE },
   },
   "depot-interior": {
-    "depot-entry": { x: 13 * TILE_SIZE, y: 14.5 * TILE_SIZE },
+    "depot-entry": { x: 13 * TILE_SIZE, y: 5 * TILE_SIZE },
   },
   "treasury-interior": {
-    "treasury-entry": { x: 13 * TILE_SIZE, y: 14.5 * TILE_SIZE },
+    "treasury-entry": { x: 13 * TILE_SIZE, y: 5 * TILE_SIZE },
   },
   "council-interior": {
-    "council-entry": { x: 13 * TILE_SIZE, y: 14.5 * TILE_SIZE },
+    "council-entry": { x: 13 * TILE_SIZE, y: 5 * TILE_SIZE },
   },
 };
 
@@ -96,9 +107,36 @@ const questActionTargetMap = new Map(
     .map((step) => [step.actionId, { targetId: step.targetId, mapId: step.targetMapId }] as const),
 );
 
+function createPortalFallbackInteractable(portal: CompiledMapObject) {
+  const targetMapId =
+    typeof portal.properties.targetMapId === "string"
+      ? (portal.properties.targetMapId as MapId)
+      : undefined;
+  const targetLabel = targetMapId ? mapLabelLookup[targetMapId] : "Path";
+
+  return createWorldInteractable({
+    ...portal,
+    properties: {
+      ...portal.properties,
+      label:
+        typeof portal.properties.label === "string"
+          ? portal.properties.label
+          : targetMapId === "village-exterior"
+            ? `Return To ${targetLabel}`
+            : `Enter ${targetLabel}`,
+    },
+  });
+}
+
 export abstract class BaseWorldScene extends Phaser.Scene {
   protected mapId!: MapId;
   protected spawnId?: string;
+  protected tilemap?: Phaser.Tilemaps.Tilemap;
+  protected collisionLayer?: Phaser.Tilemaps.TilemapLayer;
+  protected renderLayerLookup = new Map<string, Phaser.Tilemaps.TilemapLayer>();
+  protected buildingSpriteLookup = new Map<string, Phaser.GameObjects.Image[]>();
+  protected waterTiles: Phaser.Tilemaps.Tile[] = [];
+  protected npcActorLookup = new Map<string, NpcActor>();
   protected player!: PlayerCharacter;
   protected interactables: WorldInteractable[] = [];
   protected npcs: NpcActor[] = [];
@@ -108,17 +146,59 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<string, Phaser.Input.Keyboard.Key>;
   private activeUnsubscribers: Array<() => void> = [];
-  private waterTiles: Phaser.Tilemaps.Tile[] = [];
   private lastWaterPulse = 0;
   private lastDustAt = 0;
   private labelEntries: LabelEntry[] = [];
   private glowEntries: GlowEntry[] = [];
   private playerRing?: Phaser.GameObjects.Image;
   private playerNameLabel?: Phaser.GameObjects.Text;
+  private playerAuraGlow?: Phaser.FX.Glow;
+  private focusVignette?: Phaser.GameObjects.Rectangle;
+  private focusVignetteFx?: Phaser.FX.Vignette;
+  private activeAuraSkillId: string | null = null;
+  private focusMode = false;
+  private proofPickup?: {
+    proof: ProofArtifact;
+    sprite: Phaser.GameObjects.Image;
+    ring: Phaser.GameObjects.Image;
+  };
 
   protected abstract resolveDefaultMapId(): MapId;
   protected abstract resolveSceneId(): SceneId;
   protected abstract resolveSceneCard(mapId: MapId): { title: string; subtitle: string };
+  protected augmentInteractables() {}
+  protected afterWorldCreate() {}
+  protected afterWorldUpdate(time: number, delta: number) {
+    void time;
+    void delta;
+  }
+  protected onWorldStateApplied(world: WorldReactionState) {
+    void world;
+  }
+
+  public getTilemap() {
+    return this.tilemap;
+  }
+
+  public getRenderLayer(name: string) {
+    return this.renderLayerLookup.get(name);
+  }
+
+  public getBuildingSpriteLookup() {
+    return this.buildingSpriteLookup;
+  }
+
+  public getWaterTiles() {
+    return this.waterTiles;
+  }
+
+  public getWorldInteractables() {
+    return this.interactables;
+  }
+
+  public getPlayerCharacter() {
+    return this.player;
+  }
 
   init(data: ScenePayload) {
     this.mapId = data.mapId ?? this.resolveDefaultMapId();
@@ -131,6 +211,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
     const compiledMap = getCompiledMap(this.mapId);
     const tilemap = this.make.tilemap({ key: this.mapId });
+    this.tilemap = tilemap;
     const tilesetName = compiledMap.tilesets[0]?.name ?? "bazaar-outdoor";
     const tileset = tilemap.addTilesetImage(
       tilesetName,
@@ -143,7 +224,11 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     }
 
     compiledMap.bazaarx.renderLayers.forEach((layerName, index) => {
-      tilemap.createLayer(layerName, tileset, 0, 0)?.setDepth(index);
+      const layer = tilemap.createLayer(layerName, tileset, 0, 0);
+      layer?.setDepth(index);
+      if (layer) {
+        this.renderLayerLookup.set(layerName, layer);
+      }
     });
 
     const collisionLayer = tilemap.createLayer(compiledMap.bazaarx.collisionLayer, tileset, 0, 0);
@@ -151,6 +236,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       collisionLayer.setVisible(false);
       collisionLayer.setCollisionByExclusion([-1, 0]);
     }
+    this.collisionLayer = collisionLayer ?? undefined;
 
     const mapWidthPixels = compiledMap.width * compiledMap.tilewidth;
     const mapHeightPixels = compiledMap.height * compiledMap.tileheight;
@@ -183,19 +269,23 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       align: "center",
     }).setOrigin(0.5, 1);
     this.playerNameLabel.setDepth(spawn.y + 200);
+    this.playerNameLabel.setVisible(false);
 
     this.cameras.main.startFollow(this.player.sprite, true, CAMERA_LERP, CAMERA_LERP);
+    this.createFocusVignette();
 
     const portalLookup = new Map(
       (compiledMap.bazaarx.objectLayers.portals ?? []).map((portal) => [portal.name, portal] as const),
     );
-    this.interactables = (compiledMap.bazaarx.objectLayers.interactables ?? []).map((object) => {
+    const linkedPortalIds = new Set<string>();
+    const interactables = (compiledMap.bazaarx.objectLayers.interactables ?? []).map((object) => {
       const portalId =
         typeof object.properties.portalId === "string" ? object.properties.portalId : undefined;
       const interactable = createWorldInteractable(object);
       const portal = portalId ? portalLookup.get(portalId) : undefined;
 
       if (portal) {
+        linkedPortalIds.add(portal.name);
         interactable.targetMapId =
           typeof portal.properties.targetMapId === "string"
             ? (portal.properties.targetMapId as MapId)
@@ -207,6 +297,13 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       return interactable;
     });
 
+    const synthesizedPortals = (compiledMap.bazaarx.objectLayers.portals ?? [])
+      .filter((portal) => !linkedPortalIds.has(portal.name))
+      .map((portal) => createPortalFallbackInteractable(portal));
+
+    this.interactables = [...interactables, ...synthesizedPortals];
+    this.augmentInteractables();
+
     this.createNameplates();
     this.createNpcs(compiledMap.bazaarx.objectLayers);
     this.createObjectiveMarker();
@@ -214,6 +311,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.setupInput();
     this.setupBridgeListeners();
     this.applyWorldState(bazaarGameStore.getState().world);
+    this.applyPlayerAura();
+    this.afterWorldCreate();
 
     const card = this.resolveSceneCard(this.mapId);
     const cutscene = this.scene.get("CutsceneScene");
@@ -238,9 +337,13 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.updateObjectiveMarker();
     this.updateNameplates();
     this.pulseWater(time);
+    this.checkProofPickup();
+    this.updateAudioSpatialMix();
+    this.afterWorldUpdate(time, delta);
   }
 
   shutdown() {
+    bazaarAudioSystem.stopAmbient();
     this.activeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     this.activeUnsubscribers = [];
   }
@@ -272,7 +375,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.input.keyboard?.once("keydown", () => bazaarAudioSystem.unlock());
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      this.player.setPointerTarget(pointer.worldX, pointer.worldY);
+      const walkableTarget = this.resolveNearestWalkableWorldPoint(pointer.worldX, pointer.worldY);
+      this.player.setPointerTarget(walkableTarget.x, walkableTarget.y);
     });
 
     this.input.keyboard?.on("keydown-E", () => this.handleInteraction());
@@ -299,7 +403,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         }
 
         if (typeof x === "number" && typeof y === "number") {
-          this.player.teleport(x, y);
+          const walkableTarget = this.resolveNearestWalkableWorldPoint(x, y);
+          this.player.teleport(walkableTarget.x, walkableTarget.y);
           return;
         }
 
@@ -315,6 +420,27 @@ export abstract class BaseWorldScene extends Phaser.Scene {
       }),
       bazaarEventBridge.on("tx:confirmed", ({ actionId }) => {
         this.handleConfirmedAction(actionId);
+      }),
+      bazaarEventBridge.on("ui:viewport-changed", (payload) => {
+        this.handleViewportChanged(payload);
+      }),
+      bazaarEventBridge.on("camera:flash", ({ duration, red = 255, green = 255, blue = 255 }) => {
+        this.cameras.main.flash(duration, red, green, blue, false);
+      }),
+      bazaarEventBridge.on("camera:focus-mode", ({ active }) => {
+        this.handleFocusMode(active);
+      }),
+      bazaarEventBridge.on("proof:verified", ({ proof }) => {
+        this.realityPulse();
+        this.spawnProofPickup(proof);
+      }),
+      bazaarEventBridge.on("skill:altar-close", ({ mapId }) => {
+        if (mapId === this.mapId && this.scene.isPaused()) {
+          this.scene.resume();
+        }
+      }),
+      bazaarEventBridge.on("skill:activated", () => {
+        this.applyPlayerAura();
       }),
     );
   }
@@ -390,6 +516,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.playerNameLabel?.setText(playerName);
     this.playerNameLabel?.setPosition(this.player.sprite.x, this.player.sprite.y - 34);
     this.playerNameLabel?.setDepth(this.player.sprite.y + 200);
+    this.applyPlayerAura();
   }
 
   private refreshActiveInteractable() {
@@ -420,6 +547,41 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     });
   }
 
+  private resolveNearestWalkableWorldPoint(x: number, y: number) {
+    const baseTileX = Math.floor(x / TILE_SIZE);
+    const baseTileY = Math.floor(y / TILE_SIZE);
+
+    for (let radius = 0; radius <= 8; radius += 1) {
+      for (let tileY = baseTileY - radius; tileY <= baseTileY + radius; tileY += 1) {
+        for (let tileX = baseTileX - radius; tileX <= baseTileX + radius; tileX += 1) {
+          if (!this.isWalkableTile(tileX, tileY)) {
+            continue;
+          }
+
+          return {
+            x: tileX * TILE_SIZE + TILE_SIZE / 2,
+            y: tileY * TILE_SIZE + TILE_SIZE / 2,
+          };
+        }
+      }
+    }
+
+    return { x, y };
+  }
+
+  private isWalkableTile(tileX: number, tileY: number) {
+    if (!this.tilemap) {
+      return true;
+    }
+
+    if (tileX < 0 || tileY < 0 || tileX >= this.tilemap.width || tileY >= this.tilemap.height) {
+      return false;
+    }
+
+    const collisionTile = this.collisionLayer?.getTileAt(tileX, tileY);
+    return !(collisionTile && collisionTile.index > 0);
+  }
+
   private districtFromInteraction(interactionId?: string | null) {
     const building = buildingDefinitions.find((entry) => entry.id === interactionId);
     return (building?.districtId ?? null) as DistrictId | null;
@@ -431,6 +593,14 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     }
 
     bazaarAudioSystem.play("ui-confirm");
+
+    if (this.activeInteractable.id === "skill-altar") {
+      this.scene.pause();
+      bazaarEventBridge.emit("skill:altar-open", {
+        mapId: this.mapId,
+      });
+      return;
+    }
 
     if (this.activeInteractable.targetMapId) {
       bazaarAudioSystem.play("door-open");
@@ -554,6 +724,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
           path,
         );
         this.npcs.push(actor);
+        this.npcActorLookup.set(npc.id, actor);
 
         const ring = this.add.image(spawn.x, spawn.y + 8, npc.entityType === "agent" ? "fx-agent-ring" : "fx-human-ring");
         ring.setBlendMode(Phaser.BlendModes.ADD);
@@ -623,7 +794,9 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     this.labelEntries.forEach((entry) => {
       const isFocused = entry.id === focusedInteractionId;
       const isObjective = entry.id === objectiveTargetId;
-      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.92 : 0.62);
+      const shouldShow = isFocused || isObjective;
+      entry.container.setVisible(shouldShow);
+      entry.container.setAlpha(isFocused ? 1 : isObjective ? 0.92 : 0);
       entry.container.setScale(isFocused ? 1.04 : isObjective ? 1.02 : 1);
       entry.text.setColor(isFocused || isObjective ? "#ffffff" : "#d6e9f2");
     });
@@ -711,7 +884,11 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         object.y - config.yOffset,
         config.texture,
       );
+      sprite.setData("baseTexture", config.texture);
       sprite.setDepth(object.y - 20);
+      const sprites = this.buildingSpriteLookup.get(object.name) ?? [];
+      sprites.push(sprite);
+      this.buildingSpriteLookup.set(object.name, sprites);
     });
   }
 
@@ -735,5 +912,239 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         entry.sprite.setAlpha(0.12 + world.lanternGlow * 0.26);
       }
     });
+    this.onWorldStateApplied(world);
+  }
+
+  public realityPulse() {
+    const overlay = this.add
+      .rectangle(
+        this.cameras.main.midPoint.x,
+        this.cameras.main.midPoint.y,
+        this.cameras.main.width,
+        this.cameras.main.height,
+        0xf4fbff,
+        0.18,
+      )
+      .setScrollFactor(0)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(3900);
+
+    this.cameras.main.shake(200, 0.0045);
+
+    const tintableChildren = this.children.list.filter(
+      (child): child is Phaser.GameObjects.GameObject & {
+        setTintFill: (color: number) => unknown;
+        clearTint: () => unknown;
+      } => "setTintFill" in child && "clearTint" in child,
+    );
+
+    tintableChildren.forEach((child) => {
+      child.setTintFill(0xf0fbff);
+    });
+
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: 200,
+      ease: "Sine.easeOut",
+      onComplete: () => overlay.destroy(),
+    });
+
+    this.time.delayedCall(200, () => {
+      tintableChildren.forEach((child) => child.clearTint());
+    });
+  }
+
+  private applyPlayerAura() {
+    const { activeSkillId, skillCatalog } = bazaarGameStore.getState();
+    if (activeSkillId === this.activeAuraSkillId) {
+      return;
+    }
+
+    if (this.playerAuraGlow) {
+      this.player.sprite.postFX?.remove(this.playerAuraGlow);
+      this.playerAuraGlow = undefined;
+    }
+
+    this.activeAuraSkillId = activeSkillId;
+
+    if (!activeSkillId) {
+      this.playerRing?.clearTint();
+      return;
+    }
+
+    const skill = skillCatalog.find((entry) => entry.skill_id === activeSkillId);
+    const color = Phaser.Display.Color.HexStringToColor(
+      skill?.visual_metadata.glow_color ?? "#7de6ff",
+    ).color;
+
+    this.playerAuraGlow =
+      this.player.sprite.postFX?.addGlow(color, 2.2, 0.35, false, 0.15, 10) ?? undefined;
+    this.playerRing?.setTint(color);
+  }
+
+  private spawnProofPickup(proof: ProofArtifact) {
+    this.proofPickup?.sprite.destroy();
+    this.proofPickup?.ring.destroy();
+
+    const sprite = this.add.image(this.player.sprite.x, this.player.sprite.y + 6, "fx-veritas-scroll");
+    sprite.setDepth(this.player.sprite.y + 32);
+    const ring = this.add.image(this.player.sprite.x, this.player.sprite.y + 8, "fx-glow");
+    ring.setDepth(this.player.sprite.y + 28);
+    ring.setScale(0.5);
+    ring.setAlpha(0.28);
+    ring.setBlendMode(Phaser.BlendModes.ADD);
+
+    this.tweens.add({
+      targets: [sprite, ring],
+      y: "-=10",
+      yoyo: true,
+      repeat: -1,
+      duration: 840,
+      ease: "Sine.easeInOut",
+    });
+
+    this.proofPickup = {
+      proof,
+      sprite,
+      ring,
+    };
+  }
+
+  private checkProofPickup() {
+    if (!this.proofPickup) {
+      return;
+    }
+
+    const distance = Phaser.Math.Distance.Between(
+      this.player.sprite.x,
+      this.player.sprite.y,
+      this.proofPickup.sprite.x,
+      this.proofPickup.sprite.y,
+    );
+    if (distance > 26) {
+      return;
+    }
+
+    const collectedProof = this.proofPickup.proof;
+    this.proofPickup.sprite.destroy();
+    this.proofPickup.ring.destroy();
+    this.proofPickup = undefined;
+
+    bazaarAudioSystem.play("ui-confirm");
+    bazaarEventBridge.emit("proof:scroll-picked", {
+      proof: collectedProof,
+    });
+  }
+
+  private handleViewportChanged(payload: {
+    briefOpen: boolean;
+    drawerOpen: boolean;
+    leftWidth: number;
+    rightWidth: number;
+  }) {
+    if (!this.player?.sprite?.active) {
+      return;
+    }
+
+    const widthDelta = this.focusMode ? 0 : payload.rightWidth - payload.leftWidth;
+    const worldOffset = Phaser.Math.Clamp(widthDelta * 0.11, -112, 112);
+
+    this.cameras.main.setFollowOffset(-worldOffset, 0);
+    this.cameras.main.pan(
+      this.player.sprite.x + worldOffset,
+      this.player.sprite.y,
+      220,
+      "Sine.easeOut",
+      false,
+    );
+  }
+
+  private createFocusVignette() {
+    const vignette = this.add
+      .rectangle(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2,
+        this.cameras.main.width,
+        this.cameras.main.height,
+        0x05080d,
+        0.01,
+      )
+      .setScrollFactor(0)
+      .setDepth(3850)
+      .setVisible(false);
+
+    this.focusVignette = vignette;
+    this.focusVignetteFx = vignette.postFX?.addVignette(0.5, 0.5, 0.55, 0.52) ?? undefined;
+  }
+
+  private handleFocusMode(active: boolean) {
+    if (!this.player?.sprite?.active) {
+      return;
+    }
+
+    this.focusMode = active;
+    this.cameras.main.pan(this.player.sprite.x, this.player.sprite.y, 220, "Sine.easeOut", false);
+    this.cameras.main.zoomTo(active ? 1.2 : 1, 220, "Sine.easeOut");
+
+    if (!this.focusVignette) {
+      return;
+    }
+
+    if (this.focusVignetteFx) {
+      this.focusVignetteFx.radius = active ? 0.48 : 0.6;
+      this.focusVignetteFx.strength = active ? 0.6 : 0.36;
+    }
+
+    this.focusVignette.setVisible(true);
+    this.tweens.add({
+      targets: this.focusVignette,
+      alpha: active ? 0.22 : 0.01,
+      duration: 220,
+      ease: "Sine.easeOut",
+      onComplete: () => {
+        if (!active) {
+          this.focusVignette?.setVisible(false);
+        }
+      },
+    });
+  }
+
+  private updateAudioSpatialMix() {
+    const walkingCount = Object.values(bazaarGameStore.getState().laborRouting.npcStates).filter(
+      (snapshot) => snapshot.status === "walking",
+    ).length;
+
+    bazaarAudioSystem.setSpatialMix({
+      surface: this.resolveFootstepSurface(),
+      laborRoutingCount: walkingCount,
+      crowdChatter: Phaser.Math.Clamp(walkingCount / 6, 0, 1),
+    });
+  }
+
+  private resolveFootstepSurface(): FootstepSurface {
+    if (this.mapId === "forge-interior" || this.mapId === "depot-interior") {
+      return "wood";
+    }
+
+    if (this.mapId === "treasury-interior" || this.mapId === "council-interior") {
+      return "stone";
+    }
+
+    const groundLayer = this.getRenderLayer("ground");
+    const tile = groundLayer?.getTileAtWorldXY(this.player.sprite.x, this.player.sprite.y, true);
+    if (!tile) {
+      return "grass";
+    }
+
+    if (tile.index >= 5 || tile.index === 19) {
+      return "stone";
+    }
+
+    if (tile.index === 3 || tile.index === 4) {
+      return "plaza";
+    }
+
+    return "grass";
   }
 }
