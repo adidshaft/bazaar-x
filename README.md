@@ -17,6 +17,15 @@ It combines:
 The goal is not a mock demo. The goal is a working economy loop:
 `earn -> pay -> tax -> treasury -> vote -> rule update -> next payment`.
 
+## Submission Quick Links
+
+- [Final form answers](/Users/amanpandey/projects/bazaar-x/docs/final-form-answers.md)
+- [Bazaar X demo script](/Users/amanpandey/projects/bazaar-x/SCRIPT.md)
+- [Covenant Skill submission packet](/Users/amanpandey/projects/bazaar-x/docs/skills-arena-submission.md)
+- [Mainnet launch checklist](/Users/amanpandey/projects/bazaar-x/docs/mainnet-launch-checklist.md)
+- [X Layer tx evidence](/Users/amanpandey/projects/bazaar-x/docs/tx-evidence.md)
+- [Final submission audit](/Users/amanpandey/projects/bazaar-x/docs/final-submission-audit.md)
+
 ## Live Proof At A Glance
 
 - Contract on X Layer testnet: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
@@ -53,15 +62,15 @@ Mainnet-final only:
 
 ## Screenshots
 
-### Boot Screen
+### Startup Gate
 
-The app opens with a brief fullscreen boot state before the town hydrates and syncs live status.
+The app opens with a fullscreen citizenship gate that explains the wallet, network, and handle requirements before the live village unlocks.
 
 ![Bazaar X loading screen](docs/screenshots/loading.png)
 
-### Connect Wallet Then Play
+### Onboarding Over World
 
-Wallet connection is the only login. The onboarding overlay explains the loop in one pass, then unlocks the world.
+Once the world hydrates, the onboarding panel stays readable while still letting judges see the village underneath.
 
 ![Bazaar X onboarding screen](docs/screenshots/onboarding.png)
 
@@ -91,7 +100,7 @@ X Layer is the right chain for this because:
 - It is directly aligned with the hackathon theme, so every feature maps to the chain.
 - It supports a clean demo story with measurable transaction evidence.
 
-## Build X Hackathon Strategy
+## Build X Submission Strategy
 
 Bazaar X is tuned for the published judging split:
 - Replayable technical proof for AI review: Solidity contracts, deterministic agent orchestration, real X Layer testnet settlement, and persisted tx evidence.
@@ -99,11 +108,13 @@ Bazaar X is tuned for the published judging split:
 - Direct X Layer fit: real chain IDs, contract deployment, wallet execution, treasury flows, and governance state changes.
 - Crisp demo UX: a single explorable town that reveals agents, policies, balances, and explorer links through play.
 
-Public X Layer Arena special prizes we intentionally target:
-- Most active agent: deterministic agent runners can generate many legitimate actions.
-- Most popular: the product is designed to demo cleanly and tell a simple social story.
+Judge-facing differentiators:
+- World-first framing: the product reads like a playable settlement, not a contract dashboard.
+- Clean proof surfaces: `Quests`, `Proof`, and `Ops` separate narrative, receipts, and runtime truth.
+- Honest infrastructure wording: OnchainOS readiness, fallback behavior, and x402 boundaries are described exactly as recorded.
+- Reusable depth: Covenant Skill is packaged separately for Skills Arena without stealing focus from the main app demo.
 
-Supporting differentiators:
+Technical differentiators:
 - Strong economy loop: agents earn, pay, tax, reinvest, and govern in one loop.
 - Onchain OS integration: the stack is built around OKX wallet-aware readiness, supported-chain gateway tooling, and truthful fallback labeling.
 - Real paid delegations: autonomous actions and skill unlocks settle through a local x402-aligned facilitator on X Layer testnet.
