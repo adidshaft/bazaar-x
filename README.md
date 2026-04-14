@@ -1,6 +1,6 @@
 # Bazaar X
 
-Bazaar X is a self-governing autonomous agent economy proven on X Layer testnet.
+Bazaar X is a self-governing autonomous agent economy with canonical proof on X Layer testnet and a separate completed proof run on X Layer mainnet.
 
 Public repo: [github.com/adidshaft/bazaar-x](https://github.com/adidshaft/bazaar-x)
 
@@ -26,9 +26,12 @@ The goal is not a mock demo. The goal is a working economy loop:
 - [X Layer tx evidence](/Users/amanpandey/projects/bazaar-x/docs/tx-evidence.md)
 - [Final submission audit](/Users/amanpandey/projects/bazaar-x/docs/final-submission-audit.md)
 
-## Live Proof At A Glance
+## Proof At A Glance
 
-- Contract on X Layer testnet: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
+Canonical public demo and walkthrough:
+
+- Network: `X Layer testnet (1952)`
+- Contract: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
 - Canonical rehearsal artifact: `21` tx hashes total in `.bazaarx/runtime/live/latest.json` (`20` post-deploy flow txs + `1` deployment tx)
 - Current recorded autonomous executor: `manifest-wallet`
 - Requested autonomous executor: `agentic-wallet`
@@ -41,6 +44,17 @@ The goal is not a mock demo. The goal is a working economy loop:
 - x402 skill unlock settlement: [0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6](https://www.oklink.com/x-layer-testnet/tx/0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6)
 - x402 paid agent settlement: [0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a](https://www.oklink.com/x-layer-testnet/tx/0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a)
 
+Separate mainnet proof run:
+
+- Network: `X Layer mainnet (196)`
+- Contract: `0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9`
+- Mainnet runtime artifact: `.bazaarx/mainnet/live/latest.json`
+- Mainnet proof size: `35` tx hashes total
+- Mainnet recorded status: `completed`
+- Mainnet recorded autonomous executor: `manifest-wallet`
+- Mainnet requested autonomous executor: `agentic-wallet`
+- Mainnet Agentic Wallet readiness: `true`
+
 ## Reality Matrix
 
 Proven on X Layer testnet today:
@@ -49,16 +63,18 @@ Proven on X Layer testnet today:
 - x402-aligned paid delegations through a local/self-hosted facilitator
 - Covenant Skill as a packed, installable artifact with clean-room smoke proof
 
+Proven on X Layer mainnet today:
+- Separate Bazaar X deployment and completed economy replay in `.bazaarx/mainnet/live/latest.json`
+- Mainnet supplier-route swap, settlement, governance execution, post-governance payment, and treasury reinvestment
+- Agentic Wallet login readiness on this machine, while the recorded autonomous executor still truthfully resolves to `manifest-wallet`
+
 Conditional on supported chains or runtime configuration:
 - OnchainOS gateway simulation and broadcast
-- Agentic Wallet readiness and login visibility
+- True `actualExecutor: agentic-wallet` runtime proof
 
 Still local/self-hosted in this repo:
 - x402 facilitator on X Layer testnet
 - Covenant Skill installation via packed artifact rather than public npm publish
-
-Mainnet-final only:
-- Any mainnet execution or mainnet submission proof
 
 ## Screenshots
 
@@ -369,6 +385,34 @@ Key explorer links:
 - Treasury reinvestment: [0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42](https://www.oklink.com/x-layer-testnet/tx/0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42)
 
 See [docs/tx-evidence.md](/Users/amanpandey/projects/bazaar-x/docs/tx-evidence.md) for the full evidence sheet used in the submission package.
+
+## Mainnet Proof Run
+
+This repo now also includes a separate completed mainnet proof run. The public video remains the cleaner `testnet-recorded` walkthrough; the mainnet artifact is extra submission proof that the same loop was exercised on X Layer mainnet.
+
+Mainnet replay snapshot:
+
+- Network: `X Layer mainnet (196)`
+- Contract: `0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9`
+- Treasury: `0x6a1f8A6c840774eaBc00A52bd2dA0E9284213B86`
+- Runtime artifact: `.bazaarx/mainnet/live/latest.json`
+- Recorded proof count: `35` total tx hashes
+- Recorded status: `completed`
+- Requested executor: `agentic-wallet`
+- Recorded actual executor: `manifest-wallet`
+
+Key mainnet explorer links:
+
+- Deployment: [0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9](https://www.oklink.com/x-layer/tx/0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9)
+- Treasury seed for mainnet bootstrap: [0x32a5bb14d6a8eba0e150734a58d2b94e2c1fe16dda9464f8046004da0e67b2cd](https://www.oklink.com/x-layer/tx/0x32a5bb14d6a8eba0e150734a58d2b94e2c1fe16dda9464f8046004da0e67b2cd)
+- Supplier-route Uniswap swap: [0x5313308aace777232b0d21ea16a4460cbe92cfb2a16477200f8f79a23e5fdf40](https://www.oklink.com/x-layer/tx/0x5313308aace777232b0d21ea16a4460cbe92cfb2a16477200f8f79a23e5fdf40)
+- Supplier settlement: [0xd7dd2a0569fdb360e2ce1fc745e5b0e2c2b221bdbea4f3700cc145506eb57dc3](https://www.oklink.com/x-layer/tx/0xd7dd2a0569fdb360e2ce1fc745e5b0e2c2b221bdbea4f3700cc145506eb57dc3)
+- Governance proposal: [0x8cbc8e065409299b8a691ad9448fca70147591499d24836b5c3b86cb0997667a](https://www.oklink.com/x-layer/tx/0x8cbc8e065409299b8a691ad9448fca70147591499d24836b5c3b86cb0997667a)
+- Governance execution: [0x8655a712232bdd4544dbc5e02fa11f3ae4b2a87ed8ebde8439ab28d987f3407d](https://www.oklink.com/x-layer/tx/0x8655a712232bdd4544dbc5e02fa11f3ae4b2a87ed8ebde8439ab28d987f3407d)
+- Post-governance payment under the new rule: [0x1091afa7b2d48b57ea86ac45fcc67d5d28e5766e44263a9948c9ea9276c41e64](https://www.oklink.com/x-layer/tx/0x1091afa7b2d48b57ea86ac45fcc67d5d28e5766e44263a9948c9ea9276c41e64)
+- Treasury reinvestment: [0x332bc0c04f2f8046b4b4b269ec4a1de0267d19836ee42c78e4a2a58e5ba572ea](https://www.oklink.com/x-layer/tx/0x332bc0c04f2f8046b4b4b269ec4a1de0267d19836ee42c78e4a2a58e5ba572ea)
+
+The full 35-hash mainnet trace, including funding, registration, shop creation, listing, voting, and settlement steps, is preserved in `.bazaarx/mainnet/live/latest.json`.
 
 ## Demo Walkthrough
 

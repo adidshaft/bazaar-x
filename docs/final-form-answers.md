@@ -5,10 +5,12 @@ Use this as the copy-paste packet for the final Build X submission forms.
 Important truth rule:
 
 - The canonical proof in this repo is the X Layer testnet replay recorded on `April 12, 2026`.
-- If a mainnet deployment is added later, keep the demo and tx evidence labeled as `testnet-recorded` unless you also record new mainnet proof.
-- Bazaar X now also has a separate X Layer mainnet deployment for live access:
+- Bazaar X now also has a separate X Layer mainnet proof run, but the public video remains `testnet-recorded` unless you explicitly link a different recording.
+- Bazaar X now also has a separate X Layer mainnet deployment and completed replay:
   - Contract: `0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9`
   - Deploy tx: `0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9`
+  - Mainnet proof artifact: `.bazaarx/mainnet/live/latest.json`
+  - Mainnet replay size: `35` tx hashes
 
 ## Bazaar X / X Layer Arena
 
@@ -34,7 +36,7 @@ Important truth rule:
 
 ### Mainnet Deployment Note
 
-`The demo video and canonical 21-tx replay in this repo were recorded on X Layer testnet on April 12, 2026. Bazaar X now also has a separate X Layer mainnet deployment for live access at 0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9, deployed in tx 0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9. Unless explicitly linked otherwise, the recorded tx evidence in this submission remains the testnet artifact.`
+`The demo video and canonical 21-tx replay in this repo were recorded on X Layer testnet on April 12, 2026. Bazaar X now also has a separate completed X Layer mainnet proof run at contract 0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9, deployed in tx 0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9, with the full mainnet replay preserved in .bazaarx/mainnet/live/latest.json. Unless explicitly linked otherwise, the recorded demo and canonical tx evidence in this submission remain the testnet artifact.`
 
 ### Exact OnchainOS Wording
 
@@ -52,6 +54,12 @@ Important truth rule:
 - Treasury reinvestment: `0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42`
 - x402 skill unlock settlement: `0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6`
 - x402 paid autonomous action settlement: `0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a`
+- Separate mainnet proof artifact: `.bazaarx/mainnet/live/latest.json`
+- Mainnet replay size: `35` total tx hashes
+- Mainnet supplier-route swap: `0x5313308aace777232b0d21ea16a4460cbe92cfb2a16477200f8f79a23e5fdf40`
+- Mainnet governance execution: `0x8655a712232bdd4544dbc5e02fa11f3ae4b2a87ed8ebde8439ab28d987f3407d`
+- Mainnet post-governance payment: `0x1091afa7b2d48b57ea86ac45fcc67d5d28e5766e44263a9948c9ea9276c41e64`
+- Mainnet treasury reinvestment: `0x332bc0c04f2f8046b4b4b269ec4a1de0267d19836ee42c78e4a2a58e5ba572ea`
 
 ### Paste-Ready Form Block
 
@@ -67,8 +75,8 @@ Important truth rule:
   - `https://github.com/adidshaft/bazaar-x`
 - `Agentic Wallet Address`
   - `0x79c0229105b741727b3f12027d249174cc6a7b9b`
-- `Separate Mainnet Deployment`
-  - `Contract 0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9 deployed on X Layer mainnet in tx 0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9. The demo and canonical tx evidence remain testnet-recorded unless explicitly linked otherwise.`
+- `Separate Mainnet Proof Run`
+  - `Bazaar X also has a separate completed X Layer mainnet proof run at contract 0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9, deployed in tx 0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9, with the replay preserved in .bazaarx/mainnet/live/latest.json. The public demo and canonical walkthrough remain testnet-recorded unless explicitly linked otherwise.`
 - `Live App URL`
   - `https://bazaar-x-ten.vercel.app`
 - `Demo Video Link`

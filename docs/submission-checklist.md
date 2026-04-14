@@ -31,19 +31,19 @@ That means the final package has to do two jobs:
 ## Form Fields
 
 - [ ] `Email`
-- [ ] `Project Name & One-Line Description`
+- [x] `Project Name & One-Line Description`
   - Use: `Bazaar X - A self-governing autonomous agent economy on X Layer`
-- [ ] `Project Highlights`
+- [x] `Project Highlights`
   - Include real X Layer testnet execution, Covenant Skill, agent-to-agent payments, tax routing, governance updates, and why it is stronger than a normal agent demo.
-- [ ] `Your Track`
+- [x] `Your Track`
   - Use: `X Layer Arena`
 - [ ] `Team Members & Contact Information`
   - List every contributor with email or Telegram handle.
-- [ ] `Agentic Wallet Address`
+- [x] `Agentic Wallet Address`
   - Paste the wallet that actually sent or received X Layer transactions.
-- [ ] `GitHub Repository Link`
+- [x] `GitHub Repository Link`
   - Confirm the repo is public.
-- [ ] `OnchainOS Usage`
+- [x] `OnchainOS Usage`
   - Mention the exact modules used:
   - `agentic-wallet` only if you actually logged in and used it
   - `gateway` only if the run actually used simulate/broadcast/order tracking through Onchain OS
@@ -56,7 +56,7 @@ That means the final package has to do two jobs:
   - Do not claim hosted/default x402 facilitator support for X Layer testnet unless you actually used it
   - Current paid delegation proof uses a local/self-hosted x402-aligned facilitator on X Layer testnet
   - Current recorded actual executor is `manifest-wallet`; only say `agentic-wallet` if a specific runtime artifact proves it
-- [ ] `Demo Video Link`
+- [x] `Demo Video Link`
   - Use a public Loom or YouTube link.
 - [ ] `X (Twitter) Post Link`
   - Post must tag `@XLayerOfficial` and include `#BuildX`.
@@ -73,11 +73,11 @@ That means the final package has to do two jobs:
 
 ## Build X Requirements
 
-- [ ] At least one part of the project is deployed on X Layer.
-- [ ] The demo shows real transactions, not only simulation.
-- [ ] The repo clearly explains the architecture and why X Layer matters.
-- [ ] The submission includes a 1 to 3 minute demo video, even if optional.
-- [ ] The project has a clear technical proof story and a clear human-judge story.
+- [x] At least one part of the project is deployed on X Layer.
+- [x] The demo shows real transactions, not only simulation.
+- [x] The repo clearly explains the architecture and why X Layer matters.
+- [x] The submission includes a 1 to 3 minute demo video, even if optional.
+- [x] The project has a clear technical proof story and a clear human-judge story.
 
 ## X Layer Arena Readiness
 
@@ -89,8 +89,9 @@ That means the final package has to do two jobs:
 - [x] Real Uniswap-backed supplier route exists
 - [x] OnchainOS support is integrated and labeled truthfully
 - [x] Demo script focuses on the app, not the skill
-- [ ] Public live app URL is ready and stable
-- [ ] Final public demo video link is uploaded
+- [x] Public live app URL is ready and stable
+- [x] Final public demo video link is uploaded
+- [x] Separate X Layer mainnet proof run exists
 - [ ] Final X post is live
 
 ## Skills Arena Readiness
@@ -101,14 +102,14 @@ That means the final package has to do two jobs:
 - [x] Clean-room install proof passes from packed tarball
 - [x] Package README explains install and usage
 - [x] Skill methods are clearly reusable outside Bazaar X
-- [ ] Final Skills Arena one-line description is written
-- [ ] Final skill-specific highlights are written
-- [ ] Decide whether to submit the same video, a short skill-focused clip, or no video for Skills Arena
-- [ ] If using the shared repo, make sure the form answer links directly to skill docs and `covenant-skill/README.md`
+- [x] Final Skills Arena one-line description is written
+- [x] Final skill-specific highlights are written
+- [x] Shared Bazaar X demo link is ready to reuse for Skills Arena if needed
+- [x] If using the shared repo, the form answer can point directly to skill docs and `covenant-skill/README.md`
 
 ## Bazaar X Evidence To Gather
 
-- [ ] Live app URL
+- [x] Live app URL
 - [x] Canonical evidence sheet points to the current rehearsal artifact: `21` total tx hashes in `.bazaarx/runtime/live/latest.json` (`20` post-deploy flow txs + `1` deployment tx)
 - [x] Deployed contract address: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
 - [x] Real X Layer tx hash for Uniswap-backed supplier swap: `0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da`
@@ -118,6 +119,10 @@ That means the final package has to do two jobs:
 - [x] Covenant Skill policy update proof: proposal `0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0` + execution `0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6`
 - [x] x402 skill unlock settlement tx: `0x8b9b3d3f52f4042e1ac9b99a2da36a388eacb087d49a8d2c4f7f8325bbeb27f6`
 - [x] x402 paid autonomous action settlement tx: `0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a`
+- [x] Separate mainnet proof run artifact: `.bazaarx/mainnet/live/latest.json` with `35` tx hashes
+- [x] Mainnet contract address: `0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9`
+- [x] Mainnet governance execution tx: `0x8655a712232bdd4544dbc5e02fa11f3ae4b2a87ed8ebde8439ab28d987f3407d`
+- [x] Mainnet treasury reinvestment tx: `0x332bc0c04f2f8046b4b4b269ec4a1de0267d19836ee42c78e4a2a58e5ba572ea`
 - [x] Final README with architecture, setup, and demo walkthrough
 - [x] Covenant Skill installability proof: `pnpm --dir covenant-skill smoke:install`
 - [ ] Public X post URL
@@ -144,9 +149,10 @@ That means the final package has to do two jobs:
 ## Truth Matrix
 
 - [x] Proven on X Layer testnet: wallet-led market actions, governance, treasury, Uniswap supplier route, x402-aligned paid delegations, packaged Covenant Skill smoke install
-- [x] Conditional on supported chains: OnchainOS gateway broadcast and Agentic Wallet execution
+- [x] Proven on X Layer mainnet: separate completed Bazaar X replay with deploy, supplier route, settlement, governance, post-governance payment, and treasury reinvestment
+- [x] Conditional on supported chains: OnchainOS gateway broadcast and true `actualExecutor: agentic-wallet`
 - [x] Local/self-hosted today: x402 facilitator on X Layer testnet
-- [x] Mainnet-final only: any mainnet settlement proof or mainnet demo claim
+- [x] Public demo and canonical walkthrough remain testnet-recorded unless explicitly relinked
 
 ## Recommended Final Submission Order
 
@@ -158,13 +164,16 @@ That means the final package has to do two jobs:
 
 ## Still Requires Personal Input
 
-- [ ] Public live app URL
-- [ ] Public demo video URL
 - [ ] Public X post URL for Bazaar X
 - [ ] Public X post URL for Covenant Skill if you post separately
 - [ ] Final team roster and contact handles
-- [ ] Wallet address you want to paste into the form
-- [ ] Mainnet deployment decision before submit:
-  - leave the submission fully testnet-backed
-  - or add a separate mainnet deployment and update wording with [docs/mainnet-launch-checklist.md](/Users/amanpandey/projects/bazaar-x/docs/mainnet-launch-checklist.md)
-  - if choosing mainnet, run `pnpm live:preflight` first and only claim the execution path that the resulting runtime artifact proves
+- [x] Public live app URL:
+  - `https://bazaar-x-ten.vercel.app`
+- [x] Public demo video URL:
+  - `https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing`
+- [x] Mainnet proof note before submit:
+  - separate mainnet proof run is added
+  - keep the demo and canonical tx evidence labeled as `testnet-recorded`
+  - only claim the execution path that the runtime artifact actually proves
+- [x] Agentic Wallet address available to paste into the form:
+  - `0x79c0229105b741727b3f12027d249174cc6a7b9b`

@@ -5,5 +5,9 @@ export function hasOnchainConfig() {
 }
 
 export async function readContractSnapshot() {
-  return readBazaarSnapshot();
+  try {
+    return await readBazaarSnapshot();
+  } catch {
+    return null;
+  }
 }

@@ -913,7 +913,7 @@ export async function getLiveDashboardStatus() {
     loadLiveRuntime(),
     getFundingSnapshot(manifest),
     collectOnchainOsSnapshot(manifest.chainId),
-    readBazaarSnapshot(),
+    readBazaarSnapshot().catch(() => null),
   ]);
 
   return {

@@ -2,7 +2,7 @@
 
 Date checked: `April 14, 2026`
 
-This audit compares the current repo against the official Build X review surface and the canonical runtime artifact in `.bazaarx/runtime/live/latest.json`.
+This audit compares the current repo against the official Build X review surface, the canonical testnet runtime artifact in `.bazaarx/runtime/live/latest.json`, and the separate mainnet proof run in `.bazaarx/mainnet/live/latest.json`.
 
 ## Official Review Surface
 
@@ -20,6 +20,7 @@ This audit compares the current repo against the official Build X review surface
 - [docs/tx-evidence.md](/Users/amanpandey/projects/bazaar-x/docs/tx-evidence.md)
 - [covenant-skill/README.md](/Users/amanpandey/projects/bazaar-x/covenant-skill/README.md)
 - `.bazaarx/runtime/live/latest.json`
+- `.bazaarx/mainnet/live/latest.json`
 
 ## Runtime Truth Snapshot
 
@@ -41,7 +42,7 @@ This audit compares the current repo against the official Build X review surface
 
 ## Mainnet Promotion Status
 
-Status: `Not yet proven in this repo`
+Status: `Separate mainnet proof run completed`
 
 What is now ready:
 
@@ -50,15 +51,27 @@ What is now ready:
 - `pnpm live:status` now redacts private keys from the printed manifest
 - The deploy path no longer depends on the testnet faucet when you point it at mainnet
 - Onchain payment and Uniswap error messages can now follow the active X Layer network instead of hardcoding `testnet`
+- Mainnet contract deployment is now recorded:
+  - Contract: `0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9`
+  - Deploy tx: `0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9`
+- Separate mainnet replay artifact is now completed:
+  - Runtime artifact: `.bazaarx/mainnet/live/latest.json`
+  - Status: `completed`
+  - Proof size: `35` tx hashes
+  - Mainnet supplier-route swap: `0x5313308aace777232b0d21ea16a4460cbe92cfb2a16477200f8f79a23e5fdf40`
+  - Mainnet governance execution: `0x8655a712232bdd4544dbc5e02fa11f3ae4b2a87ed8ebde8439ab28d987f3407d`
+  - Mainnet post-governance payment: `0x1091afa7b2d48b57ea86ac45fcc67d5d28e5766e44263a9948c9ea9276c41e64`
+  - Mainnet treasury reinvestment: `0x332bc0c04f2f8046b4b4b269ec4a1de0267d19836ee42c78e4a2a58e5ba572ea`
+- Agentic Wallet login now exists on this machine:
+  - Account: `Account 1`
+  - X Layer address: `0x79c0229105b741727b3f12027d249174cc6a7b9b`
 
-What still blocks a truthful Phase 8 claim:
+What still does not become claimable automatically:
 
-- No mainnet contract artifact is checked in yet
-- No mainnet tx evidence is checked in yet
-- No mainnet runtime artifact is checked in yet
 - The current runtime does not prove `actualExecutor: agentic-wallet`
 - The current runtime does not prove `resolvedMode: onchainos-gateway`
 - x402 is still a local/self-hosted facilitator path until a different live proof is captured
+- The public walkthrough video is still the cleaner testnet recording, not a mainnet-recorded demo
 
 ## Submission Readiness
 
@@ -76,10 +89,9 @@ Covered:
 
 Still requires the submitter:
 
-- Public live app URL
-- Public uploaded demo URL
 - Public X post URL
-- Final wallet address to paste into the form
+- Final team/contact fields in the Google Form
+- Final click-through submission itself
 
 ### Skills Arena
 
@@ -95,8 +107,9 @@ Covered:
 
 Still requires the submitter:
 
-- Final repo/demo/X post links if the form asks for them
-- Decision on whether to attach the shared Bazaar X demo or a shorter skill-only clip
+- Public X post URL if you want a separate skill post
+- Final team/contact fields in the Google Form if requested
+- Final click-through submission itself
 
 ## Risk Cleanup Completed
 
@@ -118,6 +131,7 @@ Remaining presentation risk:
 
 - The startup and onboarding screenshots were refreshed from the current production build, but deeper `Quests`, `Proof`, and `Ops` captures still want a connected-wallet session if you want the whole gallery fully current.
 - A rushed demo can still bury the world under too much drawer time.
+- The strongest honest story is still `testnet-recorded demo + separate mainnet proof run`, so do not blur those two proof sets together in the form copy.
 
 ## Verification
 
