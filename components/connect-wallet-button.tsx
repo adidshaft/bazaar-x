@@ -47,10 +47,16 @@ export function ConnectWalletButton({
 
   if (isConnected && address) {
     const wrongChain = Boolean(chain && chain.id !== defaultXLayerChain.id);
+    const connectedLabel = wrongChain
+      ? `Disconnect ${shortAddress(address)} · X Layer Testnet Required`
+      : `Disconnect ${shortAddress(address)}${chain ? ` · ${chain.name}` : ""}`;
+
     return (
       <button
         type="button"
         onClick={() => disconnect()}
+        aria-label={`Disconnect wallet ${address}`}
+        title={`Disconnect wallet ${address}`}
         className={`${baseClass} ${isPixel ? "" : "rounded-full border border-white/10 bg-white/[0.05] text-slate-200 hover:border-[#69f0d2]/40 hover:text-white"}`}
       >
         <span
@@ -60,8 +66,7 @@ export function ConnectWalletButton({
               : `h-2 w-2 rounded-full ${wrongChain ? "bg-[#f6c453]" : "bg-[#69f0d2]"}`
           }
         />
-        {shortAddress(address)}
-        {wrongChain ? " · X Layer Testnet Required" : chain ? ` · ${chain.name}` : ""}
+        {connectedLabel}
       </button>
     );
   }

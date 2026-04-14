@@ -2159,7 +2159,7 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
             </div>
 
             <div className="onboarding-actions">
-              {!displayWalletIdentity.connected ? <ConnectWalletButton variant="pixel" fullWidth /> : null}
+              <ConnectWalletButton variant="pixel" fullWidth />
               {displayWalletIdentity.connected && !displayWalletIdentity.validNetwork ? (
                 <button type="button" disabled={isSwitching} onClick={() => switchChain?.({ chainId: defaultXLayerChain.id })} className="px-btn primary" style={{ padding: "10px 20px" }}>
                   <Wallet size={14} />{isSwitching ? "Switching…" : "Switch To X Layer Testnet"}
