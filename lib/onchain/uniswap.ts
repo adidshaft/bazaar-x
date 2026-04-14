@@ -26,7 +26,7 @@ import {
   UNISWAP_WRAPPED_NATIVE_ADDRESS,
 } from "../server/config";
 import { readArtifact, writeArtifactSnapshot } from "../server/artifacts";
-import { createXLayerPublicClient } from "../xlayer";
+import { createXLayerPublicClient, xLayerNetworkLabel } from "../xlayer";
 import { executeContractDeployment, executeRawTransaction } from "./executor";
 import { ensureWalletManifest } from "./runtime";
 import type { UniswapDeploymentArtifact, WalletManifest } from "./types";
@@ -231,7 +231,9 @@ async function resolveWrappedNativeDeployment(
   }
 
   if (deploymentTx.receipt.status !== "success") {
-    throw new Error("The wrapped-native deployment reverted on X Layer testnet.");
+    throw new Error(
+      `The wrapped-native deployment reverted on ${xLayerNetworkLabel(manifest.chainId)}.`,
+    );
   }
   await waitForContractCode({
     publicClient,
@@ -351,7 +353,9 @@ export async function ensureUniswapDeployment(manifestInput?: WalletManifest) {
     throw new Error("Failed to deploy the supplier settlement token.");
   }
   if (settlementTokenTx.receipt.status !== "success") {
-    throw new Error("The supplier settlement token deployment reverted on X Layer testnet.");
+    throw new Error(
+      `The supplier settlement token deployment reverted on ${xLayerNetworkLabel(manifest.chainId)}.`,
+    );
   }
   await waitForContractCode({
     publicClient,
@@ -371,7 +375,9 @@ export async function ensureUniswapDeployment(manifestInput?: WalletManifest) {
     throw new Error("Failed to deploy the Uniswap factory.");
   }
   if (factoryTx.receipt.status !== "success") {
-    throw new Error("The Uniswap factory deployment reverted on X Layer testnet.");
+    throw new Error(
+      `The Uniswap factory deployment reverted on ${xLayerNetworkLabel(manifest.chainId)}.`,
+    );
   }
   await waitForContractCode({
     publicClient,

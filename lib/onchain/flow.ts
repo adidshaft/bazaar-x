@@ -25,7 +25,7 @@ import type {
   StepRecord,
   WalletManifest,
 } from "./types";
-import { explorerTxUrl } from "../xlayer";
+import { explorerTxUrl, xLayerNetworkLabel } from "../xlayer";
 import {
   computeSupplierTaxOkbEquivalent,
   SUPPLIER_ROUTE_RECORD_STEP_KEY,
@@ -334,7 +334,9 @@ export async function initializeBazaarLiveState() {
     runtime.status = "ready";
   } else {
     runtime.status = "idle";
-    runtime.error = `Fund deployer ${manifest.deployer.address} with at least ${funding.requiredDeployerBalanceOkb} OKB on X Layer testnet.`;
+    runtime.error =
+      `Fund deployer ${manifest.deployer.address} with at least ${funding.requiredDeployerBalanceOkb} OKB ` +
+      `on ${xLayerNetworkLabel(manifest.chainId)}.`;
   }
 
   await persist(runtime);

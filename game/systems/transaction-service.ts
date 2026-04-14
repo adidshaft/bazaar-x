@@ -290,7 +290,7 @@ export async function unlockSkill(
       "unlock",
       `${skillId} Unlocked`,
       `${skillId} unlock payment settled and the skill is now active in the grimoire.`,
-      `${skillId} unlock payment settled through x402 exact EVM on X Layer testnet.`,
+      `${skillId} unlock payment settled through x402 exact EVM on X Layer.`,
       successPayload.amountLabel ?? (successPayload.amountOkb ? `${successPayload.amountOkb} BXC` : "Confirmed"),
       createdAt,
     );

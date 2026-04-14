@@ -167,3 +167,4 @@ That means the final package has to do two jobs:
 - [ ] Mainnet deployment decision before submit:
   - leave the submission fully testnet-backed
   - or add a separate mainnet deployment and update wording with [docs/mainnet-launch-checklist.md](/Users/amanpandey/projects/bazaar-x/docs/mainnet-launch-checklist.md)
+  - if choosing mainnet, run `pnpm live:preflight` first and only claim the execution path that the resulting runtime artifact proves

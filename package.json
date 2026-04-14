@@ -15,6 +15,7 @@
     "contracts:test": "forge test --root contracts",
     "live:wallets": "tsx scripts/generate-wallets.ts",
     "live:faucet": "tsx scripts/fund-wallets.ts",
+    "live:preflight": "tsx scripts/preflight-mainnet.ts",
     "live:deploy": "tsx scripts/deploy-bazaar.ts",
     "live:run": "tsx scripts/run-bazaar-flow.ts",
     "live:status": "tsx scripts/print-live-status.ts"

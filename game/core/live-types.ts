@@ -382,7 +382,7 @@ export type X402PaymentReceipt = {
   sessionId: string;
   kind: X402PaymentKind;
   protocol: "x402-exact-evm";
-  facilitator: "bazaar-local-testnet";
+  facilitator: string;
   status: "settled" | "fulfilled" | "recovered";
   network: string;
   payer: `0x${string}`;
@@ -402,7 +402,7 @@ export type X402PaymentRequiredEnvelope = {
   protocol: "x402-exact-evm";
   header: "PAYMENT-SIGNATURE";
   sessionId: string;
-  facilitator: "bazaar-local-testnet";
+  facilitator: string;
   requirements: X402PaymentRequirements;
   assetSymbol: string;
   amountLabel: string;

@@ -1,5 +1,6 @@
 import { formatEther, parseEther } from "viem";
 import { createXLayerPublicClient } from "../xlayer";
+import { isXLayerTestnetChain, xLayerNetworkLabel } from "../xlayer";
 import type { WalletManifest } from "./types";
 
 const faucetUrl = "https://web3.okx.com/priapi/v1/ob/faucet/token/applyWithVerificationCode";
@@ -85,6 +86,12 @@ export async function ensureAddressFunding(
       balance: currentBalance.toString(),
       funded: true,
     };
+  }
+
+  if (!isXLayerTestnetChain(manifest.chainId)) {
+    throw new Error(
+      `Automatic faucet funding is only available on X Layer testnet. Fund ${address} manually on ${xLayerNetworkLabel(manifest.chainId)} until it holds at least ${formatEther(minimumBalance)} OKB.`,
+    );
   }
 
   await claim(address, devId);

@@ -39,6 +39,27 @@ This audit compares the current repo against the official Build X review surface
 - x402 path: `local/self-hosted facilitator on X Layer testnet`
 - Covenant Skill packaging: `installable from packed artifact today`, `public npm publish still pending`
 
+## Mainnet Promotion Status
+
+Status: `Not yet proven in this repo`
+
+What is now ready:
+
+- Mainnet RPC/config wiring exists for chain `196`
+- Mainnet-safe preflight is available via `pnpm live:preflight`
+- `pnpm live:status` now redacts private keys from the printed manifest
+- The deploy path no longer depends on the testnet faucet when you point it at mainnet
+- Onchain payment and Uniswap error messages can now follow the active X Layer network instead of hardcoding `testnet`
+
+What still blocks a truthful Phase 8 claim:
+
+- No mainnet contract artifact is checked in yet
+- No mainnet tx evidence is checked in yet
+- No mainnet runtime artifact is checked in yet
+- The current runtime does not prove `actualExecutor: agentic-wallet`
+- The current runtime does not prove `resolvedMode: onchainos-gateway`
+- x402 is still a local/self-hosted facilitator path until a different live proof is captured
+
 ## Submission Readiness
 
 ### X Layer Arena

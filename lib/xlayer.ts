@@ -52,6 +52,22 @@ export const xLayerTestnet = defineChain({
 
 export const defaultXLayerChain = xLayerTestnet;
 
+export function isXLayerMainnetChain(chainId?: number) {
+  return chainId === xLayerMainnet.id;
+}
+
+export function isXLayerTestnetChain(chainId?: number) {
+  return !isXLayerMainnetChain(chainId);
+}
+
+export function xLayerNetworkLabel(chainId?: number) {
+  return isXLayerMainnetChain(chainId) ? "X Layer mainnet" : "X Layer testnet";
+}
+
+export function xLayerExplorerLabel(chainId?: number) {
+  return isXLayerMainnetChain(chainId) ? "x-layer" : "x-layer-testnet";
+}
+
 export function resolveXLayerChain(chainId?: number) {
   if (chainId === xLayerMainnet.id) {
     return xLayerMainnet;

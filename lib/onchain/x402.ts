@@ -35,7 +35,7 @@ import { readArtifact, writeArtifactSnapshot } from "../server/artifacts";
 import { ApiError } from "../server/http";
 import { saveLiveRuntime, loadLiveRuntime, ensureWalletManifest } from "./runtime";
 import { executeContractDeployment, executeContractWrite } from "./executor";
-import { createXLayerPublicClient, explorerTxUrl } from "../xlayer";
+import { createXLayerPublicClient, explorerTxUrl, isXLayerMainnetChain, xLayerNetworkLabel } from "../xlayer";
 import { loadDeploymentArtifact } from "./contract";
 
 const X402_TOKEN_ARTIFACT = resolve(
@@ -117,6 +117,19 @@ const transferWithAuthorizationTypes = {
     { name: "nonce", type: "bytes32" },
   ],
 } as const;
+
+function localFacilitatorId(chainId: number) {
+  return isXLayerMainnetChain(chainId) ? "bazaar-local-mainnet" : "bazaar-local-testnet";
+}
+
+function x402NetworkStatement(chainId: number) {
+  return `on ${xLayerNetworkLabel(chainId)}`;
+}
+
+function chainIdFromEip155Network(network?: string) {
+  const parsed = Number.parseInt(network?.split(":")[1] ?? "", 10);
+  return Number.isFinite(parsed) ? parsed : 1952;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -524,7 +537,7 @@ export async function prepareX402PaymentSession(input: {
           sessionId: existingSession?.id ?? randomUUID(),
           kind: input.kind,
           resourceId: input.resourceId,
-          facilitator: "bazaar-local-testnet",
+          facilitator: localFacilitatorId(manifest.chainId),
           assetSymbol: token.symbol,
           amountLabel: `${input.amountDisplay} ${token.symbol}`,
         },
@@ -594,7 +607,7 @@ function buildPaymentReceipt(
     sessionId: session.id,
     kind: session.kind,
     protocol: "x402-exact-evm",
-    facilitator: "bazaar-local-testnet",
+    facilitator: localFacilitatorId(chainIdFromEip155Network(accepted.network)),
     status: "settled",
     network: accepted.network,
     payer: session.authorization.from,
@@ -869,7 +882,9 @@ export async function buildPaymentRequiredEnvelope(input: {
     protocol: "x402-exact-evm",
     header: "PAYMENT-SIGNATURE",
     sessionId: session.id,
-    facilitator: "bazaar-local-testnet",
+    facilitator: localFacilitatorId(
+      chainIdFromEip155Network(session.requirements.accepts[0]?.network),
+    ),
     requirements: session.requirements,
     assetSymbol: session.assetSymbol,
     amountLabel: session.amountLabel,
@@ -957,9 +972,9 @@ export function buildSkillPaymentProof(input: {
     title: `${input.skillName} Delegation Receipt`,
     body:
       `${input.receipt.amountLabel} cleared as a separate paid delegation receipt through the local x402 facilitator ` +
-      "on X Layer testnet.",
+      `${x402NetworkStatement(chainIdFromEip155Network(input.receipt.network))}.`,
     statement:
-      `${input.skillId} paid delegation receipt settled via x402 exact EVM on X Layer testnet.`,
+      `${input.skillId} paid delegation receipt settled via x402 exact EVM ${x402NetworkStatement(chainIdFromEip155Network(input.receipt.network))}.`,
     label: input.receipt.amountLabel,
     districtId: "council-hall",
     actionId: "open-guild",

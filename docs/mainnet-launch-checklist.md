@@ -19,6 +19,27 @@ The current canonical demo and tx evidence in this repo are recorded on `X Layer
 - Decide whether the public live app will default to testnet or mainnet.
 - Decide whether the demo video remains the current testnet recording or gets re-recorded.
 
+## Safe Preflight
+
+Run a separate preflight before any real spend:
+
+```bash
+set -a
+source .env.mainnet.local
+export BAZAAR_X_ARTIFACT_DIR=".bazaarx/mainnet"
+pnpm live:preflight
+```
+
+That preflight is the safest way to confirm:
+
+- the manifest really points at chain `196`
+- the artifact directory will not overwrite the canonical testnet replay
+- deployer and treasury balances are sufficient
+- OnchainOS wallet login and readiness are actually present
+- the current machine can truthfully claim `agentic-wallet` or `onchainos-gateway`
+
+`pnpm live:status` is now safe to use for inspection because it redacts wallet private keys from the printed manifest.
+
 ## Mainnet Proof Requirements
 
 Only claim mainnet execution after all of these are true:
@@ -28,6 +49,13 @@ Only claim mainnet execution after all of these are true:
 - At least one real mainnet flow is executed and captured with explorer links.
 - If claiming Agentic Wallet or OnchainOS gateway execution, runtime metadata proves it.
 - If claiming x402 on mainnet, the actual facilitator path is documented truthfully.
+
+Current code-level blockers to watch:
+
+- `agentic-wallet` is still a requested preference unless a live runtime artifact records `actualExecutor: agentic-wallet`.
+- `onchainos-gateway` should not be claimed unless the runtime artifact records gateway execution for that specific run.
+- x402 remains a local/self-hosted facilitator path unless you replace it with a different real path and record that exact evidence.
+- Some public UI copy is still testnet-oriented in the current branch, so re-audit the visible shell before recording a mainnet demo.
 
 ## Exact Truth-Preserving Wording
 
@@ -69,3 +97,4 @@ Ship a separate mainnet deployment only if:
 - It materially helps live judging access.
 - The proof and copy can stay clearly separated.
 - You can still keep every claim in the README and form answers fully literal.
+- `pnpm live:preflight` returns no blocker that would invalidate the claim you want to make.
