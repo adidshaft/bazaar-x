@@ -8,7 +8,7 @@ This file is the repo-specific handoff for the Skills Arena submission.
 
 ## What It Is
 
-`Covenant Skill` takes the policy layer out of Bazaar X and ships it as a reusable package. Another project can install it today from a packed artifact, import stable typed entrypoints, and call the same core economy methods without depending on Bazaar X scenes, UI, contracts, or server code.
+`Covenant Skill` takes the policy layer out of Bazaar X and ships it as a reusable package. Another project can install it today from a packed artifact, import stable typed entrypoints, and call the same core economy methods without depending on Bazaar X scenes, UI, contracts, or server code. It is the same policy layer that powers Bazaar X across the public testnet demo and the separate completed mainnet proof run.
 
 ## What Is Real Today
 
@@ -51,7 +51,7 @@ This file is the repo-specific handoff for the Skills Arena submission.
 - `Portable policy engine`: reuses the same tax, treasury, and governance primitives in any agent economy.
 - `Typed install surface`: package exports are explicit and stable.
 - `Clean-room proof`: a separate sample consumer installs and runs the package without Bazaar X internals.
-- `Practical reuse`: the exact same skill powers Bazaar X's live economy loop.
+- `Practical reuse`: the exact same skill powers Bazaar X's live economy loop, including the separate completed X Layer mainnet proof run.
 
 ## Best Links To Share
 
@@ -63,7 +63,7 @@ This file is the repo-specific handoff for the Skills Arena submission.
 
 ## Recommended Form Copy
 
-`Covenant Skill is our Skills Arena submission: an installable TypeScript package for agent economies. It extracts the policy, tax, treasury, and governance logic from Bazaar X into a typed reusable artifact that another project can install today from a packed tarball, exercise in a clean-room consumer, and extend through a registry surface without importing Bazaar X internals.`
+`Covenant Skill is our Skills Arena submission: an installable TypeScript package for agent economies. It extracts the policy, tax, treasury, and governance logic from Bazaar X into a typed reusable artifact that another project can install today from a packed tarball, exercise in a clean-room consumer, and extend through a registry surface without importing Bazaar X internals. It is the same policy layer used by Bazaar X in the public testnet demo and the separate completed X Layer mainnet proof run.`
 
 ## Recommended Demo Choice
 

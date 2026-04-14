@@ -16,23 +16,24 @@ Important truth rule:
 
 ### One-Line Description
 
-`Bazaar X - An explorable pixel-RPG agent economy on X Layer where real settlements, treasury flows, governance updates, and paid delegations appear as in-world proof.`
+`Bazaar X - An explorable pixel-RPG agent economy on X Layer with real settlements, treasury flows, governance updates, paid delegations, and a completed mainnet proof run.`
 
 ### Short Description
 
-`Bazaar X turns a live X Layer testnet economy into a playable village. Citizens claim stalls, supplier routes pass through a real Uniswap-backed swap, taxes feed treasury, governance updates the covenant, and the next settlement obeys the new rule. The game shell stays readable for human judges while the repo and proof drawer stay legible for AI judges.`
+`Bazaar X turns a live X Layer economy into a playable village. The public demo uses the clean X Layer testnet replay, while the repo also includes a separate completed X Layer mainnet proof run. Citizens claim stalls, supplier routes pass through a real Uniswap-backed swap, taxes feed treasury, governance updates the covenant, and the next settlement obeys the new rule. The game shell stays readable for human judges while the repo and proof drawer stay legible for AI judges.`
 
 ### Project Highlights
 
-- `Full-stack agentic app`: wallet-first onboarding, explorable Phaser world, Next.js shell, and live X Layer proof.
+- `Full-stack agentic app`: wallet-first onboarding, explorable Phaser world, Next.js shell, and live X Layer proof across a clean public testnet demo plus a separate completed mainnet proof run.
 - `Real economy loop`: earn, pay, tax, treasury, vote, rule update, next payment.
 - `Real receipts`: live Uniswap supplier-route swap, supplier settlement, governance execution, treasury reinvestment, and x402-paid delegation proof.
+- `Mainnet presence`: deployed contract and completed replay on X Layer mainnet with the key txs linked in the README.
 - `Truthful autonomy`: the app records requested executor versus actual executor and surfaces fallback behavior in the Ops panel.
 - `Reusable depth`: Covenant Skill powers the policy layer and is packaged separately for Skills Arena.
 
 ### Why X Layer
 
-`X Layer is the execution layer for the whole product: contract deployment, wallet-led transactions, treasury flows, governance state, and the canonical testnet replay all live on X Layer. That makes the demo technically replayable for AI judges and immediately practical for human judges.`
+`X Layer is the execution layer for the whole product: contract deployment, wallet-led transactions, treasury flows, governance state, the canonical testnet replay, and the separate completed mainnet proof run all live on X Layer. That makes the project technically replayable for AI judges and immediately practical for human judges.`
 
 ### Mainnet Deployment Note
 
@@ -40,7 +41,7 @@ Important truth rule:
 
 ### Exact OnchainOS Wording
 
-`Bazaar X integrates OKX OnchainOS as a gateway-capable execution option and records requested versus actual autonomous execution in runtime metadata. In the canonical X Layer testnet replay included with this submission, Agentic Wallet was requested, but the installed OnchainOS CLI does not expose chain 1952 for Agentic Wallet execution, so the recorded autonomous path honestly falls back to manifest-wallet standard broadcast. We therefore claim OnchainOS readiness, runtime introspection, and truthful fallback reporting for the current public artifact, not gateway/API execution that did not occur.`
+`Bazaar X integrates OKX OnchainOS as a gateway-capable and Agentic Wallet-aware execution option and records requested versus actual autonomous execution in runtime metadata. In the canonical X Layer testnet replay included with this submission, Agentic Wallet was requested, but the installed OnchainOS CLI does not expose chain 1952 for Agentic Wallet execution, so the recorded autonomous path honestly falls back to manifest-wallet standard broadcast. In the separate completed X Layer mainnet proof run on chain 196, Agentic Wallet readiness is visible, but the shared village still executes role-specific autonomous steps from manifest wallets in the current build. We therefore claim OnchainOS readiness, runtime introspection, and truthful fallback reporting, not gateway/API execution that did not occur.`
 
 ### Proof To Cite
 
@@ -64,13 +65,13 @@ Important truth rule:
 ### Paste-Ready Form Block
 
 - `Project Name & One-Line Description`
-  - `Bazaar X - An explorable pixel-RPG agent economy on X Layer where real settlements, treasury flows, governance updates, and paid delegations appear as in-world proof.`
+  - `Bazaar X - An explorable pixel-RPG agent economy on X Layer with real settlements, treasury flows, governance updates, paid delegations, and a completed mainnet proof run.`
 - `Project Highlights`
-  - `Bazaar X is a full-stack agentic app on X Layer testnet. It turns a live economy into an explorable pixel village where wallet-led actions, a Uniswap-backed supplier route, treasury flows, governance updates, and x402-paid delegations all produce separate verifiable receipts. The product is designed so human judges can understand the loop by moving through the world, while AI judges can verify the code and canonical tx evidence in the repo.`
+  - `Bazaar X is a full-stack agentic app on X Layer. The public demo uses the clean X Layer testnet replay, and the repo also includes a separate completed X Layer mainnet proof run. It turns a live economy into an explorable pixel village where wallet-led actions, a Uniswap-backed supplier route, treasury flows, governance updates, and x402-paid delegations all produce separate verifiable receipts. The product is designed so human judges can understand the loop by moving through the world, while AI judges can verify both the code and the linked onchain evidence.`
 - `Your Track`
   - `X Layer Arena`
 - `OnchainOS Usage`
-  - `Bazaar X integrates OKX OnchainOS as a gateway-capable execution option and records requested versus actual autonomous execution in runtime metadata. In the canonical X Layer testnet replay included with this submission, Agentic Wallet was requested, but the installed OnchainOS CLI does not expose chain 1952 for Agentic Wallet execution, so the recorded autonomous path honestly falls back to manifest-wallet standard broadcast. We therefore claim OnchainOS readiness, runtime introspection, and truthful fallback reporting for the current public artifact, not gateway/API execution that did not occur.`
+  - `Bazaar X integrates OKX OnchainOS as a gateway-capable and Agentic Wallet-aware execution option and records requested versus actual autonomous execution in runtime metadata. In the canonical X Layer testnet replay included with this submission, Agentic Wallet was requested, but the installed OnchainOS CLI does not expose chain 1952 for Agentic Wallet execution, so the recorded autonomous path honestly falls back to manifest-wallet standard broadcast. In the separate completed X Layer mainnet proof run on chain 196, Agentic Wallet readiness is visible, but the shared village still executes role-specific autonomous steps from manifest wallets in the current build. We therefore claim OnchainOS readiness, runtime introspection, and truthful fallback reporting, not gateway/API execution that did not occur.`
 - `GitHub Repository Link`
   - `https://github.com/adidshaft/bazaar-x`
 - `Agentic Wallet Address`
@@ -82,14 +83,14 @@ Important truth rule:
 - `Demo Video Link`
   - `https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing`
 - `X Post Link`
-  - `[ADD BAZAAR X POST URL]`
+  - https://x.com/Bazaar_X_/status/2044041065859305908?s=20
 
 ### Fields You Still Need To Fill
 
-- `Email`: `[ADD SUBMISSION EMAIL]`
-- `Team Members & Contact Information`: `[ADD FINAL TEAM LIST]`
+- `Email`: adidshaft@gmail.com
+- `Team Members & Contact Information`: adidshaft@gmail.com
 - `Live App URL`: `https://bazaar-x-ten.vercel.app`
-- `X Post Link`: `[ADD PUBLIC X POST URL]`
+- `X Post Link`: https://x.com/Bazaar_X_/status/2044041065859305908?s=20
 
 ## Covenant Skill / Skills Arena
 
@@ -136,11 +137,11 @@ Important truth rule:
 - `Demo Video Link`
   - `https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing`
 - `X Post Link`
-  - `[ADD COVENANT SKILL POST URL OR REUSE THE BAZAAR X POST IF ALLOWED]`
+  - https://x.com/Bazaar_X_/status/2044042787948257552?s=20
 
 ### Fields You Still Need To Fill
 
-- `Email`: `[ADD SUBMISSION EMAIL]`
-- `Team Members & Contact Information`: `[ADD FINAL TEAM LIST]`
+- `Email`: adidshaft@gmail.com
+- `Team Members & Contact Information`: adidshaft@gmail.com
 - `Demo Video Link`: `https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing`
-- `X Post Link`: `[ADD IF REQUIRED]`
+- `X Post Link`: https://x.com/Bazaar_X_/status/2044042787948257552?s=20
