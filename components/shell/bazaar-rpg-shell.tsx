@@ -1417,6 +1417,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
         </div>
 
         <div className="hud-actions">
+          {displayWalletIdentity.connected ? (
+            <ConnectWalletButton connectedLabel="Disconnect" />
+          ) : null}
           <button type="button" className={`hud-btn ${mapOpen ? "is-active" : ""}`} onClick={() => { bazaarAudioSystem.play("ui-confirm"); setMapOpen((v) => !v); }} aria-label="Map">
             <MapPinned size={11} />Map
           </button>

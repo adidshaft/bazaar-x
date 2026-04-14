@@ -11,11 +11,13 @@ function shortAddress(address: string) {
 type ConnectWalletButtonProps = {
   variant?: "default" | "pixel";
   fullWidth?: boolean;
+  connectedLabel?: string;
 };
 
 export function ConnectWalletButton({
   variant = "default",
   fullWidth = false,
+  connectedLabel,
 }: ConnectWalletButtonProps) {
   const [hasMounted, setHasMounted] = useState(false);
   const { address, chain, isConnected } = useAccount();
@@ -47,9 +49,9 @@ export function ConnectWalletButton({
 
   if (isConnected && address) {
     const wrongChain = Boolean(chain && chain.id !== defaultXLayerChain.id);
-    const connectedLabel = wrongChain
+    const disconnectLabel = connectedLabel ?? (wrongChain
       ? `Disconnect ${shortAddress(address)} · X Layer Testnet Required`
-      : `Disconnect ${shortAddress(address)}${chain ? ` · ${chain.name}` : ""}`;
+      : `Disconnect ${shortAddress(address)}${chain ? ` · ${chain.name}` : ""}`);
 
     return (
       <button
@@ -66,7 +68,7 @@ export function ConnectWalletButton({
               : `h-2 w-2 rounded-full ${wrongChain ? "bg-[#f6c453]" : "bg-[#69f0d2]"}`
           }
         />
-        {connectedLabel}
+        {disconnectLabel}
       </button>
     );
   }
