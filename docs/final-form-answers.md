@@ -43,6 +43,10 @@ Important truth rule:
 
 `Bazaar X integrates OKX OnchainOS as a gateway-capable and Agentic Wallet-aware execution option and records requested versus actual autonomous execution in runtime metadata. In the canonical X Layer testnet replay included with this submission, Agentic Wallet was requested, but the installed OnchainOS CLI does not expose chain 1952 for Agentic Wallet execution, so the recorded autonomous path honestly falls back to manifest-wallet standard broadcast. In the separate completed X Layer mainnet proof run on chain 196, Agentic Wallet readiness is visible, but the shared village still executes role-specific autonomous steps from manifest wallets in the current build. We therefore claim OnchainOS readiness, runtime introspection, and truthful fallback reporting, not gateway/API execution that did not occur.`
 
+### Agentic Wallet Note
+
+`The Agentic Wallet address in this submission is the registered OKX Agentic Wallet identity for the project and it has real onchain funding on X Layer mainnet. It should be submitted as the project's Agentic Wallet address, but it should not be described as the executor of the current testnet or mainnet proof runs, because the recorded runtime artifacts still show actualExecutor: manifest-wallet.`
+
 ### Proof To Cite
 
 - Contract: `0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2`
@@ -76,6 +80,7 @@ Important truth rule:
   - `https://github.com/adidshaft/bazaar-x`
 - `Agentic Wallet Address`
   - `0x79c0229105b741727b3f12027d249174cc6a7b9b`
+  - `Use this as the registered Agentic Wallet identity, not as a claim that the current proof runs executed through Agentic Wallet.`
 - `Separate Mainnet Proof Run`
   - `Bazaar X also has a separate completed X Layer mainnet proof run at contract 0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9, deployed in tx 0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9, with the replay preserved in .bazaarx/mainnet/live/latest.json. The public demo and canonical walkthrough remain testnet-recorded unless explicitly linked otherwise.`
 - `Live App URL`

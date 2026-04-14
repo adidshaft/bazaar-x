@@ -40,7 +40,9 @@ That means the final package has to do two jobs:
 - [ ] `Team Members & Contact Information`
   - List every contributor with email or Telegram handle.
 - [x] `Agentic Wallet Address`
-  - Paste the wallet that actually sent or received X Layer transactions.
+  - Paste the registered Agentic Wallet address for the project.
+  - In this repo, that address has real X Layer mainnet funding.
+  - Do not describe it as the executor of the current proof runs unless a runtime artifact records `actualExecutor: agentic-wallet`.
 - [x] `GitHub Repository Link`
   - Confirm the repo is public.
 - [x] `OnchainOS Usage`
