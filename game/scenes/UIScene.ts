@@ -87,6 +87,10 @@ export class UIScene extends Phaser.Scene {
     super("UIScene");
   }
 
+  private canRenderUi() {
+    return Boolean(this.sys?.isActive() && this.add && this.time && this.tweens);
+  }
+
   create() {
     const width = this.scale.width;
     const height = this.scale.height;
@@ -180,6 +184,10 @@ export class UIScene extends Phaser.Scene {
     tone?: "tax" | "success" | "proof" | "skill";
     durationMs?: number;
   }) {
+    if (!this.canRenderUi()) {
+      return;
+    }
+
     const width = this.scale.width;
     const y = 40 + this.activeToasts.length * 58;
     const toneColor =
@@ -223,6 +231,10 @@ export class UIScene extends Phaser.Scene {
     });
 
     this.time.delayedCall(payload.durationMs ?? 2200, () => {
+      if (!this.canRenderUi() || !container.active) {
+        return;
+      }
+
       this.tweens.add({
         targets: container,
         alpha: 0,
@@ -241,6 +253,10 @@ export class UIScene extends Phaser.Scene {
   }
 
   private showTxPill(actionId: string, label: string) {
+    if (!this.canRenderUi()) {
+      return;
+    }
+
     this.destroyTxPill();
 
     const width = this.scale.width;
@@ -288,7 +304,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private updateTxPill(actionId: string, status: "confirmed" | "failed", txHash?: string) {
-    if (!this.txPill || this.txPill.actionId !== actionId) {
+    if (!this.canRenderUi() || !this.txPill || this.txPill.actionId !== actionId) {
       return;
     }
 
@@ -319,7 +335,7 @@ export class UIScene extends Phaser.Scene {
     });
 
     this.txPill.fadeCall = this.time.delayedCall(3_000, () => {
-      if (!this.txPill || this.txPill.actionId !== actionId) {
+      if (!this.canRenderUi() || !this.txPill || this.txPill.actionId !== actionId || !this.txPill.container.active) {
         return;
       }
       this.tweens.add({

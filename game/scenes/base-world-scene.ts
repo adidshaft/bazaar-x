@@ -215,6 +215,44 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     ring: Phaser.GameObjects.Image;
   };
 
+  private resetWorldRuntimeState() {
+    this.tilemap = undefined;
+    this.collisionLayer = undefined;
+    this.renderLayerLookup.clear();
+    this.buildingSpriteLookup.clear();
+    this.waterTiles = [];
+    this.npcActorLookup.clear();
+    this.npcs = [];
+    this.interactables = [];
+    this.activeInteractable = null;
+    this.labelEntries = [];
+    this.glowEntries = [];
+    this.playerRing = undefined;
+    this.playerNameLabel = undefined;
+    this.playerAuraGlow = undefined;
+    this.focusVignette = undefined;
+    this.focusVignetteFx = undefined;
+    this.objectiveMarker = undefined;
+    this.objectiveHalo = undefined;
+    this.touchDir = { x: 0, y: 0 };
+    this.proofPickup = undefined;
+  }
+
+  private canUseWorldResources() {
+    return Boolean(this.sys?.isActive() && this.player?.sprite?.active);
+  }
+
+  private canRunSceneEffects() {
+    return Boolean(
+      this.sys?.isActive() &&
+      this.add &&
+      this.time &&
+      this.tweens &&
+      this.cameras?.main &&
+      this.player?.sprite?.active,
+    );
+  }
+
   protected abstract resolveDefaultMapId(): MapId;
   protected abstract resolveSceneId(): SceneId;
   protected abstract resolveSceneCard(mapId: MapId): { title: string; subtitle: string };
@@ -258,6 +296,8 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   create() {
+    this.resetWorldRuntimeState();
+    this.sceneTransitionLocked = false;
     bazaarGameStore.getState().setScene(this.resolveSceneId(), this.mapId);
     bazaarAudioSystem.startAmbient();
 
@@ -293,6 +333,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     const mapWidthPixels = compiledMap.width * compiledMap.tilewidth;
     const mapHeightPixels = compiledMap.height * compiledMap.tileheight;
     this.physics.world.setBounds(0, 0, mapWidthPixels, mapHeightPixels);
+    this.cameras.main.resetFX();
+    this.cameras.main.setAlpha(1);
+    this.cameras.main.setZoom(1);
+    this.cameras.main.setFollowOffset(0, 0);
     this.cameras.main.setBounds(0, 0, mapWidthPixels, mapHeightPixels);
     this.cameras.main.setRoundPixels(true);
     this.cameras.main.setBackgroundColor(0x0f151b);
@@ -325,6 +369,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.player.sprite, true, CAMERA_LERP, CAMERA_LERP);
     this.cameras.main.setDeadzone(112, 68);
+    this.cameras.main.fadeIn(180, 7, 10, 16);
     this.createFocusVignette();
 
     const portalLookup = new Map(
@@ -373,6 +418,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    if (!this.canUseWorldResources()) {
+      return;
+    }
+
     const movement = this.resolveMovementIntent();
     const nextState = this.player.update(movement);
     bazaarGameStore.getState().setPlayerState(nextState);
@@ -399,11 +448,14 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     bazaarAudioSystem.stopAmbient();
     this.activeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     this.activeUnsubscribers = [];
-    this.labelEntries = [];
-    this.touchDir = { x: 0, y: 0 };
+    this.npcs.forEach((npc) => npc.destroy());
     this.proofPickup?.sprite.destroy();
     this.proofPickup?.ring.destroy();
-    this.proofPickup = undefined;
+    this.objectiveMarker?.destroy();
+    this.objectiveHalo?.destroy();
+    this.playerRing?.destroy();
+    this.playerNameLabel?.destroy();
+    this.resetWorldRuntimeState();
   }
 
   protected resolveSpawn(mapId: MapId, spawnId?: string) {
@@ -466,10 +518,17 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         }
       }),
       bazaarEventBridge.on("economy:sync", ({ world }) => {
+        if (!this.canUseWorldResources()) {
+          return;
+        }
         this.applyWorldState(world);
       }),
       bazaarEventBridge.on("player:teleport", ({ mapId, spawnId, x, y }) => {
         if (mapId && mapId !== this.mapId) {
+          return;
+        }
+
+        if (!this.canUseWorldResources()) {
           return;
         }
 
@@ -490,18 +549,27 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         }
       }),
       bazaarEventBridge.on("tx:confirmed", ({ actionId }) => {
+        if (!this.canRunSceneEffects()) {
+          return;
+        }
         this.handleConfirmedAction(actionId);
       }),
       bazaarEventBridge.on("ui:viewport-changed", (payload) => {
         this.handleViewportChanged(payload);
       }),
       bazaarEventBridge.on("camera:flash", ({ duration, red = 255, green = 255, blue = 255 }) => {
+        if (!this.canRunSceneEffects()) {
+          return;
+        }
         this.cameras.main.flash(duration, red, green, blue, false);
       }),
       bazaarEventBridge.on("camera:focus-mode", ({ active }) => {
         this.handleFocusMode(active);
       }),
       bazaarEventBridge.on("proof:verified", ({ proof }) => {
+        if (!this.canRunSceneEffects()) {
+          return;
+        }
         this.realityPulse(proof);
         this.spawnProofPickup(proof);
       }),
@@ -511,6 +579,9 @@ export abstract class BaseWorldScene extends Phaser.Scene {
         }
       }),
       bazaarEventBridge.on("skill:activated", () => {
+        if (!this.canUseWorldResources()) {
+          return;
+        }
         this.applyPlayerAura();
       }),
     );
@@ -554,6 +625,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private emitRewardBurst(x: number, y: number, tint = 0xffd36f) {
+    if (!this.canRunSceneEffects()) {
+      return;
+    }
+
     const lowEffects = bazaarGameStore.getState().settings.lowEffects;
     const particles = this.add.particles(x, y, "fx-coin", {
       speed: { min: 24, max: 72 },
@@ -587,6 +662,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private emitMovementFeedback(time: number) {
+    if (!this.canRunSceneEffects()) {
+      return;
+    }
+
     const lowEffects = bazaarGameStore.getState().settings.lowEffects;
     if (time - this.lastDustAt < (lowEffects ? 260 : 185)) {
       return;
@@ -672,15 +751,21 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private isWalkableTile(tileX: number, tileY: number) {
-    if (!this.tilemap) {
+    const tilemap = this.tilemap;
+    if (!tilemap?.layers?.length) {
       return true;
     }
 
-    if (tileX < 0 || tileY < 0 || tileX >= this.tilemap.width || tileY >= this.tilemap.height) {
+    if (tileX < 0 || tileY < 0 || tileX >= tilemap.width || tileY >= tilemap.height) {
       return false;
     }
 
-    const collisionTile = this.collisionLayer?.getTileAt(tileX, tileY);
+    const collisionLayer = this.collisionLayer;
+    if (!collisionLayer?.layer?.data) {
+      return true;
+    }
+
+    const collisionTile = collisionLayer.getTileAt(tileX, tileY);
     return !(collisionTile && collisionTile.index > 0);
   }
 
@@ -769,6 +854,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private createObjectiveMarker() {
+    if (!this.canRunSceneEffects()) {
+      return;
+    }
+
     this.objectiveHalo = this.add.image(0, 0, "fx-glow");
     this.objectiveHalo.setDepth(1990);
     this.objectiveHalo.setBlendMode(Phaser.BlendModes.ADD);
@@ -825,6 +914,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private createNpcs(objectLayers: Record<string, CompiledMapObject[]>) {
+    this.npcs.forEach((npc) => npc.destroy());
+    this.npcs = [];
+    this.npcActorLookup.clear();
+
     const spawnLookup = new Map(
       (objectLayers.npcSpawns ?? []).map((entry) => [String(entry.properties.npcId), entry] as const),
     );
@@ -1066,6 +1159,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   public realityPulse(proof?: ProofArtifact) {
+    if (!this.canRunSceneEffects()) {
+      return;
+    }
+
     const color = resolveProofAccent(proof);
     const rgb = Phaser.Display.Color.IntegerToRGB(color);
     const overlay = this.add
@@ -1138,6 +1235,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private spawnProofPickup(proof: ProofArtifact) {
+    if (!this.canRunSceneEffects()) {
+      return;
+    }
+
     this.proofPickup?.sprite.destroy();
     this.proofPickup?.ring.destroy();
 
@@ -1203,7 +1304,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
     leftWidth: number;
     rightWidth: number;
   }) {
-    if (!this.player?.sprite?.active) {
+    if (!this.canRunSceneEffects()) {
       return;
     }
 
@@ -1226,6 +1327,10 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private createFocusVignette() {
+    if (!this.sys?.isActive() || !this.add || !this.cameras?.main) {
+      return;
+    }
+
     const vignette = this.add
       .rectangle(
         this.cameras.main.width / 2,
@@ -1244,7 +1349,7 @@ export abstract class BaseWorldScene extends Phaser.Scene {
   }
 
   private handleFocusMode(active: boolean) {
-    if (!this.player?.sprite?.active) {
+    if (!this.canRunSceneEffects()) {
       return;
     }
 

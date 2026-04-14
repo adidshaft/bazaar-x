@@ -21,7 +21,7 @@
 
   /* Text */
   --text-primary: #d8ecd8;
-  --text-muted:   #4a6a5a;
+  --text-muted:   #7ba68e;
   --text-gold:    #ffd700;
   --text-green:   #00ff41;
   --text-ice:     #00bfff;
@@ -740,7 +740,7 @@ body {
 
 .px-quest-desc {
   font-family: var(--font-pixel), monospace;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   line-height: 1.4;
 }

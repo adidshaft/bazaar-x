@@ -99,7 +99,7 @@ export class CouncilHeroSystem {
     this.hearth.setScale(fireScale);
     this.hearth.setTint(activeProposalCount > 0 ? 0xffcf8a : 0xff8b52);
 
-    const latestTx = bazaarGameStore.getState().liveStatus?.gateway.latestTxHash ?? world.latestTxHash;
+    const latestTx = bazaarGameStore.getState().liveStatus?.gateway?.latestTxHash ?? world.latestTxHash;
     const nextLedgerText = `BLOCK ${world.blockHeight.toString().padStart(8, "0")}   TX ${shortHash(latestTx)}   X LAYER GATEWAY   `;
     if (nextLedgerText !== this.ledgerText) {
       this.ledgerText = nextLedgerText;

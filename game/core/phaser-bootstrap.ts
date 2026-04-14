@@ -55,7 +55,12 @@ export function createBazaarPhaserGame(parent: HTMLElement) {
       .find((scene) => scene.scene.key === "OverworldScene" || scene.scene.key === "InteriorScene");
 
     const startNextScene = () => {
-      game.scene.start(sceneKey, { mapId, spawnId });
+      if (activeWorldScene) {
+        // Use the scene plugin so the current world scene is stopped before the next one starts.
+        activeWorldScene.scene.start(sceneKey, { mapId, spawnId });
+      } else {
+        game.scene.start(sceneKey, { mapId, spawnId });
+      }
       transitionLocked = false;
     };
 

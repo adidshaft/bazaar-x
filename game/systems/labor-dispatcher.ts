@@ -280,7 +280,7 @@ export class LaborDispatcher {
   }
 
   consumeStatus(status: LiveDashboardStatus | null) {
-    const runtime = status?.liveDashboard.runtime;
+    const runtime = status?.liveDashboard?.runtime;
     if (!runtime) {
       return;
     }

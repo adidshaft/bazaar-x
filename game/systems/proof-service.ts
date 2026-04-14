@@ -48,7 +48,7 @@ function buildExecutionLabel(
   }
 
   const snapshotExecution =
-    status.liveDashboard.onchainSnapshot?.execution ?? status.liveDashboard.runtime?.execution;
+    status.liveDashboard?.onchainSnapshot?.execution ?? status.liveDashboard?.runtime?.execution;
   const executor = step.meta?.actualExecutor ?? snapshotExecution?.actualExecutor;
   const executionMode = step.meta?.executionMode ?? snapshotExecution?.resolvedMode;
   const transport =
@@ -70,7 +70,7 @@ function buildExecutionLabel(
 }
 
 export function buildProofArtifacts(status: LiveDashboardStatus | null): ProofArtifact[] {
-  const runtime = status?.liveDashboard.runtime;
+  const runtime = status?.liveDashboard?.runtime;
   if (!runtime) {
     return [];
   }

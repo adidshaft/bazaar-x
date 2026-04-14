@@ -100,6 +100,12 @@ function latestSuccessfulStep(runtime: LiveRuntimeArtifact | null | undefined, k
   return matches.at(-1) ?? null;
 }
 
+function hasSuccessfulTx(runtime: LiveRuntimeArtifact | null | undefined, txHash: Hex) {
+  return (runtime?.steps ?? []).some(
+    (step) => step.status === "success" && step.txHash?.toLowerCase() === txHash.toLowerCase(),
+  );
+}
+
 function readNumericMeta(step: StepRecord | null, key: string) {
   const value = step?.meta?.[key];
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -703,7 +709,7 @@ export async function recordManualGameAction(
     latestStepKey = record.stepKey;
     latestTxHash = record.txHash;
 
-    if (latestSuccessfulStep(runtime, record.stepKey)) {
+    if (hasSuccessfulTx(runtime, record.txHash)) {
       continue;
     }
 

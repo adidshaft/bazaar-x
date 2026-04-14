@@ -5,7 +5,7 @@ import type {
 } from "@/game/core/live-types";
 
 function hasStep(status: LiveDashboardStatus | null, key: string) {
-  return Boolean(status?.liveDashboard.runtime?.steps.some((step) => step.key === key && step.status === "success"));
+  return Boolean(status?.liveDashboard?.runtime?.steps.some((step) => step.key === key && step.status === "success"));
 }
 
 function resolveEconomics(status: LiveDashboardStatus | null): BazaarEconomicState {
@@ -53,10 +53,10 @@ export class EconomicMonitor {
 
 export function deriveWorldState(status: LiveDashboardStatus | null): WorldReactionState {
   const economics = resolveEconomics(status);
-  const treasuryBalanceOkb = Number(status?.liveDashboard.bazaarSnapshot?.treasuryBalanceOkb ?? 0);
+  const treasuryBalanceOkb = Number(status?.liveDashboard?.bazaarSnapshot?.treasuryBalanceOkb ?? 0);
   const taxRateBps = Number(
-    status?.liveDashboard.bazaarSnapshot?.rules?.[0] ??
-      status?.liveDashboard.runtime?.deployment?.initialRules.taxBps ??
+    status?.liveDashboard?.bazaarSnapshot?.rules?.[0] ??
+      status?.liveDashboard?.runtime?.deployment?.initialRules.taxBps ??
       500,
   );
 
@@ -91,9 +91,9 @@ export function deriveWorldState(status: LiveDashboardStatus | null): WorldReact
     tvlOkb: economics.tvlOkb,
     dailyVolumeOkb: economics.dailyVolumeOkb,
     gdpScore: economics.gdpScore,
-    activeProposalCount: status?.governance.activeProposalCount ?? 0,
-    blockHeight: status?.gateway.blockHeight ?? 0,
-    latestTxHash: status?.gateway.latestTxHash,
+    activeProposalCount: status?.governance?.activeProposalCount ?? 0,
+    blockHeight: status?.gateway?.blockHeight ?? 0,
+    latestTxHash: status?.gateway?.latestTxHash,
     treasuryGlow: Math.min(1, 0.22 + treasuryBalanceOkb * 2.2),
     lanternGlow: governancePassed ? 1 : economics.worldTier >= 1 ? 0.84 : 0.68,
     taxRateBps,

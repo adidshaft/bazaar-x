@@ -11,6 +11,7 @@ import {
 } from "../server/config";
 import { createXLayerPublicClient } from "../xlayer";
 import type { AgentWallet, BalanceRecord, FundingSnapshot, LiveRuntimeArtifact, WalletManifest } from "./types";
+import { recoverRuntimeSnapshot, restoreCanonicalRuntimeSnapshot } from "./runtime-recovery";
 
 const AGENT_BLUEPRINTS: Array<
   Pick<AgentWallet, "role" | "name" | "handle" | "goal" | "bootstrapOkb">
@@ -47,8 +48,17 @@ const AGENT_BLUEPRINTS: Array<
 
 const DEPLOYER_BUFFER = parseEther("0.08");
 
+function normalizePrivateKey(privateKey?: string): Hex | undefined {
+  const trimmed = privateKey?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return /^0x[a-fA-F0-9]{64}$/.test(trimmed) ? (trimmed as Hex) : undefined;
+}
+
 function buildWallet(label: string, privateKey?: Hex) {
-  const resolvedKey = privateKey ?? generatePrivateKey();
+  const resolvedKey = normalizePrivateKey(privateKey) ?? generatePrivateKey();
   const account = privateKeyToAccount(resolvedKey);
 
   return {
@@ -106,7 +116,14 @@ export async function ensureWalletManifest() {
 }
 
 export async function loadLiveRuntime() {
-  return readArtifact<LiveRuntimeArtifact>(RUNTIME_ARTIFACT_PATH);
+  const stored = await readArtifact<LiveRuntimeArtifact>(RUNTIME_ARTIFACT_PATH);
+  const recovered = await recoverRuntimeSnapshot(stored);
+
+  if (recovered.runtime && recovered.recovered) {
+    await writeArtifactSnapshot(RUNTIME_ARTIFACT_PATH, recovered.runtime);
+  }
+
+  return recovered.runtime;
 }
 
 export async function saveLiveRuntime(runtime: LiveRuntimeArtifact) {
@@ -141,6 +158,18 @@ export async function upsertRuntime(partial: Partial<LiveRuntimeArtifact>) {
 
   await saveLiveRuntime(next);
   return next;
+}
+
+export async function restoreCanonicalRuntime() {
+  const stored = await readArtifact<LiveRuntimeArtifact>(RUNTIME_ARTIFACT_PATH);
+  const restored = await restoreCanonicalRuntimeSnapshot(stored);
+
+  if (!restored) {
+    return null;
+  }
+
+  await saveLiveRuntime(restored);
+  return restored;
 }
 
 function createBalanceRecord(label: string, address: Address, balanceWei: bigint, minimumWei: bigint): BalanceRecord {

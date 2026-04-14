@@ -366,9 +366,9 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
     enabled: hasMounted && displayWalletIdentity.connected && displayWalletIdentity.validNetwork && Boolean(displayAddress),
   });
   const currentExecutionSnapshot =
-    statusQuery.data?.liveDashboard.onchainSnapshot?.execution ??
-    liveStatus?.liveDashboard.onchainSnapshot?.execution ??
-    liveStatus?.liveDashboard.runtime?.execution ??
+    statusQuery.data?.liveDashboard?.onchainSnapshot?.execution ??
+    liveStatus?.liveDashboard?.onchainSnapshot?.execution ??
+    liveStatus?.liveDashboard?.runtime?.execution ??
     null;
 
   const actionMutation = useMutation({
@@ -896,22 +896,22 @@ export function BazaarRpgShell({ initialScene }: { initialScene?: string | null 
   const balanceLabel  = displayWalletIdentity.connected ? (displayBalance ? `${Number(displayBalance.formatted).toFixed(3)} ${displayBalance.symbol}` : "Syncing") : "—";
   const chainLabel    = displayChainName ?? "—";
   const isStatusSyncing = hasMounted && statusQuery.isFetching;
-  const runtimeLabel  = isStatusSyncing ? "syncing…" : (liveStatus?.liveDashboard.runtime?.status ?? "ready");
-  const taxLabel      = `${(((liveStatus?.liveDashboard.bazaarSnapshot?.rules?.[0] as number | undefined) ?? 500) / 100).toFixed(2)}%`;
-  const treasuryLabel = `${Number(liveStatus?.liveDashboard.bazaarSnapshot?.treasuryBalanceOkb ?? 0).toFixed(3)} OKB`;
-  const lastUpdatedLabel = formatTimeLabel(liveStatus?.liveDashboard.runtime?.lastUpdatedAt ?? statusQuery.dataUpdatedAt, hasMounted);
+  const runtimeLabel  = isStatusSyncing ? "syncing…" : (liveStatus?.liveDashboard?.runtime?.status ?? "ready");
+  const taxLabel      = `${(((liveStatus?.liveDashboard?.bazaarSnapshot?.rules?.[0] as number | undefined) ?? 500) / 100).toFixed(2)}%`;
+  const treasuryLabel = `${Number(liveStatus?.liveDashboard?.bazaarSnapshot?.treasuryBalanceOkb ?? 0).toFixed(3)} OKB`;
+  const lastUpdatedLabel = formatTimeLabel(liveStatus?.liveDashboard?.runtime?.lastUpdatedAt ?? statusQuery.dataUpdatedAt, hasMounted);
 
-  const recentSteps = useMemo(() => [...(liveStatus?.liveDashboard.runtime?.steps ?? [])].slice(-4).reverse(), [liveStatus]);
+  const recentSteps = useMemo(() => [...(liveStatus?.liveDashboard?.runtime?.steps ?? [])].slice(-4).reverse(), [liveStatus]);
   const latestProof = deferredProofs[0] ?? null;
   const stageLabel  = currentDistrict?.name ?? mapLabels[currentMapId];
   const villagePulseLabel = world.worldTier >= 2 ? "Sovereign" : world.worldTier === 1 ? "Growing" : "Founding";
-  const votingMs = (liveStatus?.liveDashboard.runtime?.deployment?.initialRules.votingPeriodSeconds ?? 10) * 1_000;
+  const votingMs = (liveStatus?.liveDashboard?.runtime?.deployment?.initialRules.votingPeriodSeconds ?? 10) * 1_000;
   const votingSeconds = Math.ceil(votingMs / 1_000);
   const contractAddress =
-    liveStatus?.liveDashboard.runtime?.deployment?.contractAddress ?? liveStatus?.onchain?.address ?? null;
+    liveStatus?.liveDashboard?.runtime?.deployment?.contractAddress ?? liveStatus?.onchain?.address ?? null;
   const contractExplorerBaseUrl =
-    liveStatus?.liveDashboard.runtime?.deployment?.explorerBaseUrl ??
-    liveStatus?.liveDashboard.manifest.explorerBaseUrl;
+    liveStatus?.liveDashboard?.runtime?.deployment?.explorerBaseUrl ??
+    liveStatus?.liveDashboard?.manifest?.explorerBaseUrl;
   const contractExplorerUrl = contractAddress
     ? explorerAddressUrl(contractAddress, contractExplorerBaseUrl)
     : null;

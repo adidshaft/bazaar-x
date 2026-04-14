@@ -68,12 +68,21 @@ export class OverworldScene extends BaseWorldScene {
     this.laborDispatcher.consumeStatus(bazaarGameStore.getState().liveStatus);
 
     const offTax = bazaarEventBridge.on("economy:tax-collected", () => {
+      if (!this.sys?.isActive()) {
+        return;
+      }
       this.animateTaxFlow();
     });
     const offSync = bazaarEventBridge.on("economy:sync", ({ status }) => {
+      if (!this.sys?.isActive()) {
+        return;
+      }
       this.laborDispatcher?.consumeStatus(status);
     });
     const offTx = bazaarEventBridge.on("tx:confirmed", ({ actionId, stepKey, txHash }) => {
+      if (!this.sys?.isActive()) {
+        return;
+      }
       this.laborDispatcher?.noteConfirmedAction(actionId, stepKey, txHash);
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -124,6 +133,10 @@ export class OverworldScene extends BaseWorldScene {
   }
 
   private animateTaxFlow() {
+    if (!this.sys?.isActive()) {
+      return;
+    }
+
     const source = this.resolveFlowSourceActor();
     const treasury = this.getWorldInteractables().find((entry) => entry.id === "treasury-door");
     const sourcePoint =
@@ -146,7 +159,7 @@ export class OverworldScene extends BaseWorldScene {
     count: number,
     tint: number,
   ) {
-    if (!this.valueFlowParticlePool || this.walkGrid.length === 0) {
+    if (!this.sys?.isActive() || !this.valueFlowParticlePool || this.walkGrid.length === 0) {
       return;
     }
 
@@ -212,6 +225,10 @@ export class OverworldScene extends BaseWorldScene {
   }
 
   private emitFlowArrival(target: Phaser.Math.Vector2, tint: number) {
+    if (!this.sys?.isActive()) {
+      return;
+    }
+
     const lowEffects = bazaarGameStore.getState().settings.lowEffects;
     const glow = this.add.image(target.x, target.y - 16, "fx-glow");
     glow.setTint(tint);

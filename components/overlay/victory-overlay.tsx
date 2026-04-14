@@ -13,23 +13,23 @@ type VictoryOverlayProps = {
 
 export function VictoryOverlay({ proofs, liveStatus, onClose, onReset }: VictoryOverlayProps) {
   const contractAddress =
-    liveStatus?.liveDashboard.runtime?.deployment?.contractAddress ?? liveStatus?.onchain?.address ?? null;
+    liveStatus?.liveDashboard?.runtime?.deployment?.contractAddress ?? liveStatus?.onchain?.address ?? null;
   const explorerBaseUrl =
-    liveStatus?.liveDashboard.runtime?.deployment?.explorerBaseUrl ??
-    liveStatus?.liveDashboard.manifest.explorerBaseUrl;
+    liveStatus?.liveDashboard?.runtime?.deployment?.explorerBaseUrl ??
+    liveStatus?.liveDashboard?.manifest?.explorerBaseUrl;
   const ledgerUrl = contractAddress ? explorerAddressUrl(contractAddress, explorerBaseUrl) : null;
   const gdp = liveStatus?.economics.gdpScore ?? 0;
   const treasury = Number(
-    liveStatus?.liveDashboard.bazaarSnapshot?.treasuryBalanceOkb ??
+    liveStatus?.liveDashboard?.bazaarSnapshot?.treasuryBalanceOkb ??
     liveStatus?.onchain?.treasuryBalanceOkb ??
     0,
   );
   const taxBps = Number(
-    liveStatus?.liveDashboard.bazaarSnapshot?.rules?.[0] ??
-    liveStatus?.liveDashboard.runtime?.deployment?.initialRules.taxBps ??
+    liveStatus?.liveDashboard?.bazaarSnapshot?.rules?.[0] ??
+    liveStatus?.liveDashboard?.runtime?.deployment?.initialRules.taxBps ??
     500,
   );
-  const txCount = liveStatus?.liveDashboard.runtime?.txHashes.length ?? 0;
+  const txCount = liveStatus?.liveDashboard?.runtime?.txHashes.length ?? 0;
   const freshestProof = proofs[0] ?? null;
 
   function proofToneLabel(proof: ProofArtifact) {

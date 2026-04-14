@@ -12,7 +12,7 @@ export function hasStepComplete(status: LiveDashboardStatus | null, stepKeys: st
   }
 
   return Boolean(
-    status?.liveDashboard.runtime?.steps.some(
+    status?.liveDashboard?.runtime?.steps.some(
       (step) => step.status === "success" && stepKeys.includes(step.key),
     ),
   );
@@ -23,7 +23,7 @@ function isImplicitlyComplete(step: QuestStepDefinition, wallet: WalletIdentity)
 }
 
 function isInitializeTownComplete(status: LiveDashboardStatus | null) {
-  return Boolean(status?.runtime.artifactAvailable || status?.liveDashboard.runtime?.lastUpdatedAt);
+  return Boolean(status?.runtime.artifactAvailable || status?.liveDashboard?.runtime?.lastUpdatedAt);
 }
 
 export function deriveQuestRail(status: LiveDashboardStatus | null, wallet: WalletIdentity) {

@@ -29,6 +29,12 @@ export class NpcActor {
     this.sprite.setName(texturePrefix);
   }
 
+  destroy() {
+    if (this.sprite?.active) {
+      this.sprite.destroy();
+    }
+  }
+
   getPosition() {
     return new Phaser.Math.Vector2(this.sprite.x, this.sprite.y);
   }
@@ -100,7 +106,9 @@ export class NpcActor {
     this.routePath = snapshot.path.length ? snapshot.path.map((point) => new Phaser.Math.Vector2(point.x, point.y)) : [new Phaser.Math.Vector2(snapshot.x, snapshot.y)];
     this.routeIndex = Phaser.Math.Clamp(snapshot.pathIndex, 0, Math.max(this.routePath.length - 1, 0));
     this.workUntilAt = snapshot.workUntilAt;
-    this.sprite.setPosition(snapshot.x, snapshot.y);
+    if (this.hasLiveSprite()) {
+      this.sprite.setPosition(snapshot.x, snapshot.y);
+    }
     this.direction = snapshot.direction;
 
     if (snapshot.status === "working" && this.workUntilAt && this.workUntilAt <= Date.now()) {
@@ -126,11 +134,17 @@ export class NpcActor {
     this.routeStatus = "idle";
     this.routePath = this.patrolPath.map((point) => point.clone());
     this.routeIndex = this.resolveNearestPatrolIndex();
-    this.sprite.setTexture(`${this.sprite.name}-${this.direction}-idle-0`);
-    this.sprite.setDepth(this.sprite.y);
+    this.safeSetIdleFrame();
+    if (this.hasLiveSprite()) {
+      this.sprite.setDepth(this.sprite.y);
+    }
   }
 
   update(deltaSeconds: number) {
+    if (!this.hasLiveSprite()) {
+      return;
+    }
+
     const now = Date.now();
 
     if (this.routeMode === "labor" && this.routeStatus === "working") {
@@ -165,7 +179,7 @@ export class NpcActor {
         this.routeIndex += 1;
       }
 
-      this.sprite.setTexture(`${this.sprite.name}-${this.direction}-idle-0`);
+      this.safeSetIdleFrame();
       return;
     }
 
@@ -190,21 +204,33 @@ export class NpcActor {
   }
 
   private safePlayAnim(key: string) {
-    if (!this.sprite?.active || !this.sprite.anims) {
+    if (!this.hasLiveSprite() || !this.sprite.anims) {
       return;
     }
     if (!this.sprite.anims.exists(key)) {
       // Fall back to idle frame rather than crash
       if (this.sprite.anims.currentAnim?.key !== key) {
         this.sprite.stop();
-        const tex = `${this.sprite.name}-${this.direction}-idle-0`;
-        if (this.sprite.scene?.textures.exists(tex)) {
-          this.sprite.setTexture(tex);
-        }
+        this.safeSetIdleFrame();
       }
       return;
     }
     this.sprite.anims.play(key, true);
+  }
+
+  private safeSetIdleFrame() {
+    if (!this.hasLiveSprite()) {
+      return;
+    }
+
+    const textureKey = `${this.sprite.name}-${this.direction}-idle-0`;
+    if (this.sprite.scene.textures.exists(textureKey)) {
+      this.sprite.setTexture(textureKey);
+    }
+  }
+
+  private hasLiveSprite() {
+    return Boolean(this.sprite?.active && this.sprite.scene?.sys);
   }
 
   private releaseLaborRoute() {
