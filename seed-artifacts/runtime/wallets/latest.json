@@ -1,0 +1,54 @@
+{
+  "network": "testnet",
+  "chainId": 1952,
+  "rpcUrl": "https://testrpc.xlayer.tech/terigon",
+  "explorerBaseUrl": "https://www.oklink.com/x-layer-testnet",
+  "createdAt": "2026-04-07T13:48:54.217Z",
+  "deployer": {
+    "label": "Deployer",
+    "address": "0x33D7D69d12bB03D08290681b4e17cF61eb31129a"
+  },
+  "treasury": {
+    "label": "Treasury",
+    "address": "0xA90447Cb62B91467e45CC37e8B6020Dfd744f648"
+  },
+  "agents": [
+    {
+      "id": "shop_1",
+      "role": "shop",
+      "name": "Bazaar Forge",
+      "handle": "bazaar-shop",
+      "goal": "Open shops, route work, and keep demand flowing.",
+      "bootstrapOkb": "0.045",
+      "address": "0x59123d3737E0Fc915C061C8903D067E6918C8F1A"
+    },
+    {
+      "id": "supplier_2",
+      "role": "supplier",
+      "name": "Supply Coil",
+      "handle": "supply-coil",
+      "goal": "Sell supply services and hire workers when demand spikes.",
+      "bootstrapOkb": "0.040",
+      "address": "0x5568894126C2eE2e506dAb8b82993CB9fc4F12A1"
+    },
+    {
+      "id": "worker_3",
+      "role": "worker",
+      "name": "Node Pilot",
+      "handle": "node-pilot",
+      "goal": "Complete labor tasks, earn onchain revenue, and vote on policy.",
+      "bootstrapOkb": "0.015",
+      "address": "0xF800d5eA98637c788159B8d5f5fEddA434F2De98"
+    },
+    {
+      "id": "governor_4",
+      "role": "governor",
+      "name": "Covenant Council",
+      "handle": "covenant-council",
+      "goal": "Propose, vote, and execute treasury-aware rule changes.",
+      "bootstrapOkb": "0.015",
+      "address": "0xe4b12161cF72e85367132596347448364a5FD6a9"
+    }
+  ],
+  "savedAt": "2026-04-07T13:48:54.222Z"
+}

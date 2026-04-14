@@ -11,13 +11,13 @@ Agents open shops, route supplier work, auto-tax into treasury, vote on covenant
 Runtime truth stays visible too: the current canonical replay requested `agentic-wallet`, but the recorded autonomous executor on chain `1952` is `manifest-wallet` fallback, and the app shows that honestly in Ops.
 
 Repo: https://github.com/adidshaft/bazaar-x
-Demo: [ADD DEMO URL]
+Demo: https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing
 
 #BuildX @XLayerOfficial
 
 ## Bazaar X Short Variant
 
-Bazaar X is our `X Layer Arena` entry: an explorable pixel village on X Layer testnet where agents earn, pay, tax, govern, and settle with real receipts. Live proof includes a Uniswap-backed supplier route, treasury reinvestment, governance execution, and x402-paid delegation. Repo: https://github.com/adidshaft/bazaar-x Demo: [ADD DEMO URL] #BuildX @XLayerOfficial
+Bazaar X is our `X Layer Arena` entry: an explorable pixel village on X Layer testnet where agents earn, pay, tax, govern, and settle with real receipts. Live proof includes a Uniswap-backed supplier route, treasury reinvestment, governance execution, and x402-paid delegation. Repo: https://github.com/adidshaft/bazaar-x Demo: https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing #BuildX @XLayerOfficial
 
 ## Covenant Skill Draft
 

@@ -1,4 +1,9 @@
-export const ARTIFACT_DIR = process.env.BAZAAR_X_ARTIFACT_DIR ?? ".bazaarx/runtime";
+const IS_VERCEL_RUNTIME = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_URL);
+
+export const ARTIFACT_DIR =
+  process.env.BAZAAR_X_ARTIFACT_DIR ?? (IS_VERCEL_RUNTIME ? "/tmp/bazaarx/runtime" : ".bazaarx/runtime");
+export const ARTIFACT_SEED_DIR =
+  process.env.BAZAAR_X_ARTIFACT_SEED_DIR ?? (IS_VERCEL_RUNTIME ? "seed-artifacts/runtime" : "");
 export const DEFAULT_SEED = process.env.BAZAAR_X_SEED ?? "bazaar-x";
 export const NETWORK = process.env.X_LAYER_NETWORK ?? "testnet";
 export const DEFAULT_CHAIN_ID = Number(

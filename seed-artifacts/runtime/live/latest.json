@@ -1,0 +1,1054 @@
+{
+  "status": "ready",
+  "lastUpdatedAt": "2026-04-14T08:46:23.800Z",
+  "txHashes": [
+    "0xd2616fe99793bca1732044ddd6d5c833fa682eb5fdd8640227528408171d169b",
+    "0xacf9fb481f68af0bb019302e56c7a49aa69fe07b7dfc4c265f97b6420acdda49",
+    "0x9247533ca0b532b25eb8adb71f3f8f88f2d47e1a1e723a6f51bd84a34b30acba",
+    "0x3d6590d09b45770c2c52618a1bd26785bb4c4e5849b33115664b6430769f7cb6",
+    "0x54fe2f3a8609df506dffdbe6f1abe6a2bcfa8785beca82c522e121a77a76eb04",
+    "0x790805efa50df6f401dd7ee889626bbb3b24340642d9399be3e0b900ff2727b8",
+    "0x93bef971e5f52c929e7a5e911c2cb5ddce7cf51c690305494234531ba62acbea",
+    "0x330598672b4baf003247070c506f03c9e4a19435f6cad6c40d97a8f04e39688c",
+    "0x58865d95bc74d99e0a70864c5b4310b73504d752e66442b5f7c4db8ebabc041c",
+    "0x55451d3c24ec0af4e40405f50bbc1dfedd9bea6d3c5581fbd6c38148fb4e7f88",
+    "0xf75537218fa204fe6907504e735449404e1bc61da126ab42f57eda6a4512d151",
+    "0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da",
+    "0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67",
+    "0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0",
+    "0xf183149237359ef9e6e78e974aeedc42eeb977c3d250d1dfc0d8aceca39b3ba7",
+    "0x50619470ca2131745d7039c808ca4c87401543ba275d0d3fb4a6f7dbc33feab5",
+    "0x055888abd266fb2f9a1d5c06867b74425a48f6ccb5d246277360de1a839b0e8a",
+    "0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6",
+    "0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5",
+    "0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42",
+    "0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a"
+  ],
+  "steps": [
+    {
+      "key": "deploy",
+      "label": "Deploy Bazaar X contract",
+      "status": "success",
+      "startedAt": "2026-04-07T13:55:21.986Z",
+      "completedAt": "2026-04-07T13:55:21.986Z",
+      "txHash": "0xd2616fe99793bca1732044ddd6d5c833fa682eb5fdd8640227528408171d169b",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xd2616fe99793bca1732044ddd6d5c833fa682eb5fdd8640227528408171d169b",
+      "detail": "Deployed Bazaar X to 0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2.",
+      "meta": {
+        "simulated": false
+      }
+    },
+    {
+      "key": "register-shop",
+      "label": "Register Bazaar Forge",
+      "status": "success",
+      "startedAt": "2026-04-12T10:33:51.005Z",
+      "completedAt": "2026-04-12T10:33:53.390Z",
+      "detail": "Registered bazaar-shop on Bazaar X.",
+      "meta": {
+        "executionMode": "viem"
+      },
+      "txHash": "0xacf9fb481f68af0bb019302e56c7a49aa69fe07b7dfc4c265f97b6420acdda49",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xacf9fb481f68af0bb019302e56c7a49aa69fe07b7dfc4c265f97b6420acdda49"
+    },
+    {
+      "key": "register-supplier",
+      "label": "Register Supply Coil",
+      "status": "success",
+      "startedAt": "2026-04-12T10:33:53.391Z",
+      "completedAt": "2026-04-12T10:33:56.167Z",
+      "detail": "Registered supply-coil on Bazaar X.",
+      "meta": {
+        "executionMode": "viem"
+      },
+      "txHash": "0x9247533ca0b532b25eb8adb71f3f8f88f2d47e1a1e723a6f51bd84a34b30acba",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x9247533ca0b532b25eb8adb71f3f8f88f2d47e1a1e723a6f51bd84a34b30acba"
+    },
+    {
+      "key": "register-worker",
+      "label": "Register Node Pilot",
+      "status": "success",
+      "startedAt": "2026-04-12T10:33:56.168Z",
+      "completedAt": "2026-04-12T10:33:58.767Z",
+      "detail": "Registered node-pilot on Bazaar X.",
+      "meta": {
+        "executionMode": "viem"
+      },
+      "txHash": "0x3d6590d09b45770c2c52618a1bd26785bb4c4e5849b33115664b6430769f7cb6",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x3d6590d09b45770c2c52618a1bd26785bb4c4e5849b33115664b6430769f7cb6"
+    },
+    {
+      "key": "register-governor",
+      "label": "Register Covenant Council",
+      "status": "success",
+      "startedAt": "2026-04-12T10:33:58.769Z",
+      "completedAt": "2026-04-12T10:34:00.909Z",
+      "detail": "Registered covenant-council on Bazaar X.",
+      "meta": {
+        "executionMode": "viem"
+      },
+      "txHash": "0x54fe2f3a8609df506dffdbe6f1abe6a2bcfa8785beca82c522e121a77a76eb04",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x54fe2f3a8609df506dffdbe6f1abe6a2bcfa8785beca82c522e121a77a76eb04"
+    },
+    {
+      "key": "shop-create",
+      "label": "Create shop",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:00.911Z",
+      "completedAt": "2026-04-12T10:34:03.048Z",
+      "detail": "Created primary shop #31.",
+      "meta": {
+        "shopId": 31,
+        "executionMode": "viem"
+      },
+      "txHash": "0x790805efa50df6f401dd7ee889626bbb3b24340642d9399be3e0b900ff2727b8",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x790805efa50df6f401dd7ee889626bbb3b24340642d9399be3e0b900ff2727b8"
+    },
+    {
+      "key": "supplier-shop",
+      "label": "Create supplier shop",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:03.049Z",
+      "completedAt": "2026-04-12T10:34:04.922Z",
+      "detail": "Created supplier shop #32.",
+      "meta": {
+        "shopId": 32,
+        "executionMode": "viem"
+      },
+      "txHash": "0x93bef971e5f52c929e7a5e911c2cb5ddce7cf51c690305494234531ba62acbea",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x93bef971e5f52c929e7a5e911c2cb5ddce7cf51c690305494234531ba62acbea"
+    },
+    {
+      "key": "worker-shop",
+      "label": "Create worker shop",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:04.923Z",
+      "completedAt": "2026-04-12T10:34:07.050Z",
+      "detail": "Created worker shop #33.",
+      "meta": {
+        "shopId": 33,
+        "executionMode": "viem"
+      },
+      "txHash": "0x330598672b4baf003247070c506f03c9e4a19435f6cad6c40d97a8f04e39688c",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x330598672b4baf003247070c506f03c9e4a19435f6cad6c40d97a8f04e39688c"
+    },
+    {
+      "key": "supplier-service",
+      "label": "List supplier service",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:07.051Z",
+      "completedAt": "2026-04-12T10:34:33.795Z",
+      "detail": "Listed supplier service #5.",
+      "meta": {
+        "serviceId": 5,
+        "priceLabel": "1.9 TT",
+        "paymentTokenSymbol": "TT",
+        "paymentTokenAddress": "0x8dd6d0d61c6c88e544a0582dfd0d2b9d07247818",
+        "executionMode": "viem"
+      },
+      "txHash": "0x58865d95bc74d99e0a70864c5b4310b73504d752e66442b5f7c4db8ebabc041c",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x58865d95bc74d99e0a70864c5b4310b73504d752e66442b5f7c4db8ebabc041c"
+    },
+    {
+      "key": "worker-service",
+      "label": "List worker service",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:33.796Z",
+      "completedAt": "2026-04-12T10:34:35.878Z",
+      "detail": "Listed worker service #6.",
+      "meta": {
+        "serviceId": 6,
+        "priceOkb": "0.02",
+        "executionMode": "viem"
+      },
+      "txHash": "0x55451d3c24ec0af4e40405f50bbc1dfedd9bea6d3c5581fbd6c38148fb4e7f88",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x55451d3c24ec0af4e40405f50bbc1dfedd9bea6d3c5581fbd6c38148fb4e7f88"
+    },
+    {
+      "key": "supplier-hires-worker",
+      "label": "Supplier hires worker",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:35.879Z",
+      "completedAt": "2026-04-12T10:34:38.240Z",
+      "detail": "Supplier paid 0.02 OKB to hire the worker.",
+      "meta": {
+        "taxOkb": "0.0016",
+        "jobId": 7,
+        "executionMode": "viem"
+      },
+      "txHash": "0xf75537218fa204fe6907504e735449404e1bc61da126ab42f57eda6a4512d151",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xf75537218fa204fe6907504e735449404e1bc61da126ab42f57eda6a4512d151"
+    },
+    {
+      "key": "supplier-route-swap",
+      "label": "Swap OKB for supplier credit",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:38.242Z",
+      "completedAt": "2026-04-12T10:34:44.456Z",
+      "detail": "Swapped 0.031 OKB for 2.039908917905111817 TT through the Uniswap pool before supplier settlement.",
+      "meta": {
+        "proofKind": "swap",
+        "routeProtocol": "Uniswap V2",
+        "routeQuoteId": "0x1bf1C8423924807f20De5571955b92Da137a125C:0.031:2.019509828726060698",
+        "tokenIn": "OKB",
+        "tokenOut": "TT",
+        "tokenInAddress": "0xeaab470b8d0c03aaf274db3d614d5fea6fa38d1f",
+        "tokenOutAddress": "0x8dd6d0d61c6c88e544a0582dfd0d2b9d07247818",
+        "poolAddress": "0x1bf1c8423924807f20de5571955b92da137a125c",
+        "quoteAmountOkb": "0.031",
+        "amountOutToken": "2.039908917905111817",
+        "minOutToken": "2.019509828726060698",
+        "slippageBps": 100,
+        "settlementState": "settled",
+        "okbEquivalent": "0.031",
+        "wrapTxHash": "0x84b8a74a2f1693887e123fe92e3eb96adea1a093b52b319e02f8f8d0449967c7",
+        "poolTransferTxHash": "0x451cccbf321a2170ffc8c7f396c0d812ca7f79768c0b9a1f1eb127a7b1fd6ede",
+        "executionMode": "viem"
+      },
+      "txHash": "0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xe651d2ab919c63290a878907ccd77ba97f2679274957ee593d001662839553da"
+    },
+    {
+      "key": "shop-hires-supplier",
+      "label": "Shop hires supplier",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:46.321Z",
+      "completedAt": "2026-04-12T10:34:48.475Z",
+      "detail": "Shop settled 1.9 TT to the supplier after the Uniswap route.",
+      "meta": {
+        "paymentTokenSymbol": "TT",
+        "paymentTokenAddress": "0x8Dd6d0D61C6C88e544A0582DFD0d2B9d07247818",
+        "grossAmountLabel": "1.9 TT",
+        "taxLabel": "Tax 0.152 TT",
+        "taxTokenAmount": "0.152",
+        "taxOkbEquivalent": "0.00248",
+        "jobId": 8,
+        "executionMode": "viem"
+      },
+      "txHash": "0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x620f37727331e1f9c5c4d5b5bced96dab0d70bff78a4d8cb333a5143f8661a67"
+    },
+    {
+      "key": "proposal",
+      "label": "Propose tax update",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:48.476Z",
+      "completedAt": "2026-04-12T10:34:50.136Z",
+      "detail": "Created proposal #3 to raise tax from 5% to 8%.",
+      "meta": {
+        "proposalId": 3,
+        "executionMode": "viem"
+      },
+      "txHash": "0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xdc85edb356b8d58c2efa1a4ff2f34c76228f9bb309f017926d8f6fa4f88fa8c0"
+    },
+    {
+      "key": "vote-shop",
+      "label": "Bazaar Forge votes",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:50.137Z",
+      "completedAt": "2026-04-12T10:34:52.485Z",
+      "detail": "Bazaar Forge voted in favor of the covenant update.",
+      "meta": {
+        "proposalId": 3,
+        "executionMode": "viem"
+      },
+      "txHash": "0xf183149237359ef9e6e78e974aeedc42eeb977c3d250d1dfc0d8aceca39b3ba7",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xf183149237359ef9e6e78e974aeedc42eeb977c3d250d1dfc0d8aceca39b3ba7"
+    },
+    {
+      "key": "vote-supplier",
+      "label": "Supply Coil votes",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:52.486Z",
+      "completedAt": "2026-04-12T10:34:54.838Z",
+      "detail": "Supply Coil voted in favor of the covenant update.",
+      "meta": {
+        "proposalId": 3,
+        "executionMode": "viem"
+      },
+      "txHash": "0x50619470ca2131745d7039c808ca4c87401543ba275d0d3fb4a6f7dbc33feab5",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x50619470ca2131745d7039c808ca4c87401543ba275d0d3fb4a6f7dbc33feab5"
+    },
+    {
+      "key": "vote-worker",
+      "label": "Node Pilot votes",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:54.839Z",
+      "completedAt": "2026-04-12T10:34:56.945Z",
+      "detail": "Node Pilot voted in favor of the covenant update.",
+      "meta": {
+        "proposalId": 3,
+        "executionMode": "viem"
+      },
+      "txHash": "0x055888abd266fb2f9a1d5c06867b74425a48f6ccb5d246277360de1a839b0e8a",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x055888abd266fb2f9a1d5c06867b74425a48f6ccb5d246277360de1a839b0e8a"
+    },
+    {
+      "key": "wait-voting",
+      "label": "Wait for voting period",
+      "status": "success",
+      "startedAt": "2026-04-12T10:34:56.946Z",
+      "completedAt": "2026-04-12T10:35:08.447Z",
+      "detail": "Waited 10 seconds for proposal finalization."
+    },
+    {
+      "key": "execute",
+      "label": "Execute governance update",
+      "status": "success",
+      "startedAt": "2026-04-12T10:35:08.448Z",
+      "completedAt": "2026-04-12T10:35:10.614Z",
+      "detail": "Executed proposal #3. New tax is now 8%.",
+      "meta": {
+        "proposalId": 3,
+        "nextTaxBps": 800,
+        "executionMode": "viem"
+      },
+      "txHash": "0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xdd112e2760c7ab67996551182511ef26e541ba079a271572809f0ab0fd7770b6"
+    },
+    {
+      "key": "post-governance-hire",
+      "label": "Post-governance payment",
+      "status": "success",
+      "startedAt": "2026-04-12T10:35:10.615Z",
+      "completedAt": "2026-04-12T10:35:13.208Z",
+      "detail": "Repeated the worker payment after the governance update.",
+      "meta": {
+        "taxOkb": "0.0016",
+        "jobId": 9,
+        "executionMode": "viem"
+      },
+      "txHash": "0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xd8cf0e10056a449d04f8d8be4eba3c32dc4e29478c9c11175ee04bab8c5314e5"
+    },
+    {
+      "key": "treasury-reinvests",
+      "label": "Treasury reinvests",
+      "status": "success",
+      "startedAt": "2026-04-12T10:35:13.212Z",
+      "completedAt": "2026-04-12T10:35:15.307Z",
+      "detail": "Treasury reinvested 0.002 OKB back into the shop wallet.",
+      "meta": {
+        "executionMode": "viem"
+      },
+      "txHash": "0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0x4cd3955c2fba64bf3f049218ee920f64394802961a4c636c2c3200f50e716d42"
+    },
+    {
+      "key": "payment-open-shop",
+      "label": "Settle x402 delegation",
+      "status": "success",
+      "startedAt": "2026-04-12T11:12:00.971Z",
+      "completedAt": "2026-04-12T11:12:00.971Z",
+      "txHash": "0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a",
+      "explorerUrl": "https://www.oklink.com/x-layer-testnet/tx/0xb2cb7b122bee56f6635b69f27da0097c147eb4185cabb8354ee98dc83b7a230a",
+      "detail": "Settled 0.006 BXC to the village treasury so the open shop agent could resume the step.",
+      "meta": {
+        "proofKind": "payment",
+        "actionId": "open-shop",
+        "paymentKind": "agent-action",
+        "paymentProtocol": "x402-exact-evm",
+        "facilitator": "bazaar-local-testnet",
+        "payer": "0x5a48d63593C5088BaCd17063A51A28CE1683206D",
+        "payTo": "0xA90447Cb62B91467e45CC37e8B6020Dfd744f648",
+        "paymentAsset": "0xe34af399ec6cf62ca9411d2fefa5025f438ab854",
+        "paymentAssetSymbol": "BXC",
+        "paymentAmount": "6000",
+        "paymentAmountLabel": "0.006 BXC",
+        "paymentSessionId": "b355aa55-4a5c-4f0b-bb1e-4f4b11eae5c8",
+        "paymentReceiptId": "x402:b355aa55-4a5c-4f0b-bb1e-4f4b11eae5c8"
+      }
+    }
+  ],
+  "deployment": {
+    "chainId": 1952,
+    "rpcUrl": "https://testrpc.xlayer.tech/terigon",
+    "explorerBaseUrl": "https://www.oklink.com/x-layer-testnet",
+    "contractAddress": "0xb0acab0deab3941be2aab4ca3969c2a5c3e710b2",
+    "deployTxHash": "0xd2616fe99793bca1732044ddd6d5c833fa682eb5fdd8640227528408171d169b",
+    "treasury": "0xA90447Cb62B91467e45CC37e8B6020Dfd744f648",
+    "deployedAt": "2026-04-07T13:55:21.986Z",
+    "initialRules": {
+      "taxBps": 500,
+      "minimumBalanceWei": "2000000000000000",
+      "quorumBps": 7500,
+      "supportBps": 6000,
+      "votingPeriodSeconds": 10
+    },
+    "savedAt": "2026-04-07T13:55:21.986Z"
+  },
+  "funding": {
+    "readyForDeploy": true,
+    "readyForFlow": true,
+    "deployer": {
+      "label": "Deployer",
+      "address": "0x33D7D69d12bB03D08290681b4e17cF61eb31129a",
+      "balanceWei": "203228093531404681",
+      "balanceOkb": "0.203228093531404681",
+      "funded": true
+    },
+    "treasury": {
+      "label": "Treasury",
+      "address": "0xA90447Cb62B91467e45CC37e8B6020Dfd744f648",
+      "balanceWei": "16697820649891033",
+      "balanceOkb": "0.016697820649891033",
+      "funded": true
+    },
+    "agents": [
+      {
+        "label": "Bazaar Forge",
+        "address": "0x59123d3737E0Fc915C061C8903D067E6918C8F1A",
+        "balanceWei": "129936734336836717",
+        "balanceOkb": "0.129936734336836717",
+        "funded": true
+      },
+      {
+        "label": "Supply Coil",
+        "address": "0x5568894126C2eE2e506dAb8b82993CB9fc4F12A1",
+        "balanceWei": "76018225415911271",
+        "balanceOkb": "0.076018225415911271",
+        "funded": true
+      },
+      {
+        "label": "Node Pilot",
+        "address": "0xF800d5eA98637c788159B8d5f5fEddA434F2De98",
+        "balanceWei": "205933949296697465",
+        "balanceOkb": "0.205933949296697465",
+        "funded": true
+      },
+      {
+        "label": "Covenant Council",
+        "address": "0xe4b12161cF72e85367132596347448364a5FD6a9",
+        "balanceWei": "114970520418526021",
+        "balanceOkb": "0.114970520418526021",
+        "funded": true
+      }
+    ],
+    "requiredDeployerBalanceOkb": "0.195"
+  },
+  "onchainOs": {
+    "collectedAt": "2026-04-14T08:46:23.800Z",
+    "gatewayChains": {
+      "ok": true,
+      "data": [
+        {
+          "chainIndex": "2",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/LTC.png",
+          "name": "Litecoin",
+          "shortName": "LTC"
+        },
+        {
+          "chainIndex": "1",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/ETH-20220328.png",
+          "name": "Ethereum",
+          "shortName": "eth"
+        },
+        {
+          "chainIndex": "61",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/ETC.png",
+          "name": "Ethereum Classic",
+          "shortName": "ETC"
+        },
+        {
+          "chainIndex": "145",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/BCH.png",
+          "name": "Bitcoin Cash",
+          "shortName": "BCH"
+        },
+        {
+          "chainIndex": "5",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/dash.png",
+          "name": "Dash",
+          "shortName": "DASH"
+        },
+        {
+          "chainIndex": "56",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/bnb_5000_new.png",
+          "name": "BNB Chain",
+          "shortName": "bsc"
+        },
+        {
+          "chainIndex": "43114",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/AVAX.png",
+          "name": "Avalanche C",
+          "shortName": "avax"
+        },
+        {
+          "chainIndex": "137",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/pol_6000_new.png",
+          "name": "Polygon",
+          "shortName": "matic"
+        },
+        {
+          "chainIndex": "250",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/FTM-20220328.png",
+          "name": "Fantom",
+          "shortName": "ftm"
+        },
+        {
+          "chainIndex": "25",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/cro.png",
+          "name": "Cronos",
+          "shortName": "Cronos"
+        },
+        {
+          "chainIndex": "8217",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/klay.png",
+          "name": "Kaia",
+          "shortName": "Kaia"
+        },
+        {
+          "chainIndex": "321",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/kcc.png",
+          "name": "KCC",
+          "shortName": "KCC"
+        },
+        {
+          "chainIndex": "1088",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/metis.png",
+          "name": "Metis",
+          "shortName": "METIS"
+        },
+        {
+          "chainIndex": "288",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/boba.png",
+          "name": "Boba",
+          "shortName": "BOBA"
+        },
+        {
+          "chainIndex": "42161",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/arb_9000.png",
+          "name": "Arbitrum One",
+          "shortName": "Arbitrum"
+        },
+        {
+          "chainIndex": "10",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/op_10000.png",
+          "name": "Optimism",
+          "shortName": "Optimism"
+        },
+        {
+          "chainIndex": "100",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/xdai_11300.png",
+          "name": "Gnosis",
+          "shortName": "XDAI"
+        },
+        {
+          "chainIndex": "1313161554",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/auroa_11500.png",
+          "name": "Aurora",
+          "shortName": "AURORA"
+        },
+        {
+          "chainIndex": "2020",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/ronin_11800.png",
+          "name": "Ronin",
+          "shortName": "RONIN"
+        },
+        {
+          "chainIndex": "1284",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/moonbeam_12100.png",
+          "name": "Moonbeam",
+          "shortName": "GLMR"
+        },
+        {
+          "chainIndex": "1285",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/movr_12800.png",
+          "name": "Moonriver",
+          "shortName": "MOVR"
+        },
+        {
+          "chainIndex": "1666600000",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/one_13100.png",
+          "name": "Harmony",
+          "shortName": "one"
+        },
+        {
+          "chainIndex": "10001",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/ETHW.png",
+          "name": "EthereumPoW",
+          "shortName": "ETHW"
+        },
+        {
+          "chainIndex": "42220",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/celo_16600.png",
+          "name": "Celo",
+          "shortName": "Celo"
+        },
+        {
+          "chainIndex": "324",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/zk_17000.png",
+          "name": "zkSync Era",
+          "shortName": "ZKSync2"
+        },
+        {
+          "chainIndex": "14",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/flr_17300.png",
+          "name": "Flare",
+          "shortName": "Flr"
+        },
+        {
+          "chainIndex": "1116",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/core_18300_new.png",
+          "name": "Core",
+          "shortName": "core"
+        },
+        {
+          "chainIndex": "3",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/18000_doge.png",
+          "name": "Dogecoin",
+          "shortName": "DOGE"
+        },
+        {
+          "chainIndex": "42170",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/nova_18500.png",
+          "name": "Arbitrum Nova",
+          "shortName": "Nova"
+        },
+        {
+          "chainIndex": "1030",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/cfx_19200.png",
+          "name": "Conflux",
+          "shortName": "cfx"
+        },
+        {
+          "chainIndex": "1101",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/POLYGON_ETH_19300.png",
+          "name": "Polygon zkEVM",
+          "shortName": "PolygonZK"
+        },
+        {
+          "chainIndex": "648",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/ace_19800.png",
+          "name": "Endurance",
+          "shortName": "ACE"
+        },
+        {
+          "chainIndex": "2222",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/evm_kava_19900.png",
+          "name": "Kava EVM",
+          "shortName": "EVM_KAVA"
+        },
+        {
+          "chainIndex": "369",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/pls_20000.png",
+          "name": "PulseChain",
+          "shortName": "PLS"
+        },
+        {
+          "chainIndex": "5000",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/mnt_20100.png",
+          "name": "Mantle",
+          "shortName": "Mantle"
+        },
+        {
+          "chainIndex": "59144",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/linea_eth_20700.png",
+          "name": "Linea",
+          "shortName": "linea_eth"
+        },
+        {
+          "chainIndex": "8453",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/base_20900.png",
+          "name": "Base",
+          "shortName": "base_eth"
+        },
+        {
+          "chainIndex": "204",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/opbnb_20900.png",
+          "name": "opBNB",
+          "shortName": "op_bnb"
+        },
+        {
+          "chainIndex": "11155111",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/sepolia_eth_21100.png",
+          "name": "Sepolia",
+          "shortName": "SEPOLIA_ETH"
+        },
+        {
+          "chainIndex": "11235",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/islm_21200.png",
+          "name": "HAQQ Network",
+          "shortName": "HAQQ"
+        },
+        {
+          "chainIndex": "534352",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/scroll_eth_21400.png",
+          "name": "Scroll",
+          "shortName": "Scroll_eth"
+        },
+        {
+          "chainIndex": "169",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/manta_22000.png",
+          "name": "Manta Pacific",
+          "shortName": "Manta"
+        },
+        {
+          "chainIndex": "1111",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/wemix_22200.png",
+          "name": "Wemix 3.0",
+          "shortName": "wemix"
+        },
+        {
+          "chainIndex": "4200",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/merlin_btc_23400.png",
+          "name": "Merlin",
+          "shortName": "Merlin_Chain"
+        },
+        {
+          "chainIndex": "81457",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/blast_eth_23800.png",
+          "name": "Blast",
+          "shortName": "Blast"
+        },
+        {
+          "chainIndex": "13371",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/imx_24100.png",
+          "name": "Immutable zkEVM",
+          "shortName": "Immutable_zkEVM"
+        },
+        {
+          "chainIndex": "195",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/TRX.png",
+          "name": "TRON",
+          "shortName": "trx"
+        },
+        {
+          "chainIndex": "196",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/okb_22400.png",
+          "name": "X Layer",
+          "shortName": "okb"
+        },
+        {
+          "chainIndex": "167000",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/taiko_26600.png",
+          "name": "Taiko",
+          "shortName": "Taiko"
+        },
+        {
+          "chainIndex": "60808",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/bob_26400.png",
+          "name": "BOB",
+          "shortName": "Bob"
+        },
+        {
+          "chainIndex": "34443",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/mode_23200.png",
+          "name": "Mode Network",
+          "shortName": "Mode_Network"
+        },
+        {
+          "chainIndex": "223",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/b2_btc_25500.png",
+          "name": "B² Network",
+          "shortName": "B² Network"
+        },
+        {
+          "chainIndex": "200901",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/bitlayer_btc_25600.png",
+          "name": "Bitlayer",
+          "shortName": "Bitlayer_BTC"
+        },
+        {
+          "chainIndex": "501",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/SOL-20220525.png",
+          "name": "Solana",
+          "shortName": "sol"
+        },
+        {
+          "chainIndex": "1625",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/g_29600.png",
+          "name": "Gravity Alpha",
+          "shortName": "Gravity"
+        },
+        {
+          "chainIndex": "94168",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/lumi_eth_24000.png",
+          "name": "Lumi Layer3",
+          "shortName": "Lumi Finance"
+        },
+        {
+          "chainIndex": "143",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/mon_36000.png",
+          "name": "Monad",
+          "shortName": "Monad"
+        },
+        {
+          "chainIndex": "784",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/sui_17700_new.png",
+          "name": "SUI",
+          "shortName": "Sui"
+        },
+        {
+          "chainIndex": "7000",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/zeta_mainnet_23000.png",
+          "name": "ZetaChain",
+          "shortName": "ZETACHAIN_MAINNET"
+        },
+        {
+          "chainIndex": "146",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/s_31600_new.png",
+          "name": "Sonic",
+          "shortName": "Sonic"
+        },
+        {
+          "chainIndex": "9745",
+          "logoUrl": "https://static.coinall.ltd/cdn/wallet/logo/xpl_35400.png",
+          "name": "Plasma",
+          "shortName": "XPL"
+        }
+      ]
+    },
+    "walletChains": {
+      "ok": true,
+      "data": [
+        {
+          "alias": [
+            "eth链",
+            "ethereum",
+            "以太坊"
+          ],
+          "chainIndex": 1,
+          "chainName": "eth",
+          "isEvmChain": true,
+          "realChainIndex": 1,
+          "showName": "Ethereum"
+        },
+        {
+          "alias": [
+            "polygon",
+            "Polygon链"
+          ],
+          "chainIndex": 137,
+          "chainName": "matic",
+          "isEvmChain": true,
+          "realChainIndex": 137,
+          "showName": "Polygon"
+        },
+        {
+          "alias": [],
+          "chainIndex": 43114,
+          "chainName": "avax",
+          "isEvmChain": true,
+          "realChainIndex": 43114,
+          "showName": "Avalanche C"
+        },
+        {
+          "alias": [
+            "op",
+            "optimism",
+            "OP主网"
+          ],
+          "chainIndex": 10,
+          "chainName": "op_eth",
+          "isEvmChain": true,
+          "realChainIndex": 10,
+          "showName": "Optimism"
+        },
+        {
+          "alias": [
+            "ftm",
+            "fantom"
+          ],
+          "chainIndex": 250,
+          "chainName": "ftm",
+          "isEvmChain": true,
+          "realChainIndex": 250,
+          "showName": "Fantom"
+        },
+        {
+          "alias": [
+            "blast",
+            "Blast链"
+          ],
+          "chainIndex": 81457,
+          "chainName": "blast_eth",
+          "isEvmChain": true,
+          "realChainIndex": 81457,
+          "showName": "Blast"
+        },
+        {
+          "alias": [
+            "scroll",
+            "Scroll链"
+          ],
+          "chainIndex": 534352,
+          "chainName": "scroll_eth",
+          "isEvmChain": true,
+          "realChainIndex": 534352,
+          "showName": "Scroll"
+        },
+        {
+          "alias": [
+            "sonic",
+            "Sonic链"
+          ],
+          "chainIndex": 146,
+          "chainName": "s",
+          "isEvmChain": true,
+          "realChainIndex": 146,
+          "showName": "Sonic"
+        },
+        {
+          "alias": [
+            "bsc",
+            "bnb",
+            "BNB链",
+            "币安链"
+          ],
+          "chainIndex": 56,
+          "chainName": "bnb",
+          "isEvmChain": true,
+          "realChainIndex": 56,
+          "showName": "BNB Chain"
+        },
+        {
+          "alias": [
+            "arbitrum",
+            "ARB链",
+            "Arbitrum链"
+          ],
+          "chainIndex": 42161,
+          "chainName": "arb_eth",
+          "isEvmChain": true,
+          "realChainIndex": 42161,
+          "showName": "Arbitrum One"
+        },
+        {
+          "alias": [
+            "base",
+            "Base链"
+          ],
+          "chainIndex": 8453,
+          "chainName": "base_eth",
+          "isEvmChain": true,
+          "realChainIndex": 8453,
+          "showName": "Base"
+        },
+        {
+          "alias": [],
+          "chainIndex": 324,
+          "chainName": "era_eth",
+          "isEvmChain": true,
+          "realChainIndex": 324,
+          "showName": "zkSync Era"
+        },
+        {
+          "alias": [
+            "linea",
+            "Linea链"
+          ],
+          "chainIndex": 59144,
+          "chainName": "linea_eth",
+          "isEvmChain": true,
+          "realChainIndex": 59144,
+          "showName": "Linea"
+        },
+        {
+          "alias": [
+            "monad",
+            "Monad链"
+          ],
+          "chainIndex": 143,
+          "chainName": "mon",
+          "isEvmChain": true,
+          "realChainIndex": 143,
+          "showName": "Monad"
+        },
+        {
+          "alias": [
+            "cfx",
+            "conflux",
+            "Conflux链",
+            "树图链"
+          ],
+          "chainIndex": 1030,
+          "chainName": "cfx",
+          "isEvmChain": true,
+          "realChainIndex": 1030,
+          "showName": "Conflux"
+        },
+        {
+          "alias": [
+            "xlayer"
+          ],
+          "chainIndex": 196,
+          "chainName": "okb",
+          "isEvmChain": true,
+          "realChainIndex": 196,
+          "showName": "X Layer"
+        },
+        {
+          "alias": [
+            "sol",
+            "solana",
+            "索拉纳"
+          ],
+          "chainIndex": 501,
+          "chainName": "sol",
+          "isEvmChain": false,
+          "realChainIndex": 501,
+          "showName": "Solana"
+        }
+      ]
+    },
+    "walletStatus": {
+      "ok": true,
+      "data": {
+        "accountCount": 0,
+        "currentAccountId": "",
+        "currentAccountName": "",
+        "email": "",
+        "loggedIn": false
+      }
+    },
+    "execution": {
+      "requestedMode": "viem",
+      "resolvedMode": "viem",
+      "requestedExecutor": "agentic-wallet",
+      "actualExecutor": "manifest-wallet",
+      "chainAlias": null,
+      "supportsGatewayBroadcast": false,
+      "supportsAgenticWallet": false,
+      "walletLoggedIn": false,
+      "walletReady": false,
+      "walletAccountId": null,
+      "walletAccountName": null,
+      "note": "Agentic Wallet does not currently expose chain 1952 in the installed OnchainOS CLI, so autonomous Bazaar X steps stay on the manifest-wallet fallback.",
+      "fallbackReason": "Agentic Wallet does not currently expose chain 1952 in the installed OnchainOS CLI, so autonomous Bazaar X steps stay on the manifest-wallet fallback."
+    }
+  },
+  "execution": {
+    "requestedMode": "viem",
+    "resolvedMode": "viem",
+    "requestedExecutor": "agentic-wallet",
+    "actualExecutor": "manifest-wallet",
+    "chainAlias": null,
+    "supportsGatewayBroadcast": false,
+    "supportsAgenticWallet": false,
+    "walletLoggedIn": false,
+    "walletReady": false,
+    "walletAccountId": null,
+    "walletAccountName": null,
+    "note": "Agentic Wallet does not currently expose chain 1952 in the installed OnchainOS CLI, so autonomous Bazaar X steps stay on the manifest-wallet fallback.",
+    "fallbackReason": "Agentic Wallet does not currently expose chain 1952 in the installed OnchainOS CLI, so autonomous Bazaar X steps stay on the manifest-wallet fallback.",
+    "simulateBeforeBroadcast": false,
+    "usesOnchainOsGateway": false,
+    "usesAgenticWallet": false
+  },
+  "runId": "run_1775990028831",
+  "proposalId": 3,
+  "shopIds": {
+    "shop": 31,
+    "supplier": 32,
+    "worker": 33
+  },
+  "serviceIds": {
+    "supplier": 5,
+    "worker": 6
+  },
+  "firstTaxWei": "1600000000000000",
+  "secondTaxWei": "1600000000000000",
+  "savedAt": "2026-04-14T09:02:26.444Z"
+}

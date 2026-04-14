@@ -6,6 +6,9 @@ Important truth rule:
 
 - The canonical proof in this repo is the X Layer testnet replay recorded on `April 12, 2026`.
 - If a mainnet deployment is added later, keep the demo and tx evidence labeled as `testnet-recorded` unless you also record new mainnet proof.
+- Bazaar X now also has a separate X Layer mainnet deployment for live access:
+  - Contract: `0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9`
+  - Deploy tx: `0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9`
 
 ## Bazaar X / X Layer Arena
 
@@ -28,6 +31,10 @@ Important truth rule:
 ### Why X Layer
 
 `X Layer is the execution layer for the whole product: contract deployment, wallet-led transactions, treasury flows, governance state, and the canonical testnet replay all live on X Layer. That makes the demo technically replayable for AI judges and immediately practical for human judges.`
+
+### Mainnet Deployment Note
+
+`The demo video and canonical 21-tx replay in this repo were recorded on X Layer testnet on April 12, 2026. Bazaar X now also has a separate X Layer mainnet deployment for live access at 0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9, deployed in tx 0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9. Unless explicitly linked otherwise, the recorded tx evidence in this submission remains the testnet artifact.`
 
 ### Exact OnchainOS Wording
 
@@ -58,10 +65,14 @@ Important truth rule:
   - `Bazaar X integrates OKX OnchainOS as a gateway-capable execution option and records requested versus actual autonomous execution in runtime metadata. In the canonical X Layer testnet replay included with this submission, Agentic Wallet was requested, but the installed OnchainOS CLI does not expose chain 1952 for Agentic Wallet execution, so the recorded autonomous path honestly falls back to manifest-wallet standard broadcast. We therefore claim OnchainOS readiness, runtime introspection, and truthful fallback reporting for the current public artifact, not gateway/API execution that did not occur.`
 - `GitHub Repository Link`
   - `https://github.com/adidshaft/bazaar-x`
+- `Agentic Wallet Address`
+  - `0x79c0229105b741727b3f12027d249174cc6a7b9b`
+- `Separate Mainnet Deployment`
+  - `Contract 0x6a5a4a2e6f9111c584d80877f13e90aba9730ea9 deployed on X Layer mainnet in tx 0x535e1304b71b1c1720cd3461baaf94d4a9ad82c168c09ea6f7d61e3a4dc3d1d9. The demo and canonical tx evidence remain testnet-recorded unless explicitly linked otherwise.`
 - `Live App URL`
-  - `[ADD LIVE APP URL]`
+  - `https://bazaar-x-ten.vercel.app`
 - `Demo Video Link`
-  - `[ADD DEMO VIDEO URL]`
+  - `https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing`
 - `X Post Link`
   - `[ADD BAZAAR X POST URL]`
 
@@ -69,9 +80,7 @@ Important truth rule:
 
 - `Email`: `[ADD SUBMISSION EMAIL]`
 - `Team Members & Contact Information`: `[ADD FINAL TEAM LIST]`
-- `Agentic Wallet Address`: `[ADD THE WALLET ADDRESS YOU WANT TO PASTE]`
-- `Live App URL`: `[ADD PUBLIC URL]`
-- `Demo Video Link`: `[ADD PUBLIC VIDEO URL]`
+- `Live App URL`: `https://bazaar-x-ten.vercel.app`
 - `X Post Link`: `[ADD PUBLIC X POST URL]`
 
 ## Covenant Skill / Skills Arena
@@ -117,7 +126,7 @@ Important truth rule:
 - `Supporting Docs`
   - `https://github.com/adidshaft/bazaar-x/tree/main/covenant-skill`
 - `Demo Video Link`
-  - `[ADD SKILL VIDEO URL OR REUSE BAZAAR X DEMO URL]`
+  - `https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing`
 - `X Post Link`
   - `[ADD COVENANT SKILL POST URL OR REUSE THE BAZAAR X POST IF ALLOWED]`
 
@@ -125,5 +134,5 @@ Important truth rule:
 
 - `Email`: `[ADD SUBMISSION EMAIL]`
 - `Team Members & Contact Information`: `[ADD FINAL TEAM LIST]`
-- `Demo Video Link`: `[ADD OR DECIDE TO OMIT IF OPTIONAL]`
+- `Demo Video Link`: `https://drive.google.com/file/d/1oVJtDceddJ6odSeMovJNVJATwuvjNSZ7/view?usp=sharing`
 - `X Post Link`: `[ADD IF REQUIRED]`
